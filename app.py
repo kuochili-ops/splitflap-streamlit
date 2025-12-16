@@ -85,6 +85,7 @@ def chunk_text_horizontal(s: str, width: int):
             lines.append(line); line = ""
     if line: lines.append(line)
     return lines
+
 # ---------- HTML 預覽（四層結構） ----------
 def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled):
     flap_bg, flap_gap_color, text_color, accent_color = colors
@@ -92,7 +93,7 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
 
     css = f"""
     <style>
-    /* CSS 動畫與樣式完整定義 */
+    /* 這裡放完整 CSS 動畫與樣式 */
     </style>
     """
 
@@ -122,6 +123,7 @@ colors = (flap_bg, flap_gap_color, text_color, accent_color)
 sizes = (char_w, char_h, spacing, padding, corner_radius)
 html = css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled)
 st.components.v1.html(html, height=400, scrolling=False)
+
 st.write("---")
 st.subheader("下載 PNG（靜態合成）")
 
@@ -130,38 +132,46 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
                         flap_bg, flap_gap_color, text_color,
                         accent_color, font, font_size,
                         orientation="水平"):
-    # ... PIL 合成程式碼完整定義 ...
-    return img
+    if orientation == "水平":
+        max_len = max(len(line) for line in lines) if lines else 1
+        rows = len(lines)
+        board_w = padding*2 + max_len*char_w + (max_len-1)*spacing
+        board_h = padding*2 + rows*char_h + (rows-1)*spacing
+    else:  # 直排
+        max_len = len(lines)
+        rows = max(len(line) for line in lines) if lines else 1
+        board_w = padding*2 + rows*char_w + (rows-1)*spacing
+        board_h = padding*2 + max_len*char_h + (max_len-1)*spacing
 
-# ---------- 呼叫 PIL 合成 ----------
-img = pil_splitflap_image(
-    lines, char_w, char_h, spacing, padding,
-    flap_bg, flap_gap_color, text_color, accent_color,
-    font, font_size, orientation
-)
-
-st.image(img, caption="PNG 預覽", use_column_width=True)
-
-buf = io.BytesIO()
-img.save(buf, format="PNG")
-st.download_button("下載 PNG", data=buf.getvalue(),
-                   file_name="splitflap.png", mime="image/png")
-
-# ---------- 四字重比較 ----------
-def preview_all_weights(test_text="字重比較 ABC123", size=48):
-    img = Image.new("RGB", (600, 300), "white")
+    img = Image.new("RGBA", (board_w, board_h), (0,0,0,0))
     draw = ImageDraw.Draw(img)
-    y = 20
-    for weight_name, font_file in weights.items():
-        font_path = os.path.join(font_dir, font_file)
-        try:
-            font = ImageFont.truetype(font_path, size)
-        except:
-            font = ImageFont.load_default()
-        draw.text((20, y), f"{weight_name}: {test_text}", fill="black", font=font)
-        y += size + 20
-    return img
+    draw.rectangle([0,0,board_w,board_h], fill=accent_color)
 
-st.subheader("四字重比較預覽")
-all_weights_img = preview_all_weights(size=font_size)
-st.image(all_weights_img, use_column_width=True)
+    if orientation == "水平":
+        y = padding
+        for line in lines:
+            x = padding
+            for ch in line:
+                draw.rectangle([x, y, x+char_w, y+char_h], fill=flap_bg)
+                mid = y + char_h//2
+                draw.line([(x, mid), (x+char_w, mid)], fill=flap_gap_color, width=1)
+
+                disp = ch if ch.strip() else " "
+                bbox = font.getbbox(disp)
+                tw = bbox[2] - bbox[0]
+                ascent, descent = font.getmetrics()
+                tx = x + (char_w - tw)//2
+                is_ascii = all(ord(c) < 128 for c in disp)
+                ty = y + (char_h - ascent)//2 - (int(font_size*0.08) if is_ascii else 0)
+                draw.text((tx, ty), disp, fill=text_color, font=font)
+
+                x += char_w + spacing
+            y += char_h + spacing
+    else:  # 直排
+        x = padding
+        for line in lines:
+            y = padding
+            for ch in line:
+                draw.rectangle([x, y, x+char_w, y+char_h], fill=flap_bg)
+                mid = y + char_h//2
+               

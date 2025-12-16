@@ -91,11 +91,99 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
     flap_bg, flap_gap_color, text_color, accent_color = colors
     char_w, char_h, spacing, padding, corner_radius = sizes
 
-    css = f"""
-    <style>
-    /* 這裡放完整 CSS 動畫與樣式 */
-    </style>
-    """
+css = f"""
+<style>
+.board {{
+  display: inline-block;
+  padding: {padding}px;
+  background: {accent_color};
+  border-radius: {corner_radius}px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35) inset, 0 8px 16px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.06);
+}}
+.row {{
+  display: flex;
+  {'flex-direction: column;' if orientation=='直排' else 'flex-direction: row;'}
+  gap: {spacing}px;
+  margin-bottom: {spacing}px;
+}}
+.cell {{
+  position: relative;
+  width: {char_w}px;
+  height: {char_h}px;
+  background: {flap_bg};
+  color: {text_color};
+  font-family: "JetBrains Mono", monospace;
+  font-size: {int(char_h*0.6)}px;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 6px;
+  overflow: hidden;
+}}
+.cell::before {{
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  height: 1px;
+  background: {flap_gap_color};
+}}
+.char-top-old, .char-top-new, .char-bottom-old, .char-bottom-new {{
+  display: block;
+  height: 50%;
+  overflow: hidden;
+  backface-visibility: hidden;
+}}
+.char-top-old span, .char-top-new span, .char-bottom-old span, .char-bottom-new span {{
+  display: block;
+  line-height: {char_h}px;
+}}
+.char-top-old {{ transform-origin: bottom; }}
+.char-top-new {{ transform-origin: bottom; }}
+.char-bottom-old {{ transform-origin: top; }}
+.char-bottom-new {{ transform-origin: top; }}
+
+@keyframes flipTopOld {{
+  0%   {{ transform: rotateX(0deg); }}
+  100% {{ transform: rotateX(-90deg); }}
+}}
+@keyframes flipTopNew {{
+  0%   {{ transform: rotateX(90deg); }}
+  100% {{ transform: rotateX(0deg); }}
+}}
+@keyframes flipBottomOld {{
+  0%   {{ transform: rotateX(0deg); }}
+  100% {{ transform: rotateX(90deg); }}
+}}
+@keyframes flipBottomNew {{
+  0%   {{ transform: rotateX(-90deg); }}
+  100% {{ transform: rotateX(0deg); }}
+}}
+
+.flip .char-top-old {{
+  animation: flipTopOld 0.3s ease-in forwards;
+}}
+.flip .char-top-new {{
+  animation: flipTopNew 0.3s ease-out forwards;
+  animation-delay: 0.3s;
+}}
+.flip .char-bottom-old {{
+  animation: flipBottomOld 0.3s ease-in forwards;
+}}
+.flip .char-bottom-new {{
+  animation: flipBottomNew 0.3s ease-out forwards;
+  animation-delay: 0.3s;
+}}
+
+.gloss {{
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,{gloss_strength}), rgba(0,0,0,0.4));
+  mix-blend-mode: overlay;
+}}
+</style>
+"""
 
     html = ['<div class="board">']
     for line in lines:

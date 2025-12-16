@@ -3,11 +3,25 @@ from PIL import Image, ImageDraw, ImageFont
 import textwrap
 import re
 # 指定字型路徑與大小
-font_path = "fonts/NotoSansTC-ExtraBold.ttf"
-font_size = 48
-font = ImageFont.truetype(font_path, font_size)
-st.set_page_config(page_title="Flip-board Text", page_icon="🪧", layout="centered")
+# 偵測 fonts 資料夾裡的所有 .ttf 檔案
+font_dir = "fonts"
+available_fonts = [f for f in os.listdir(font_dir) if f.lower().endswith(".ttf")]
 
+with st.sidebar:
+    st.header("字型設定")
+    selected_font = st.selectbox("選擇字型檔", available_fonts)
+    font_size = st.slider("字型大小 (PNG 輸出)", 20, 96, 48)
+
+def load_font(font_name, size):
+    try:
+        font_path = os.path.join(font_dir, font_name)
+        return ImageFont.truetype(font_path, size)
+    except OSError:
+        st.warning(f"字型載入失敗：{font_name}，改用預設字型")
+        return ImageFont.load_default()
+
+# 使用者選擇的字型
+font = load_font(selected_font, font_size)
 # ---------- UI ----------
 st.title("🪧 Flip-board / Split-flap 文字呈現")
 st.caption("輸入文字 → 翻頁板風格顯示（水平/直排、動畫、色彩、尺寸、PNG下載）")

@@ -194,4 +194,29 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
 
             tx = x + (char_w - tw)//2
             ty = y + (char_h - th)//2
-            draw.text((tx, ty), disp, fill=text_color, font=font
+            draw.text((tx, ty), disp, fill=text_color, font=font)
+
+            x += char_w + spacing
+        y += char_h + spacing
+
+    return img
+
+# 呼叫 PIL 合成函式
+img = pil_splitflap_image(
+    lines, char_w, char_h, spacing, padding,
+    flap_bg, flap_gap_color, text_color, accent_color,
+    font, font_size
+)
+
+# 顯示預覽
+st.image(img, caption="PNG 預覽", use_column_width=True)
+
+# 下載按鈕：轉成 bytes
+buf = io.BytesIO()
+img.save(buf, format="PNG")
+st.download_button(
+    "下載 PNG",
+    data=buf.getvalue(),
+    file_name="splitflap.png",
+    mime="image/png"
+)

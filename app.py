@@ -86,29 +86,105 @@ def chunk_text_horizontal(s: str, width: int):
     if line: lines.append(line)
     return lines
 # ---------- HTML 預覽（四層結構） ----------
-def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled):
+def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled, flip_speed):
     flap_bg, flap_gap_color, text_color, accent_color = colors
     char_w, char_h, spacing, padding, corner_radius = sizes
 
     css = f"""
     <style>
-    /* 完整 CSS 動畫定義 */
-    .board {{ display:inline-block; padding:{padding}px; background:{accent_color}; border-radius:{corner_radius}px; }}
-    .row {{ display:flex; {'flex-direction:column;' if orientation=='直排' else 'flex-direction:row;'} gap:{spacing}px; margin-bottom:{spacing}px; }}
-    .cell {{ position:relative; width:{char_w}px; height:{char_h}px; background:{flap_bg}; color:{text_color}; font-family:"JetBrains Mono", monospace; font-size:{int(char_h*0.6)}px; font-weight:600; text-align:center; border-radius:6px; overflow:hidden; }}
-    .cell::before {{ content:""; position:absolute; left:0; right:0; top:50%; height:1px; background:{flap_gap_color}; }}
-    .char-top-old,.char-top-new,.char-bottom-old,.char-bottom-new {{ display:block; height:50%; overflow:hidden; backface-visibility:hidden; }}
-    .char-top-old span,.char-top-new span,.char-bottom-old span,.char-bottom-new span {{ display:block; line-height:{char_h}px; }}
-    .char-top-old{{transform-origin:bottom;}} .char-top-new{{transform-origin:bottom;}} .char-bottom-old{{transform-origin:top;}} .char-bottom-new{{transform-origin:top;}}
-    @keyframes flipTopOld{{0%{{transform:rotateX(0deg);}}100%{{transform:rotateX(-90deg);}}}}
-    @keyframes flipTopNew{{0%{{transform:rotateX(90deg);}}100%{{transform:rotateX(0deg);}}}}
-    @keyframes flipBottomOld{{0%{{transform:rotateX(0deg);}}100%{{transform:rotateX(90deg);}}}}
-    @keyframes flipBottomNew{{0%{{transform:rotateX(-90deg);}}100%{{transform:rotateX(0deg);}}}}
-    .flip .char-top-old{{animation:flipTopOld 0.3s ease-in forwards;}}
-    .flip .char-top-new{{animation:flipTopNew 0.3s ease-out forwards; animation-delay:0.3s;}}
-    .flip .char-bottom-old{{animation:flipBottomOld 0.3s ease-in forwards;}}
-    .flip .char-bottom-new{{animation:flipBottomNew 0.3s ease-out forwards; animation-delay:0.3s;}}
-    .gloss{{pointer-events:none; position:absolute; inset:0; background:linear-gradient(180deg,rgba(255,255,255,{gloss_strength}),rgba(0,0,0,0.4)); mix-blend-mode:overlay;}}
+    .board {{
+      display: inline-block;
+      padding: {padding}px;
+      background: {accent_color};
+      border-radius: {corner_radius}px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35) inset, 0 8px 16px rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.06);
+    }}
+    .row {{
+      display: flex;
+      {'flex-direction: column;' if orientation=='直排' else 'flex-direction: row;'}
+      gap: {spacing}px;
+      margin-bottom: {spacing}px;
+    }}
+    .cell {{
+      position: relative;
+      width: {char_w}px;
+      height: {char_h}px;
+      background: {flap_bg};
+      color: {text_color};
+      font-family: "JetBrains Mono", monospace;
+      font-size: {int(char_h*0.6)}px;
+      font-weight: 600;
+      text-align: center;
+      border-radius: 6px;
+      overflow: hidden;
+    }}
+    .cell::before {{
+      content: "";
+      position: absolute;
+      left: 0; right: 0;
+      top: 50%;
+      height: 1px;
+      background: {flap_gap_color};
+    }}
+    .char-top-old, .char-top-new, .char-bottom-old, .char-bottom-new {{
+      display: block;
+      height: 50%;
+      overflow: hidden;
+      backface-visibility: hidden;
+    }}
+    .char-top-old span, .char-top-new span {{
+      display: block;
+      line-height: {char_h/2}px;
+    }}
+    .char-bottom-old span, .char-bottom-new span {{
+      display: block;
+      line-height: {char_h/2}px;
+    }}
+    .char-top-old {{ transform-origin: bottom; }}
+    .char-top-new {{ transform-origin: bottom; }}
+    .char-bottom-old {{ transform-origin: top; }}
+    .char-bottom-new {{ transform-origin: top; }}
+
+    @keyframes flipTopOld {{
+      0%   {{ transform: rotateX(0deg); }}
+      100% {{ transform: rotateX(-90deg); }}
+    }}
+    @keyframes flipTopNew {{
+      0%   {{ transform: rotateX(90deg); }}
+      100% {{ transform: rotateX(0deg); }}
+    }}
+    @keyframes flipBottomOld {{
+      0%   {{ transform: rotateX(0deg); }}
+      100% {{ transform: rotateX(90deg); }}
+    }}
+    @keyframes flipBottomNew {{
+      0%   {{ transform: rotateX(-90deg); }}
+      100% {{ transform: rotateX(0deg); }}
+    }}
+
+    .flip .char-top-old {{
+      animation: flipTopOld {flip_speed}s ease-in forwards;
+    }}
+    .flip .char-top-new {{
+      animation: flipTopNew {flip_speed}s ease-out forwards;
+      animation-delay: {flip_speed}s;
+    }}
+    .flip .char-bottom-old {{
+      animation: flipBottomOld {flip_speed}s ease-in forwards;
+    }}
+    .flip .char-bottom-new {{
+      animation: flipBottomNew {flip_speed}s ease-out forwards;
+      animation-delay: {flip_speed}s;
+    }}
+
+    .gloss {{
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,{gloss_strength}), rgba(0,0,0,0.4));
+      mix-blend-mode: overlay;
+    }}
     </style>
     """
 
@@ -117,7 +193,7 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
         html.append('<div class="row">')
         for ch in line:
             safe = ch if ch.strip() else "&nbsp;"
-            cell_class = "flip" if flip_enabled and ch in ["2","0","5"] else ""
+            cell_class = "flip" if flip_enabled else ""
             html.append(f'''
               <div class="cell {cell_class}">
                 <div class="char-top-old"><span>{safe}</span></div>
@@ -136,10 +212,12 @@ s = normalize_text(text)
 lines = chunk_text_horizontal(s, cols)
 colors = (flap_bg, flap_gap_color, text_color, accent_color)
 sizes = (char_w, char_h, spacing, padding, corner_radius)
-html = css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled)
+
+# 新增速度控制 slider
+flip_speed = st.sidebar.slider("翻動速度 (秒)", 0.1, 1.0, 0.3, step=0.1)
+
+html = css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled, flip_speed)
 st.components.v1.html(html, height=400, scrolling=False)
-st.write("---")
-st.subheader("下載 PNG（靜態合成）")
 
 # ---------- PIL 靜態合成 ----------
 def pil_splitflap_image(lines, char_w, char_h, spacing, padding,

@@ -181,10 +181,13 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
     for line in lines:
         x = padding
         for ch in line:
+            # 每個字格背景
             draw.rectangle([x, y, x+char_w, y+char_h], fill=flap_bg)
+            # 中線（翻頁縫）
             mid = y + char_h//2
             draw.line([(x, mid), (x+char_w, mid)], fill=flap_gap_color, width=1)
 
+            # 文字置中
             disp = ch if ch.strip() else " "
             try:
                 bbox = font.getbbox(disp)

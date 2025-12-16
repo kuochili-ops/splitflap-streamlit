@@ -118,12 +118,8 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
       font-family: "JetBrains Mono", monospace;
       font-size: {int(char_h*0.6)}px;
       font-weight: 600;
-      line-height: {char_h}px;
       text-align: center;
       border-radius: 6px;
-      box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset,
-                  0 -1px 0 rgba(0,0,0,0.4) inset,
-                  0 4px 8px rgba(0,0,0,0.45);
       overflow: hidden;
     }}
     .cell::before {{
@@ -134,29 +130,39 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
       height: 1px;
       background: {flap_gap_color};
     }}
+    .char-top, .char-bottom {{
+      display: block;
+      height: 50%;
+      overflow: hidden;
+      backface-visibility: hidden;
+    }}
+    .char-top {{
+      transform-origin: bottom;
+    }}
+    .char-bottom {{
+      transform-origin: top;
+    }}
+    @keyframes flipTop {{
+      0%   {{ transform: rotateX(0deg); }}
+      100% {{ transform: rotateX(-90deg); }}
+    }}
+    @keyframes flipBottom {{
+      0%   {{ transform: rotateX(90deg); }}
+      100% {{ transform: rotateX(0deg); }}
+    }}
+    .flip .char-top {{
+      animation: flipTop 0.3s ease-in forwards;
+    }}
+    .flip .char-bottom {{
+      animation: flipBottom 0.3s ease-out forwards;
+      animation-delay: 0.3s;
+    }}
     .gloss {{
       pointer-events: none;
       position: absolute;
       inset: 0;
       background: linear-gradient(180deg, rgba(255,255,255,{gloss_strength}), rgba(0,0,0,0.4));
       mix-blend-mode: overlay;
-    }}
-    .char {{
-      position: relative;
-      display: block;
-      width: 100%;
-      height: 100%;
-      transform-origin: center;
-      transform-style: preserve-3d;
-      backface-visibility: hidden;
-    }}
-    @keyframes flap {{
-      0%   {{ transform: rotateX(0deg); }}
-      50%  {{ transform: rotateX(-180deg); }}
-      100% {{ transform: rotateX(0deg); }}
-    }}
-    .flip .char {{
-      animation: flap 1.5s ease-in-out infinite;
     }}
     </style>
     """
@@ -172,7 +178,8 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
                 cell_class = ""
             html.append(f'''
               <div class="cell {cell_class}">
-                <span class="char">{safe}</span>
+                <span class="char-top">{safe}</span>
+                <span class="char-bottom">{safe}</span>
                 <span class="gloss"></span>
               </div>
             ''')

@@ -166,7 +166,9 @@ st.write("---")
 st.subheader("下載 PNG（靜態合成）")
 
 # ---------- PIL static render ----------
-def pil_splitflap_image(lines, char_w, char_h, spacing, padding, flap_bg, flap_gap_color, text_color, accent_color, font, font_size):
+def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
+                        flap_bg, flap_gap_color, text_color,
+                        accent_color, font, font_size):
     max_len = max(len(line) for line in lines) if lines else 1
     rows = len(lines)
     board_w = padding*2 + max_len*char_w + (max_len-1)*spacing
@@ -183,13 +185,34 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding, flap_bg, flap_g
             draw.rectangle([x, y, x+char_w, y+char_h], fill=flap_bg)
             mid = y + char_h//2
             draw.line([(x, mid), (x+char_w, mid)], fill=flap_gap_color, width=1)
+
             disp = ch if ch.strip() else " "
             tw, th = draw.textsize(disp, font=font)
             tx = x + (char_w - tw)//2
             ty = y + (char_h - th)//2
             draw.text((tx, ty), disp, fill=text_color, font=font)
+
             x += char_w + spacing
         y += char_h + spacing
     return img
 
-img = pil_splitflap_image(lines, char
+# 呼叫函式並顯示圖片
+img = pil_splitflap_image(
+    lines, char_w, char_h, spacing, padding,
+    flap_bg, flap_gap_color, text_color, accent_color,
+    font, font_size
+)
+
+st.image(img, caption="PNG 預覽", use_column_width=True)
+
+# 下載按鈕：把 PIL Image 轉成 bytes
+import io
+buf = io.BytesIO()
+img.save(buf, format="PNG")
+st.download_button(
+    "下載 PNG",
+    data=buf.getvalue(),
+    file_name="splitflap.png",
+    mime="image/png"
+)
+

@@ -86,8 +86,6 @@ def chunk_text_horizontal(s: str, width: int):
             lines.append(line); line = ""
     if line: lines.append(line)
     return lines
-
-# ---------- HTML 預覽（四層結構） ----------
 # ---------- Render HTML ----------
 s = normalize_text(text)
 lines = chunk_text_horizontal(s, cols)

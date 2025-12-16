@@ -29,6 +29,22 @@ def load_font(font_name, size):
 
 font = load_font(selected_font, font_size)
 
+# ---------- 字型即時預覽 ----------
+with st.sidebar:
+    st.write("字型預覽：")
+    preview_img = Image.new("RGB", (400, 100), "white")
+    draw = ImageDraw.Draw(preview_img)
+    test_text = "測試字型 ABC123"
+    try:
+        bbox = font.getbbox(test_text)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    except AttributeError:
+        tw, th = font.getsize(test_text)
+    tx = (400 - tw)//2
+    ty = (100 - th)//2
+    draw.text((tx, ty), test_text, fill="black", font=font)
+    st.image(preview_img, use_column_width=True)
+
 # ---------- UI ----------
 st.title("🪧 Flip-board / Split-flap 文字呈現")
 st.caption("輸入文字 → 翻頁板風格顯示（水平/直排、動畫、色彩、尺寸、PNG下載）")

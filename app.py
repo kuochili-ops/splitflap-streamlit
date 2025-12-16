@@ -89,7 +89,7 @@ def chunk_text_horizontal(s: str, width: int):
     return lines
 
        <div class="char-bottom-old"><span>{safe}</span></div>
-          # ---------- HTML 預覽（上下半部裁切翻牌） ----------
+# ---------- HTML 預覽（上下半部裁切翻牌） ----------
 def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled, flip_speed):
     flap_bg, flap_gap_color, text_color, accent_color = colors
     char_w, char_h, spacing, padding, corner_radius = sizes
@@ -157,7 +157,7 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
             safe = ch if ch.strip() else "&nbsp;"
             new_char = next_char[ch] if ch in next_char else ch
             cell_class = "flip" if flip_enabled else ""
-            html.append(f'''
+            html.append(f"""
               <div class="cell {cell_class}">
                 <div class="char-top-old"><span>{safe}</span></div>
                 <div class="char-top-new"><span>{new_char}</span></div>
@@ -165,7 +165,7 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
                 <div class="char-bottom-new"><span>{new_char}</span></div>
                 <span class="gloss"></span>
               </div>
-            ''')
+            """)
         html.append('</div>')
     html.append('</div>')
     return css + "\n" + "\n".join(html)

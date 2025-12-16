@@ -129,13 +129,11 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
       top: 50%;
       height: 1px;
       background: {flap_gap_color};
-      /* 移除白色反光，不要 box-shadow */
     }}
     .gloss {{
       pointer-events: none;
       position: absolute;
       inset: 0;
-      /* 改成暗色漸層，避免白色反光 */
       background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.25));
       mix-blend-mode: soft-light;
     }}
@@ -144,20 +142,19 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
       display: block;
       width: 100%;
       height: 100%;
-      transform-origin: 50% 50%;
+      transform-origin: center;
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
     }}
     @keyframes flap {{
       0%   {{ transform: rotateX(0deg); }}
-      49%  {{ transform: rotateX(-88deg); }}
-      51%  {{ transform: rotateX(88deg); }}
+      50%  {{ transform: rotateX(-180deg); }}
       100% {{ transform: rotateX(0deg); }}
     }}
     .flip .char {{
-      animation: flap 1s ease-in-out infinite;
+      animation: flap 1.5s ease-in-out infinite;
     }}
     </style>
-    """
-    ...
     """
 
     html = ['<div class="board">']
@@ -270,10 +267,8 @@ st.download_button("下載 PNG", data=buf.getvalue(),
 
 # ---------- 四字重比較 ----------
 def preview_all_weights(test_text="字重比較 ABC123", size=48):
-    # 建立一張圖片，四行文字，每行一個字重
     img = Image.new("RGB", (600, 300), "white")
     draw = ImageDraw.Draw(img)
-
     y = 20
     for weight_name, font_file in weights.items():
         font_path = os.path.join(font_dir, font_file)
@@ -283,10 +278,8 @@ def preview_all_weights(test_text="字重比較 ABC123", size=48):
             font = ImageFont.load_default()
         draw.text((20, y), f"{weight_name}: {test_text}", fill="black", font=font)
         y += size + 20
-
     return img
 
-# 顯示四字重比較
 st.subheader("四字重比較預覽")
 all_weights_img = preview_all_weights(size=font_size)
 st.image(all_weights_img, use_column_width=True)

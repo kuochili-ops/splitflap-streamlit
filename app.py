@@ -69,7 +69,6 @@ with st.sidebar:
     padding = st.slider("外框邊距 (px)", 4, 40, 12)
     corner_radius = st.slider("外框圓角 (px)", 0, 24, 8)
 
-    # 新增控制項
     gloss_strength = st.slider("面板反光強度", 0.0, 0.5, 0.2, step=0.05)
     flip_enabled = st.checkbox("啟動翻板動畫", value=True)
 
@@ -136,6 +135,16 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
       overflow: hidden;
       backface-visibility: hidden;
     }}
+    .char-top span, .char-bottom span {{
+      display: block;
+      line-height: {char_h}px;
+    }}
+    .char-top span {{
+      transform: translateY(0);
+    }}
+    .char-bottom span {{
+      transform: translateY(-50%);
+    }}
     .char-top {{
       transform-origin: bottom;
     }}
@@ -178,8 +187,8 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
                 cell_class = ""
             html.append(f'''
               <div class="cell {cell_class}">
-                <span class="char-top">{safe}</span>
-                <span class="char-bottom">{safe}</span>
+                <div class="char-top"><span>{safe}</span></div>
+                <div class="char-bottom"><span>{safe}</span></div>
                 <span class="gloss"></span>
               </div>
             ''')

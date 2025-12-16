@@ -88,7 +88,8 @@ def chunk_text_horizontal(s: str, width: int):
     if line: lines.append(line)
     return lines
 
-# ---------- HTML 預覽（數字上下半部翻牌） ----------
+       <div class="char-bottom-old"><span>{safe}</span></div>
+          # ---------- HTML 預覽（上下半部裁切翻牌） ----------
 def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled, flip_speed):
     flap_bg, flap_gap_color, text_color, accent_color = colors
     char_w, char_h, spacing, padding, corner_radius = sizes
@@ -108,21 +109,41 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
              font-family:"JetBrains Mono", monospace; font-size:{int(char_h*0.6)}px; font-weight:600; text-align:center;
              border-radius:6px; overflow:hidden; }}
     .cell::before {{ content:""; position:absolute; left:0; right:0; top:50%; height:1px; background:{flap_gap_color}; }}
-    .char-top-old,.char-top-new,.char-bottom-old,.char-bottom-new {{ display:block; height:50%; overflow:hidden; backface-visibility:hidden; }}
-    .char-top-old span,.char-top-new span {{ display:block; line-height:{char_h/2}px; }}
-    .char-bottom-old span,.char-bottom-new span {{ display:block; line-height:{char_h/2}px; }}
-    .char-top-old{{transform-origin:bottom;}} .char-top-new{{transform-origin:bottom;}}
-    .char-bottom-old{{transform-origin:top;}} .char-bottom-new{{transform-origin:top;}}
 
-    @keyframes flipTopOld{{0%{{transform:rotateX(0deg);}}100%{{transform:rotateX(-90deg);}}}}
-    @keyframes flipTopNew{{0%{{transform:rotateX(90deg);}}100%{{transform:rotateX(0deg);}}}}
-    @keyframes flipBottomOld{{0%{{transform:rotateX(0deg);}}100%{{transform:rotateX(90deg);}}}}
-    @keyframes flipBottomNew{{0%{{transform:rotateX(-90deg);}}100%{{transform:rotateX(0deg);}}}}
+    .char-top-old,.char-top-new,.char-bottom-old,.char-bottom-new {{
+      position: absolute;
+      left: 0; right: 0;
+      height: 50%;
+      overflow: hidden;
+      backface-visibility: hidden;
+    }}
+    .char-top-old span,.char-top-new span {{
+      display:block;
+      clip-path: inset(0 0 50% 0); /* 上半部裁切 */
+      height:{char_h/2}px;
+      line-height:{char_h}px;
+    }}
+    .char-bottom-old span,.char-bottom-new span {{
+      display:block;
+      clip-path: inset(50% 0 0 0); /* 下半部裁切 */
+      height:{char_h/2}px;
+      line-height:{char_h}px;
+    }}
 
-    .flip .char-top-old{{animation:flipTopOld {flip_speed}s ease-in forwards;}}
-    .flip .char-bottom-new{{animation:flipBottomNew {flip_speed}s ease-out forwards; animation-delay:{flip_speed}s;}}
-    .flip .char-bottom-old{{animation:flipBottomOld {flip_speed}s ease-in forwards;}}
-    .flip .char-top-new{{animation:flipTopNew {flip_speed}s ease-out forwards; animation-delay:{flip_speed}s;}}
+    .char-top-old {{ top:0; transform-origin:bottom; }}
+    .char-top-new {{ top:0; transform-origin:bottom; }}
+    .char-bottom-old {{ bottom:0; transform-origin:top; }}
+    .char-bottom-new {{ bottom:0; transform-origin:top; }}
+
+    @keyframes flipTopOld {{ 0% {{ transform: rotateX(0deg); }} 100% {{ transform: rotateX(-90deg); }} }}
+    @keyframes flipBottomNew {{ 0% {{ transform: rotateX(-90deg); }} 100% {{ transform: rotateX(0deg); }} }}
+    @keyframes flipBottomOld {{ 0% {{ transform: rotateX(0deg); }} 100% {{ transform: rotateX(90deg); }} }}
+    @keyframes flipTopNew {{ 0% {{ transform: rotateX(90deg); }} 100% {{ transform: rotateX(0deg); }} }}
+
+    .flip .char-top-old {{ animation: flipTopOld {flip_speed}s ease-in forwards; }}
+    .flip .char-bottom-new {{ animation: flipBottomNew {flip_speed}s ease-out forwards; animation-delay:{flip_speed}s; }}
+    .flip .char-bottom-old {{ animation: flipBottomOld {flip_speed}s ease-in forwards; }}
+    .flip .char-top-new {{ animation: flipTopNew {flip_speed}s ease-out forwards; animation-delay:{flip_speed}s; }}
 
     .gloss{{pointer-events:none; position:absolute; inset:0;
             background:linear-gradient(180deg,rgba(255,255,255,{gloss_strength}),rgba(0,0,0,0.4)); mix-blend-mode:overlay;}}

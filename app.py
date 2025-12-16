@@ -163,7 +163,7 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
         for ch in line:
             safe = ch if ch.strip() else "&nbsp;"
             # 只有 "2025" 持續翻動
-            if ch in ["2", "0", "2", "5"]:
+            if ch in ["2", "0", "5"]:
                 cell_class = "flip"
             else:
                 cell_class = ""
@@ -188,7 +188,17 @@ st.markdown(html, unsafe_allow_html=True)
 st.write("---")
 st.subheader("下載 PNG（靜態合成）")
 
-    else:
+# ---------- PIL 靜態合成 ----------
+def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
+                        flap_bg, flap_gap_color, text_color,
+                        accent_color, font, font_size,
+                        orientation="水平"):
+    if orientation == "水平":
+        max_len = max(len(line) for line in lines) if lines else 1
+        rows = len(lines)
+        board_w = padding*2 + max_len*char_w + (max_len-1)*spacing
+        board_h = padding*2 + rows*char_h + (rows-1)*spacing
+    else:  # 直排
         max_len = len(lines)
         rows = max(len(line) for line in lines) if lines else 1
         board_w = padding*2 + rows*char_w + (rows-1)*spacing
@@ -212,7 +222,6 @@ st.subheader("下載 PNG（靜態合成）")
                 tw = bbox[2] - bbox[0]
                 ascent, descent = font.getmetrics()
                 tx = x + (char_w - tw)//2
-                # 中英文置中修正：英文字稍微上移
                 is_ascii = all(ord(c) < 128 for c in disp)
                 ty = y + (char_h - ascent)//2 - (int(font_size*0.08) if is_ascii else 0)
                 draw.text((tx, ty), disp, fill=text_color, font=font)
@@ -242,7 +251,7 @@ st.subheader("下載 PNG（靜態合成）")
 
     return img
 
-# 呼叫 PIL 合成
+# ---------- 呼叫 PIL 合成 ----------
 img = pil_splitflap_image(
     lines, char_w, char_h, spacing, padding,
     flap_bg, flap_gap_color, text_color, accent_color,
@@ -256,7 +265,7 @@ img.save(buf, format="PNG")
 st.download_button("下載 PNG", data=buf.getvalue(),
                    file_name="splitflap.png", mime="image/png")
 
-# 四字重比較
+# ---------- 四字重比較 ----------
 def preview_all_weights(test_text="字重比較 ABC123", size=48):
     # 建立一張圖片，四行文字，每行一個字重
     img = Image.new("RGB", (600, 300), "white")

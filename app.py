@@ -129,13 +129,14 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
       top: 50%;
       height: 1px;
       background: {flap_gap_color};
-      box-shadow: 0 1px 0 rgba(255,255,255,0.06);
+      /* 移除白色反光，不要 box-shadow */
     }}
     .gloss {{
       pointer-events: none;
       position: absolute;
       inset: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.25));
+      /* 改成暗色漸層，避免白色反光 */
+      background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.25));
       mix-blend-mode: soft-light;
     }}
     .char {{
@@ -155,6 +156,8 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
       animation: flap 1s ease-in-out infinite;
     }}
     </style>
+    """
+    ...
     """
 
     html = ['<div class="board">']

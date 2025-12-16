@@ -1,11 +1,15 @@
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
-import textwrap
-import re
-# 指定字型路徑與大小
-# 偵測 fonts 資料夾裡的所有 .ttf 檔案
+import os, re
+
+# ---------- 字型偵測 ----------
 font_dir = "fonts"
+if not os.path.exists(font_dir):
+    os.makedirs(font_dir)
+
 available_fonts = [f for f in os.listdir(font_dir) if f.lower().endswith(".ttf")]
+if not available_fonts:
+    available_fonts = ["(無字型檔，使用預設字型)"]
 
 with st.sidebar:
     st.header("字型設定")
@@ -14,14 +18,18 @@ with st.sidebar:
 
 def load_font(font_name, size):
     try:
-        font_path = os.path.join(font_dir, font_name)
-        return ImageFont.truetype(font_path, size)
+        if font_name and font_name.endswith(".ttf"):
+            font_path = os.path.join(font_dir, font_name)
+            if os.path.exists(font_path):
+                return ImageFont.truetype(font_path, size)
+        return ImageFont.load_default()
     except OSError:
         st.warning(f"字型載入失敗：{font_name}，改用預設字型")
         return ImageFont.load_default()
 
 # 使用者選擇的字型
 font = load_font(selected_font, font_size)
+
 # ---------- UI ----------
 st.title("🪧 Flip-board / Split-flap 文字呈現")
 st.caption("輸入文字 → 翻頁板風格顯示（水平/直排、動畫、色彩、尺寸、PNG下載）")
@@ -44,58 +52,25 @@ with st.sidebar:
     padding = st.slider("外框邊距 (px)", 4, 40, 12)
     corner_radius = st.slider("外框圓角 (px)", 0, 24, 8)
 
-    st.write("---")
-    font_name = st.selectbox("字型（PIL 用於輸出 PNG）", ["Auto", "NotoSansTC-Regular.ttf", "JetBrainsMono-Regular.ttf"])
-    font_size = st.slider("字型大小 (PNG 輸出)", 20, 96, 48)
-
 # ---------- Utils ----------
 def normalize_text(s: str) -> str:
-    # 保留常見可見字符，移除控制符
-    s = re.sub(r"[^\S\r\n]", " ", s)  # unify spaces
-    return s
+    return re.sub(r"[^\S\r\n]", " ", s)
 
 def chunk_text_horizontal(s: str, width: int):
-    # 按字元切塊，非單詞換行，保留空格
-    lines = []
-    line = ""
+    lines, line = [], ""
     for ch in s:
         if ch == "\n":
-            lines.append(line)
-            line = ""
-            continue
+            lines.append(line); line = ""; continue
         line += ch
         if len(line) >= width:
-            lines.append(line)
-            line = ""
-    if line:
-        lines.append(line)
+            lines.append(line); line = ""
+    if line: lines.append(line)
     return lines
-
-def chunk_text_vertical(s: str, height: int):
-    # 直排：每列只放一個字（或指定字數），以列為單位堆疊
-    # 這裡仍用 cols 當「每列最大字數」，但直排會把每列視為一個「縱列」
-    # 實作上：切成多列，每列最多 cols 個字
-    cols_list = []
-    line = ""
-    for ch in s:
-        if ch == "\n":
-            if line:
-                cols_list.append(line)
-                line = ""
-            continue
-        line += ch
-        if len(line) >= height:
-            cols_list.append(line)
-            line = ""
-    if line:
-        cols_list.append(line)
-    return cols_list
 
 def css_splitflap_container_html(lines, orientation, animate, colors, sizes):
     flap_bg, flap_gap_color, text_color, accent_color = colors
     char_w, char_h, spacing, padding, corner_radius = sizes
 
-    # base CSS
     css = f"""
     <style>
     .board {{
@@ -118,17 +93,15 @@ def css_splitflap_container_html(lines, orientation, animate, colors, sizes):
       height: {char_h}px;
       background: {flap_bg};
       color: {text_color};
-      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-family: "JetBrains Mono", monospace;
       font-size: {int(char_h*0.6)}px;
       font-weight: 600;
       line-height: {char_h}px;
       text-align: center;
-      text-transform: none;
       border-radius: 6px;
-      box-shadow:
-        0 1px 0 rgba(255,255,255,0.05) inset,
-        0 -1px 0 rgba(0,0,0,0.4) inset,
-        0 4px 8px rgba(0,0,0,0.45);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset,
+                  0 -1px 0 rgba(0,0,0,0.4) inset,
+                  0 4px 8px rgba(0,0,0,0.45);
       overflow: hidden;
     }}
     .cell::before {{
@@ -139,7 +112,6 @@ def css_splitflap_container_html(lines, orientation, animate, colors, sizes):
       height: 1px;
       background: {flap_gap_color};
       box-shadow: 0 1px 0 rgba(255,255,255,0.06);
-      transform: translateY(-0.5px);
     }}
     .gloss {{
       pointer-events: none;
@@ -153,27 +125,23 @@ def css_splitflap_container_html(lines, orientation, animate, colors, sizes):
       display: block;
       width: 100%;
       height: 100%;
-      will-change: transform;
       transform-origin: 50% 50%;
     }}
     @keyframes flap {{
-      0% {{ transform: rotateX(0deg); filter: brightness(1); }}
-      49% {{ transform: rotateX(-88deg); filter: brightness(0.6); }}
-      51% {{ transform: rotateX(88deg); filter: brightness(0.6); }}
-      100% {{ transform: rotateX(0deg); filter: brightness(1); }}
+      0% {{ transform: rotateX(0deg); }}
+      49% {{ transform: rotateX(-88deg); }}
+      51% {{ transform: rotateX(88deg); }}
+      100% {{ transform: rotateX(0deg); }}
     }}
-    .anim .char {{
-      animation: {"flap 0.5s ease-in-out"}; 
-    }}
+    .anim .char {{ animation: flap 0.5s ease-in-out; }}
     </style>
     """
 
-    # HTML
     html = ['<div class="board">']
     for line in lines:
         html.append('<div class="row">')
         for ch in line:
-            safe = ch if ch.strip() != "" else "&nbsp;"
+            safe = ch if ch.strip() else "&nbsp;"
             html.append(f'''
               <div class="cell {'anim' if animate else ''}">
                 <span class="char">{safe}</span>
@@ -186,13 +154,7 @@ def css_splitflap_container_html(lines, orientation, animate, colors, sizes):
 
 # ---------- Layout compute ----------
 s = normalize_text(text)
-
-if orientation == "水平":
-    lines = chunk_text_horizontal(s, cols)
-else:
-    # 直排：用「多列」概念，一列最多 cols 個字；視覺上每列垂直排列
-    lines = chunk_text_horizontal(s, cols)  # 簡化：先按 cols 切，再以 column 呈現
-    # 若要更嚴謹的縱書格式，之後可將 writing-mode 改成 vertical-rl 並處理標點旋轉
+lines = chunk_text_horizontal(s, cols)
 
 # ---------- Render HTML preview ----------
 colors = (flap_bg, flap_gap_color, text_color, accent_color)
@@ -204,8 +166,7 @@ st.write("---")
 st.subheader("下載 PNG（靜態合成）")
 
 # ---------- PIL static render ----------
-def pil_splitflap_image(lines, char_w, char_h, spacing, padding, flap_bg, flap_gap_color, text_color, accent_color, font_name, font_size):
-    # 計算畫布尺寸
+def pil_splitflap_image(lines, char_w, char_h, spacing, padding, flap_bg, flap_gap_color, text_color, accent_color, font, font_size):
     max_len = max(len(line) for line in lines) if lines else 1
     rows = len(lines)
     board_w = padding*2 + max_len*char_w + (max_len-1)*spacing
@@ -213,50 +174,22 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding, flap_bg, flap_g
 
     img = Image.new("RGBA", (board_w, board_h), (0,0,0,0))
     draw = ImageDraw.Draw(img)
-
-    # 外框
-    # 簡化：用矩形替代圓角（可再優化）
     draw.rectangle([0,0,board_w,board_h], fill=accent_color)
 
-    # 字型
-    font = None
-    if font_name != "Auto":
-        try:
-            font = ImageFont.truetype(f"assets/fonts/{font_name}", font_size)
-        except:
-            font = ImageFont.load_default()
-    else:
-        try:
-            font = ImageFont.truetype("assets/fonts/NotoSansTC-Regular.ttf", font_size)
-        except:
-            font = ImageFont.load_default()
-
-    # 繪製每個字格
     y = padding
     for line in lines:
         x = padding
         for ch in line:
             draw.rectangle([x, y, x+char_w, y+char_h], fill=flap_bg)
-            # 中線（翻頁縫）
             mid = y + char_h//2
             draw.line([(x, mid), (x+char_w, mid)], fill=flap_gap_color, width=1)
-
-            # 高光陰影（簡版）
-            draw.line([(x, y), (x+char_w, y)], fill=(255,255,255,20), width=1)
-            draw.line([(x, y+char_h), (x+char_w, y+char_h)], fill=(0,0,0,60), width=1)
-
-            # 文字置中
-            disp = ch if ch.strip() != "" else " "
+            disp = ch if ch.strip() else " "
             tw, th = draw.textsize(disp, font=font)
             tx = x + (char_w - tw)//2
             ty = y + (char_h - th)//2
             draw.text((tx, ty), disp, fill=text_color, font=font)
-
             x += char_w + spacing
         y += char_h + spacing
-
     return img
 
-img = pil_splitflap_image(lines, char_w, char_h, spacing, padding, flap_bg, flap_gap_color, text_color, accent_color, font_name, font_size)
-st.image(img, caption="PNG 預覽", use_column_width=True)
-st.download_button("下載 PNG", data=img.to_bytes(), file_name="splitflap.png", mime="image/png")
+img = pil_splitflap_image(lines, char

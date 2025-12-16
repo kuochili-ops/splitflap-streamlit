@@ -69,6 +69,10 @@ with st.sidebar:
     padding = st.slider("外框邊距 (px)", 4, 40, 12)
     corner_radius = st.slider("外框圓角 (px)", 0, 24, 8)
 
+    # 新增控制項
+    gloss_strength = st.slider("面板反光強度", 0.0, 0.5, 0.2, step=0.05)
+    flip_enabled = st.checkbox("啟動翻板動畫", value=True)
+
 # ---------- Utils ----------
 def normalize_text(s: str) -> str:
     return re.sub(r"[^\S\r\n]", " ", s)
@@ -85,7 +89,7 @@ def chunk_text_horizontal(s: str, width: int):
     return lines
 
 # ---------- HTML 預覽 ----------
-def css_splitflap_container_html(lines, orientation, colors, sizes):
+def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled):
     flap_bg, flap_gap_color, text_color, accent_color = colors
     char_w, char_h, spacing, padding, corner_radius = sizes
 
@@ -134,7 +138,7 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
       pointer-events: none;
       position: absolute;
       inset: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(0,0,0,0.4));
+      background: linear-gradient(180deg, rgba(255,255,255,{gloss_strength}), rgba(0,0,0,0.4));
       mix-blend-mode: overlay;
     }}
     .char {{
@@ -162,8 +166,7 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
         html.append('<div class="row">')
         for ch in line:
             safe = ch if ch.strip() else "&nbsp;"
-            # 只有 "2025" 持續翻動
-            if ch in ["2", "0", "2", "5"]:
+            if flip_enabled and ch in ["2","0","2","5"]:
                 cell_class = "flip"
             else:
                 cell_class = ""
@@ -176,17 +179,6 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
         html.append('</div>')
     html.append('</div>')
     return css + "\n" + "\n".join(html)
-
-# ---------- Render HTML ----------
-s = normalize_text(text)
-lines = chunk_text_horizontal(s, cols)
-colors = (flap_bg, flap_gap_color, text_color, accent_color)
-sizes = (char_w, char_h, spacing, padding, corner_radius)
-html = css_splitflap_container_html(lines, orientation, colors, sizes)
-st.markdown(html, unsafe_allow_html=True)
-
-st.write("---")
-st.subheader("下載 PNG（靜態合成）")
 
 # ---------- PIL 靜態合成 ----------
 def pil_splitflap_image(lines, char_w, char_h, spacing, padding,

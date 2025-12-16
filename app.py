@@ -2,7 +2,10 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
 import re
-
+# 指定字型路徑與大小
+font_path = "fonts/NotoSansTC-ExtraBold.ttf"
+font_size = 48
+font = ImageFont.truetype(font_path, font_size)
 st.set_page_config(page_title="Flip-board Text", page_icon="🪧", layout="centered")
 
 # ---------- UI ----------

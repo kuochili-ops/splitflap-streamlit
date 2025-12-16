@@ -134,8 +134,8 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
       pointer-events: none;
       position: absolute;
       inset: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.15), rgba(0,0,0,0.25));
-      mix-blend-mode: soft-light;
+      background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(0,0,0,0.4));
+      mix-blend-mode: overlay;
     }}
     .char {{
       position: relative;
@@ -163,7 +163,7 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
         for ch in line:
             safe = ch if ch.strip() else "&nbsp;"
             # 只有 "2025" 持續翻動
-            if ch in ["2", "0", "5"]:
+            if ch in ["2", "0", "2", "5"]:
                 cell_class = "flip"
             else:
                 cell_class = ""

@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
-import os, re
+import os, re, io
 
 # ---------- 字型偵測 ----------
 font_dir = "fonts"
@@ -27,7 +27,6 @@ def load_font(font_name, size):
         st.warning(f"字型載入失敗：{font_name}，改用預設字型")
         return ImageFont.load_default()
 
-# 使用者選擇的字型
 font = load_font(selected_font, font_size)
 
 # ---------- UI ----------
@@ -186,41 +185,12 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
             mid = y + char_h//2
             draw.line([(x, mid), (x+char_w, mid)], fill=flap_gap_color, width=1)
 
-# 文字置中
-disp = ch if ch.strip() else " "
-try:
-    # Pillow >=10 推薦用 getbbox
-    bbox = font.getbbox(disp)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-except AttributeError:
-    # 舊版 Pillow fallback
-    tw, th = font.getsize(disp)
+            disp = ch if ch.strip() else " "
+            try:
+                bbox = font.getbbox(disp)
+                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            except AttributeError:
+                tw, th = font.getsize(disp)
 
-tx = x + (char_w - tw)//2
-ty = y + (char_h - th)//2
-draw.text((tx, ty), disp, fill=text_color, font=font)
-
-            x += char_w + spacing
-        y += char_h + spacing
-    return img
-
-# 呼叫函式並顯示圖片
-img = pil_splitflap_image(
-    lines, char_w, char_h, spacing, padding,
-    flap_bg, flap_gap_color, text_color, accent_color,
-    font, font_size
-)
-
-st.image(img, caption="PNG 預覽", use_column_width=True)
-
-# 下載按鈕：把 PIL Image 轉成 bytes
-import io
-buf = io.BytesIO()
-img.save(buf, format="PNG")
-st.download_button(
-    "下載 PNG",
-    data=buf.getvalue(),
-    file_name="splitflap.png",
-    mime="image/png"
-)
-
+            tx = x + (char_w - tw)//2
+            ty = y

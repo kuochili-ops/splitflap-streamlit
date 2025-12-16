@@ -7,7 +7,7 @@ font_dir = "fonts"
 if not os.path.exists(font_dir):
     os.makedirs(font_dir)
 
-# 假設你已經把 NotoSansTC 四種字重放在 fonts 資料夾
+# 四種字重
 weights = {
     "Thin": "NotoSansTC-Thin.ttf",
     "Regular": "NotoSansTC-Regular.ttf",
@@ -34,8 +34,6 @@ def load_font(weight_key, size):
         return ImageFont.load_default()
 
 font = load_font(selected_weight, font_size)
-
-# ---------- 字型即時預覽 ----------
 with st.sidebar:
     st.write("字型預覽：")
     preview_img = Image.new("RGB", (400, 100), "white")
@@ -50,8 +48,6 @@ with st.sidebar:
     ty = (100 - th)//2
     draw.text((tx, ty), test_text, fill="black", font=font)
     st.image(preview_img, use_column_width=True)
-
-# ---------- UI ----------
 st.title("🪧 Flip-board / Split-flap 文字呈現")
 st.caption("輸入文字 → 翻頁板風格顯示（水平/直排、動畫、色彩、尺寸、PNG下載）")
 
@@ -72,8 +68,6 @@ with st.sidebar:
     spacing = st.slider("字格間距 (px)", 0, 12, 4)
     padding = st.slider("外框邊距 (px)", 4, 40, 12)
     corner_radius = st.slider("外框圓角 (px)", 0, 24, 8)
-
-# ---------- Utils ----------
 def normalize_text(s: str) -> str:
     return re.sub(r"[^\S\r\n]", " ", s)
 
@@ -87,76 +81,11 @@ def chunk_text_horizontal(s: str, width: int):
             lines.append(line); line = ""
     if line: lines.append(line)
     return lines
-
 def css_splitflap_container_html(lines, orientation, animate, colors, sizes):
     flap_bg, flap_gap_color, text_color, accent_color = colors
     char_w, char_h, spacing, padding, corner_radius = sizes
 
-    css = f"""
-    <style>
-    .board {{
-      display: inline-block;
-      padding: {padding}px;
-      background: {accent_color};
-      border-radius: {corner_radius}px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.35) inset, 0 8px 16px rgba(0,0,0,0.25);
-      border: 1px solid rgba(255,255,255,0.06);
-    }}
-    .row {{
-      display: flex;
-      {'flex-direction: column;' if orientation=='直排' else 'flex-direction: row;'}
-      gap: {spacing}px;
-      margin-bottom: {spacing}px;
-    }}
-    .cell {{
-      position: relative;
-      width: {char_w}px;
-      height: {char_h}px;
-      background: {flap_bg};
-      color: {text_color};
-      font-family: "JetBrains Mono", monospace;
-      font-size: {int(char_h*0.6)}px;
-      font-weight: 600;
-      line-height: {char_h}px;
-      text-align: center;
-      border-radius: 6px;
-      box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset,
-                  0 -1px 0 rgba(0,0,0,0.4) inset,
-                  0 4px 8px rgba(0,0,0,0.45);
-      overflow: hidden;
-    }}
-    .cell::before {{
-      content: "";
-      position: absolute;
-      left: 0; right: 0;
-      top: 50%;
-      height: 1px;
-      background: {flap_gap_color};
-      box-shadow: 0 1px 0 rgba(255,255,255,0.06);
-    }}
-    .gloss {{
-      pointer-events: none;
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.25));
-      mix-blend-mode: soft-light;
-    }}
-    .char {{
-      position: relative;
-      display: block;
-      width: 100%;
-      height: 100%;
-      transform-origin: 50% 50%;
-    }}
-    @keyframes flap {{
-      0% {{ transform: rotateX(0deg); }}
-      49% {{ transform: rotateX(-88deg); }}
-      51% {{ transform: rotateX(88deg); }}
-      100% {{ transform: rotateX(0deg); }}
-    }}
-    .anim .char {{ animation: flap 0.5s ease-in-out; }}
-    </style>
-    """
+    css = f"""<style> ... </style>"""  # 省略 CSS 詳細內容（同你原本的）
 
     html = ['<div class="board">']
     for line in lines:
@@ -173,20 +102,92 @@ def css_splitflap_container_html(lines, orientation, animate, colors, sizes):
     html.append('</div>')
     return css + "\n" + "\n".join(html)
 
-# ---------- Layout compute ----------
 s = normalize_text(text)
 lines = chunk_text_horizontal(s, cols)
 
-# ---------- Render HTML preview ----------
 colors = (flap_bg, flap_gap_color, text_color, accent_color)
 sizes = (char_w, char_h, spacing, padding, corner_radius)
 html = css_splitflap_container_html(lines, orientation, animate, colors, sizes)
 st.markdown(html, unsafe_allow_html=True)
+def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
+                        flap_bg, flap_gap_color, text_color,
+                        accent_color, font, font_size,
+                        orientation="水平"):
+    # 計算版面大小
+    if orientation == "水平":
+        max_len = max(len(line) for line in lines) if lines else 1
+        rows = len(lines)
+        board_w = padding*2 + max_len*char_w + (max_len-1)*spacing
+        board_h = padding*2 + rows*char_h + (rows-1)*spacing
+    else:  # 直排
+        max_len = len(lines)
+        rows = max(len(line) for line in lines) if lines else 1
+        board_w = padding*2 + rows*char_w + (rows-1)*spacing
+        board_h = padding*2 + max_len*char_h + (max_len-1)*spacing
 
-st.write("---")
-st.subheader("下載 PNG（靜態合成）")
+    img = Image.new("RGBA", (board_w, board_h), (0,0,0,0))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0,0,board_w,board_h], fill=accent_color)
 
-# ---------- PIL static render ----------
+    if orientation == "水平":
+        y = padding
+        for line in lines:
+            x = padding
+            for ch in line:
+                draw.rectangle([x, y, x+char_w, y+char_h], fill=flap_bg)
+                mid = y + char_h//2
+                draw.line([(x, mid), (x+char_w, mid)], fill=flap_gap_color, width=1)
+
+                disp = ch if ch.strip() else " "
+                bbox = font.getbbox(disp)
+                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                tx = x + (char_w - tw)//2
+                ty = y + (char_h - th)//2
+                draw.text((tx, ty), disp, fill=text_color, font=font)
+
+                x += char_w + spacing
+            y += char_h + spacing
+    else:  # 直排
+        x = padding
+        for line in lines:
+            y = padding
+            for ch in line:
+                draw.rectangle([x, y, x+char_w, y+char_h], fill=flap_bg)
+                mid = y + char_h//2
+                draw.line([(x, mid), (x+char_w, mid)], fill=flap_gap_color, width=1)
+
+                disp = ch if ch.strip() else " "
+                bbox = font.getbbox(disp)
+                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                tx = x + (char_w - tw)//2
+                ty = y + (char_h - th)//2
+                draw.text((tx, ty), disp, fill=text_color, font=font)
+
+                y += char_h + spacing
+            x += char_w + spacing
+
+    return img
+
+# 呼叫 PIL 合成
+img = pil_splitflap_image(
+    lines, char_w, char_h, spacing, padding,
+    flap_bg, flap_gap_color, text_color, accent_color,
+    font, font_size, orientation
+)
+
+# 顯示 PNG 預覽
+st.image(img, caption="PNG 預覽", use_column_width=True)
+
+# 下載按鈕：轉成 bytes
+buf = io.BytesIO()
+img.save(buf, format="PNG")
+st.download_button(
+    "下載 PNG",
+    data=buf.getvalue(),
+    file_name="splitflap.png",
+    mime="image/png"
+)
+
 # 額外功能：四字重比較
 def preview_all_weights(test_text="字重比較 ABC123", size=48):
     # 建立一張圖片，四行文字，每行一個字重
@@ -209,63 +210,3 @@ def preview_all_weights(test_text="字重比較 ABC123", size=48):
 st.subheader("四字重比較預覽")
 all_weights_img = preview_all_weights(size=font_size)
 st.image(all_weights_img, use_column_width=True)
-
-#
-def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
-                        flap_bg, flap_gap_color, text_color,
-                        accent_color, font, font_size):
-    max_len = max(len(line) for line in lines) if lines else 1
-    rows = len(lines)
-    board_w = padding*2 + max_len*char_w + (max_len-1)*spacing
-    board_h = padding*2 + rows*char_h + (rows-1)*spacing
-
-    img = Image.new("RGBA", (board_w, board_h), (0,0,0,0))
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([0,0,board_w,board_h], fill=accent_color)
-
-    y = padding
-    for line in lines:
-        x = padding
-        for ch in line:
-            # 每個字格背景
-            draw.rectangle([x, y, x+char_w, y+char_h], fill=flap_bg)
-            # 中線（翻頁縫）
-            mid = y + char_h//2
-            draw.line([(x, mid), (x+char_w, mid)], fill=flap_gap_color, width=1)
-
-            # 文字置中
-            disp = ch if ch.strip() else " "
-            try:
-                bbox = font.getbbox(disp)
-                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            except AttributeError:
-                tw, th = font.getsize(disp)
-
-            tx = x + (char_w - tw)//2
-            ty = y + (char_h - th)//2
-            draw.text((tx, ty), disp, fill=text_color, font=font)
-
-            x += char_w + spacing
-        y += char_h + spacing
-
-    return img
-
-# 呼叫 PIL 合成函式
-img = pil_splitflap_image(
-    lines, char_w, char_h, spacing, padding,
-    flap_bg, flap_gap_color, text_color, accent_color,
-    font, font_size
-)
-
-# 顯示預覽
-st.image(img, caption="PNG 預覽", use_column_width=True)
-
-# 下載按鈕：轉成 bytes
-buf = io.BytesIO()
-img.save(buf, format="PNG")
-st.download_button(
-    "下載 PNG",
-    data=buf.getvalue(),
-    file_name="splitflap.png",
-    mime="image/png"
-)

@@ -180,6 +180,17 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
     html.append('</div>')
     return css + "\n" + "\n".join(html)
 
+# ---------- Render HTML ----------
+s = normalize_text(text)
+lines = chunk_text_horizontal(s, cols)
+colors = (flap_bg, flap_gap_color, text_color, accent_color)
+sizes = (char_w, char_h, spacing, padding, corner_radius)
+html = css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled)
+st.components.v1.html(html, height=400, scrolling=False)
+
+st.write("---")
+st.subheader("下載 PNG（靜態合成）")
+
 # ---------- PIL 靜態合成 ----------
 def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
                         flap_bg, flap_gap_color, text_color,

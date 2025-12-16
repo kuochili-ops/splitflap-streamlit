@@ -187,6 +187,30 @@ st.write("---")
 st.subheader("下載 PNG（靜態合成）")
 
 # ---------- PIL static render ----------
+# 額外功能：四字重比較
+def preview_all_weights(test_text="字重比較 ABC123", size=48):
+    # 建立一張圖片，四行文字，每行一個字重
+    img = Image.new("RGB", (600, 300), "white")
+    draw = ImageDraw.Draw(img)
+
+    y = 20
+    for weight_name, font_file in weights.items():
+        font_path = os.path.join(font_dir, font_file)
+        try:
+            font = ImageFont.truetype(font_path, size)
+        except:
+            font = ImageFont.load_default()
+        draw.text((20, y), f"{weight_name}: {test_text}", fill="black", font=font)
+        y += size + 20
+
+    return img
+
+# 顯示四字重比較
+st.subheader("四字重比較預覽")
+all_weights_img = preview_all_weights(size=font_size)
+st.image(all_weights_img, use_column_width=True)
+
+#
 def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
                         flap_bg, flap_gap_color, text_color,
                         accent_color, font, font_size):

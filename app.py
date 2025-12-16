@@ -163,7 +163,6 @@ st.markdown(html, unsafe_allow_html=True)
 
 st.write("---")
 st.subheader("下載 PNG（靜態合成）")
-
 # ---------- PIL static render ----------
 def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
                         flap_bg, flap_gap_color, text_color,

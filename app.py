@@ -7,7 +7,6 @@ font_dir = "fonts"
 if not os.path.exists(font_dir):
     os.makedirs(font_dir)
 
-# 四種字重
 weights = {
     "Thin": "NotoSansTC-Thin.ttf",
     "Regular": "NotoSansTC-Regular.ttf",
@@ -34,18 +33,18 @@ def load_font(weight_key, size):
         return ImageFont.load_default()
 
 font = load_font(selected_weight, font_size)
+
+# ---------- 字型即時預覽 ----------
 with st.sidebar:
     st.write("字型預覽：")
     preview_img = Image.new("RGB", (400, 100), "white")
     draw = ImageDraw.Draw(preview_img)
     test_text = "測試字型 ABC123"
-    try:
-        bbox = font.getbbox(test_text)
-        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    except AttributeError:
-        tw, th = font.getsize(test_text)
+    bbox = font.getbbox(test_text)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     tx = (400 - tw)//2
-    ty = (100 - th)//2
+    ascent, descent = font.getmetrics()
+    ty = (100 - ascent)//2
     draw.text((tx, ty), test_text, fill="black", font=font)
     st.image(preview_img, use_column_width=True)
 st.title("🪧 Flip-board / Split-flap 文字呈現")
@@ -68,6 +67,7 @@ with st.sidebar:
     spacing = st.slider("字格間距 (px)", 0, 12, 4)
     padding = st.slider("外框邊距 (px)", 4, 40, 12)
     corner_radius = st.slider("外框圓角 (px)", 0, 24, 8)
+
 def normalize_text(s: str) -> str:
     return re.sub(r"[^\S\r\n]", " ", s)
 
@@ -81,12 +81,15 @@ def chunk_text_horizontal(s: str, width: int):
             lines.append(line); line = ""
     if line: lines.append(line)
     return lines
+
+s = normalize_text(text)
+lines = chunk_text_horizontal(s, cols)
+
+# HTML 預覽（省略 CSS 詳細內容）
 def css_splitflap_container_html(lines, orientation, animate, colors, sizes):
     flap_bg, flap_gap_color, text_color, accent_color = colors
     char_w, char_h, spacing, padding, corner_radius = sizes
-
-    css = f"""<style> ... </style>"""  # 省略 CSS 詳細內容（同你原本的）
-
+    css = "<style> ... </style>"
     html = ['<div class="board">']
     for line in lines:
         html.append('<div class="row">')
@@ -102,9 +105,6 @@ def css_splitflap_container_html(lines, orientation, animate, colors, sizes):
     html.append('</div>')
     return css + "\n" + "\n".join(html)
 
-s = normalize_text(text)
-lines = chunk_text_horizontal(s, cols)
-
 colors = (flap_bg, flap_gap_color, text_color, accent_color)
 sizes = (char_w, char_h, spacing, padding, corner_radius)
 html = css_splitflap_container_html(lines, orientation, animate, colors, sizes)
@@ -113,13 +113,12 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
                         flap_bg, flap_gap_color, text_color,
                         accent_color, font, font_size,
                         orientation="水平"):
-    # 計算版面大小
     if orientation == "水平":
         max_len = max(len(line) for line in lines) if lines else 1
         rows = len(lines)
         board_w = padding*2 + max_len*char_w + (max_len-1)*spacing
         board_h = padding*2 + rows*char_h + (rows-1)*spacing
-    else:  # 直排
+    else:
         max_len = len(lines)
         rows = max(len(line) for line in lines) if lines else 1
         board_w = padding*2 + rows*char_w + (rows-1)*spacing
@@ -140,14 +139,15 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
 
                 disp = ch if ch.strip() else " "
                 bbox = font.getbbox(disp)
-                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                tw = bbox[2] - bbox[0]
+                ascent, descent = font.getmetrics()
                 tx = x + (char_w - tw)//2
-                ty = y + (char_h - th)//2
+                ty = y + (char_h - ascent)//2
                 draw.text((tx, ty), disp, fill=text_color, font=font)
 
                 x += char_w + spacing
             y += char_h + spacing
-    else:  # 直排
+    else:
         x = padding
         for line in lines:
             y = padding
@@ -158,9 +158,10 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
 
                 disp = ch if ch.strip() else " "
                 bbox = font.getbbox(disp)
-                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                tw = bbox[2] - bbox[0]
+                ascent, descent = font.getmetrics()
                 tx = x + (char_w - tw)//2
-                ty = y + (char_h - th)//2
+                ty = y + (char_h - ascent)//2
                 draw.text((tx, ty), disp, fill=text_color, font=font)
 
                 y += char_h + spacing
@@ -175,20 +176,14 @@ img = pil_splitflap_image(
     font, font_size, orientation
 )
 
-# 顯示 PNG 預覽
 st.image(img, caption="PNG 預覽", use_column_width=True)
 
-# 下載按鈕：轉成 bytes
 buf = io.BytesIO()
 img.save(buf, format="PNG")
-st.download_button(
-    "下載 PNG",
-    data=buf.getvalue(),
-    file_name="splitflap.png",
-    mime="image/png"
-)
+st.download_button("下載 PNG", data=buf.getvalue(),
+                   file_name="splitflap.png", mime="image/png")
 
-# 額外功能：四字重比較
+# 四字重比較
 def preview_all_weights(test_text="字重比較 ABC123", size=48):
     # 建立一張圖片，四行文字，每行一個字重
     img = Image.new("RGB", (600, 300), "white")

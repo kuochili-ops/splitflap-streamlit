@@ -2,32 +2,38 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import os, re, io
 
-# ---------- 字型偵測 ----------
+# ---------- 字型設定 ----------
 font_dir = "fonts"
 if not os.path.exists(font_dir):
     os.makedirs(font_dir)
 
-available_fonts = [f for f in os.listdir(font_dir) if f.lower().endswith(".ttf")]
-if not available_fonts:
-    available_fonts = ["(無字型檔，使用預設字型)"]
+# 假設你已經把 NotoSansTC 四種字重放在 fonts 資料夾
+weights = {
+    "Thin": "NotoSansTC-Thin.ttf",
+    "Regular": "NotoSansTC-Regular.ttf",
+    "Medium": "NotoSansTC-Medium.ttf",
+    "SemiBold": "NotoSansTC-SemiBold.ttf"
+}
 
 with st.sidebar:
     st.header("字型設定")
-    selected_font = st.selectbox("選擇字型檔", available_fonts)
+    selected_weight = st.selectbox("選擇字重", list(weights.keys()))
     font_size = st.slider("字型大小 (PNG 輸出)", 20, 96, 48)
 
-def load_font(font_name, size):
+def load_font(weight_key, size):
+    font_file = weights.get(weight_key)
+    font_path = os.path.join(font_dir, font_file)
     try:
-        if font_name and font_name.endswith(".ttf"):
-            font_path = os.path.join(font_dir, font_name)
-            if os.path.exists(font_path):
-                return ImageFont.truetype(font_path, size)
-        return ImageFont.load_default()
+        if os.path.exists(font_path):
+            return ImageFont.truetype(font_path, size)
+        else:
+            st.warning(f"找不到字型檔：{font_file}，改用預設字型")
+            return ImageFont.load_default()
     except OSError:
-        st.warning(f"字型載入失敗：{font_name}，改用預設字型")
+        st.warning(f"字型載入失敗：{font_file}，改用預設字型")
         return ImageFont.load_default()
 
-font = load_font(selected_font, font_size)
+font = load_font(selected_weight, font_size)
 
 # ---------- 字型即時預覽 ----------
 with st.sidebar:
@@ -60,7 +66,7 @@ with st.sidebar:
     text_color = st.color_picker("字色", "#F0F0F0")
     accent_color = st.color_picker("框線/高光", "#2A2A2A")
 
-    cols = st.slider("每列最大字數（水平）/ 每列最大字數（直排）", 4, 30, 16)
+    cols = st.slider("每列最大字數（水平/直排）", 4, 30, 16)
     char_w = st.slider("字格寬度 (px)", 36, 120, 72)
     char_h = st.slider("字格高度 (px)", 44, 160, 96)
     spacing = st.slider("字格間距 (px)", 0, 12, 4)

@@ -152,15 +152,12 @@ def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_streng
 
     html = ['<div class="board">']
     for line in lines:
-        html.append(f"""
-  <div class="cell {cell_class}">
-    <div class="char-top-old"><span>{safe}</span></div>
-    <div class="char-top-new"><span>{new_char}</span></div>
-    <div class="char-bottom-old"><span>{safe}</span></div>
-    <div class="char-bottom-new"><span>{new_char}</span></div>
-    <span class="gloss"></span>
-  </div>
-""")
+        html.append('<div class="row">')
+        for ch in line:
+            safe = ch if ch.strip() else "&nbsp;"
+            new_char = next_char[ch] if ch in next_char else ch
+            cell_class = "flip" if flip_enabled else ""
+            html.append(f"""
               <div class="cell {cell_class}">
                 <div class="char-top-old"><span>{safe}</span></div>
                 <div class="char-top-new"><span>{new_char}</span></div>

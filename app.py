@@ -85,112 +85,39 @@ def chunk_text_horizontal(s: str, width: int):
             lines.append(line); line = ""
     if line: lines.append(line)
     return lines
-
 # ---------- HTML 預覽（四層結構） ----------
 def css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled):
     flap_bg, flap_gap_color, text_color, accent_color = colors
     char_w, char_h, spacing, padding, corner_radius = sizes
 
-css = f"""
-<style>
-.board {{
-  display: inline-block;
-  padding: {padding}px;
-  background: {accent_color};
-  border-radius: {corner_radius}px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.35) inset, 0 8px 16px rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.06);
-}}
-.row {{
-  display: flex;
-  {'flex-direction: column;' if orientation=='直排' else 'flex-direction: row;'}
-  gap: {spacing}px;
-  margin-bottom: {spacing}px;
-}}
-.cell {{
-  position: relative;
-  width: {char_w}px;
-  height: {char_h}px;
-  background: {flap_bg};
-  color: {text_color};
-  font-family: "JetBrains Mono", monospace;
-  font-size: {int(char_h*0.6)}px;
-  font-weight: 600;
-  text-align: center;
-  border-radius: 6px;
-  overflow: hidden;
-}}
-.cell::before {{
-  content: "";
-  position: absolute;
-  left: 0; right: 0;
-  top: 50%;
-  height: 1px;
-  background: {flap_gap_color};
-}}
-.char-top-old, .char-top-new, .char-bottom-old, .char-bottom-new {{
-  display: block;
-  height: 50%;
-  overflow: hidden;
-  backface-visibility: hidden;
-}}
-.char-top-old span, .char-top-new span, .char-bottom-old span, .char-bottom-new span {{
-  display: block;
-  line-height: {char_h}px;
-}}
-.char-top-old {{ transform-origin: bottom; }}
-.char-top-new {{ transform-origin: bottom; }}
-.char-bottom-old {{ transform-origin: top; }}
-.char-bottom-new {{ transform-origin: top; }}
-
-@keyframes flipTopOld {{
-  0%   {{ transform: rotateX(0deg); }}
-  100% {{ transform: rotateX(-90deg); }}
-}}
-@keyframes flipTopNew {{
-  0%   {{ transform: rotateX(90deg); }}
-  100% {{ transform: rotateX(0deg); }}
-}}
-@keyframes flipBottomOld {{
-  0%   {{ transform: rotateX(0deg); }}
-  100% {{ transform: rotateX(90deg); }}
-}}
-@keyframes flipBottomNew {{
-  0%   {{ transform: rotateX(-90deg); }}
-  100% {{ transform: rotateX(0deg); }}
-}}
-
-.flip .char-top-old {{
-  animation: flipTopOld 0.3s ease-in forwards;
-}}
-.flip .char-top-new {{
-  animation: flipTopNew 0.3s ease-out forwards;
-  animation-delay: 0.3s;
-}}
-.flip .char-bottom-old {{
-  animation: flipBottomOld 0.3s ease-in forwards;
-}}
-.flip .char-bottom-new {{
-  animation: flipBottomNew 0.3s ease-out forwards;
-  animation-delay: 0.3s;
-}}
-
-.gloss {{
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,{gloss_strength}), rgba(0,0,0,0.4));
-  mix-blend-mode: overlay;
-}}
-</style>
-"""
+    css = f"""
+    <style>
+    /* 完整 CSS 動畫定義 */
+    .board {{ display:inline-block; padding:{padding}px; background:{accent_color}; border-radius:{corner_radius}px; }}
+    .row {{ display:flex; {'flex-direction:column;' if orientation=='直排' else 'flex-direction:row;'} gap:{spacing}px; margin-bottom:{spacing}px; }}
+    .cell {{ position:relative; width:{char_w}px; height:{char_h}px; background:{flap_bg}; color:{text_color}; font-family:"JetBrains Mono", monospace; font-size:{int(char_h*0.6)}px; font-weight:600; text-align:center; border-radius:6px; overflow:hidden; }}
+    .cell::before {{ content:""; position:absolute; left:0; right:0; top:50%; height:1px; background:{flap_gap_color}; }}
+    .char-top-old,.char-top-new,.char-bottom-old,.char-bottom-new {{ display:block; height:50%; overflow:hidden; backface-visibility:hidden; }}
+    .char-top-old span,.char-top-new span,.char-bottom-old span,.char-bottom-new span {{ display:block; line-height:{char_h}px; }}
+    .char-top-old{{transform-origin:bottom;}} .char-top-new{{transform-origin:bottom;}} .char-bottom-old{{transform-origin:top;}} .char-bottom-new{{transform-origin:top;}}
+    @keyframes flipTopOld{{0%{{transform:rotateX(0deg);}}100%{{transform:rotateX(-90deg);}}}}
+    @keyframes flipTopNew{{0%{{transform:rotateX(90deg);}}100%{{transform:rotateX(0deg);}}}}
+    @keyframes flipBottomOld{{0%{{transform:rotateX(0deg);}}100%{{transform:rotateX(90deg);}}}}
+    @keyframes flipBottomNew{{0%{{transform:rotateX(-90deg);}}100%{{transform:rotateX(0deg);}}}}
+    .flip .char-top-old{{animation:flipTopOld 0.3s ease-in forwards;}}
+    .flip .char-top-new{{animation:flipTopNew 0.3s ease-out forwards; animation-delay:0.3s;}}
+    .flip .char-bottom-old{{animation:flipBottomOld 0.3s ease-in forwards;}}
+    .flip .char-bottom-new{{animation:flipBottomNew 0.3s ease-out forwards; animation-delay:0.3s;}}
+    .gloss{{pointer-events:none; position:absolute; inset:0; background:linear-gradient(180deg,rgba(255,255,255,{gloss_strength}),rgba(0,0,0,0.4)); mix-blend-mode:overlay;}}
+    </style>
+    """
 
     html = ['<div class="board">']
     for line in lines:
         html.append('<div class="row">')
         for ch in line:
             safe = ch if ch.strip() else "&nbsp;"
-            cell_class = "flip" if flip_enabled and ch in ["2","0","2","5"] else ""
+            cell_class = "flip" if flip_enabled and ch in ["2","0","5"] else ""
             html.append(f'''
               <div class="cell {cell_class}">
                 <div class="char-top-old"><span>{safe}</span></div>
@@ -211,7 +138,6 @@ colors = (flap_bg, flap_gap_color, text_color, accent_color)
 sizes = (char_w, char_h, spacing, padding, corner_radius)
 html = css_splitflap_container_html(lines, orientation, colors, sizes, gloss_strength, flip_enabled)
 st.components.v1.html(html, height=400, scrolling=False)
-
 st.write("---")
 st.subheader("下載 PNG（靜態合成）")
 
@@ -262,4 +188,51 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
             for ch in line:
                 draw.rectangle([x, y, x+char_w, y+char_h], fill=flap_bg)
                 mid = y + char_h//2
-               
+                draw.line([(x, mid), (x+char_w, mid)], fill=flap_gap_color, width=1)
+
+                disp = ch if ch.strip() else " "
+                bbox = font.getbbox(disp)
+                tw = bbox[2] - bbox[0]
+                ascent, descent = font.getmetrics()
+                tx = x + (char_w - tw)//2
+                is_ascii = all(ord(c) < 128 for c in disp)
+                ty = y + (char_h - ascent)//2 - (int(font_size*0.08) if is_ascii else 0)
+                draw.text((tx, ty), disp, fill=text_color, font=font)
+
+                y += char_h + spacing
+            x += char_w + spacing
+
+    return img
+
+# ---------- 呼叫 PIL 合成 ----------
+img = pil_splitflap_image(
+    lines, char_w, char_h, spacing, padding,
+    flap_bg, flap_gap_color, text_color, accent_color,
+    font, font_size, orientation
+)
+
+st.image(img, caption="PNG 預覽", use_column_width=True)
+
+buf = io.BytesIO()
+img.save(buf, format="PNG")
+st.download_button("下載 PNG", data=buf.getvalue(),
+                   file_name="splitflap.png", mime="image/png")
+
+# ---------- 四字重比較 ----------
+def preview_all_weights(test_text="字重比較 ABC123", size=48):
+    img = Image.new("RGB", (600, 300), "white")
+    draw = ImageDraw.Draw(img)
+    y = 20
+    for weight_name, font_file in weights.items():
+        font_path = os.path.join(font_dir, font_file)
+        try:
+            font = ImageFont.truetype(font_path, size)
+        except:
+            font = ImageFont.load_default()
+        draw.text((20, y), f"{weight_name}: {test_text}", fill="black", font=font)
+        y += size + 20
+    return img
+
+st.subheader("四字重比較預覽")
+all_weights_img = preview_all_weights(size=font_size)
+st.image(all_weights_img, use_column_width=True)

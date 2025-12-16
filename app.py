@@ -134,7 +134,7 @@ def css_splitflap_container_html(lines, orientation, colors, sizes):
       pointer-events: none;
       position: absolute;
       inset: 0;
-      background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.25));
+      background: linear-gradient(180deg, rgba(255,255,255,0.15), rgba(0,0,0,0.25));
       mix-blend-mode: soft-light;
     }}
     .char {{

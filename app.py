@@ -193,4 +193,5 @@ def pil_splitflap_image(lines, char_w, char_h, spacing, padding,
                 tw, th = font.getsize(disp)
 
             tx = x + (char_w - tw)//2
-            ty = y
+            ty = y + (char_h - th)//2
+            draw.text((tx, ty), disp, fill=text_color, font=font

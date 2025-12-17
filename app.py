@@ -2,10 +2,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Dual Guard", layout="centered")
+st.set_page_config(page_title="Split-Flap Absolute", layout="centered")
 
-st.title("📟 物理翻板：雙重保險版")
-st.caption("結合 3D 空間位移與內容鎖定，徹底解決手機瀏覽器亂碼問題。")
+st.title("📟 物理翻板：雙葉片修復版")
+st.caption("透過物理分離前半句與後半句的葉片，解決字體上半部消失的問題。")
 
 user_input = st.text_input("輸入句子", "往事就是我的安慰")
 
@@ -28,7 +28,7 @@ if user_input:
         body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; }}
         
         .board {{
-            display: flex; flex-wrap: wrap; gap: 10px; perspective: 2000px; justify-content: center;
+            display: flex; flex-wrap: wrap; gap: 10px; perspective: 1500px; justify-content: center;
         }}
 
         .flap-unit {{
@@ -41,52 +41,41 @@ if user_input:
         .half {{
             position: absolute; left: 0; width: 100%; height: 50%;
             overflow: hidden; background: #1a1a1a; display: flex; justify-content: center;
-            backface-visibility: hidden; -webkit-backface-visibility: hidden;
         }}
         .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 1px solid #000; }}
         .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
         .text {{ height: 100px; line-height: 100px; text-align: center; }}
 
-        /* --- 核心：保險機制 --- */
-
-        /* 初始狀態：隱藏所有後半句(目標)文字 */
-        .base-new-top .text, 
-        .base-new-bottom .text, 
-        .leaf-back .text {{
-            opacity: 0;
-            transition: opacity 0.1s;
-        }}
-
-        /* 翻轉啟動後才顯現目標文字 */
-        .flipping .base-new-top .text, 
-        .flipping .base-new-bottom .text, 
-        .flipping .leaf-back .text {{
-            opacity: 1;
-        }}
-
-        /* 空間深度隔離 */
-        .base-new-top {{ transform: translateZ(-2px); }}
-        .base-new-bottom {{ transform: translateZ(-2px); }}
+        /* --- 靜態底座 --- */
         .base-old-bottom {{ transform: translateZ(1px); }}
+        .base-new-top {{ transform: translateZ(0px); }}
 
-        .leaf {{
+        /* --- 前半句葉片 (由 0 翻到 -90) --- */
+        .leaf-old {{
             position: absolute; top: 0; left: 0; width: 100%; height: 50%;
             transform-origin: bottom;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-style: preserve-3d;
-            transform: translateZ(5px);
             z-index: 10;
+            transition: transform 0.3s ease-in, opacity 0.01s 0.3s;
+            transform: translateZ(5px) rotateX(0deg);
         }}
-        
-        .leaf-front {{ transform: translateZ(0.1px); }}
-        .leaf-back {{ transform: rotateX(-180deg) translateZ(0.1px); }}
 
-        /* 旋轉狀態 */
-        .is-active .leaf {{ transform: translateZ(5px) rotateX(-180deg); }}
+        /* --- 後半句葉片 (由 90 翻到 0) --- */
+        .leaf-new {{
+            position: absolute; top: 50%; left: 0; width: 100%; height: 50%;
+            transform-origin: top;
+            z-index: 11;
+            transition: transform 0.3s ease-out 0.3s;
+            transform: translateZ(5px) rotateX(90deg);
+            opacity: 0;
+        }}
+
+        /* 動畫觸發 */
+        .is-active .leaf-old {{ transform: translateZ(5px) rotateX(-90deg); opacity: 0; }}
+        .is-active .leaf-new {{ transform: translateZ(5px) rotateX(0deg); opacity: 1; }}
 
         .flap-unit::after {{
             content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-            background: #000; transform: translateY(-50%) translateZ(6px); z-index: 20;
+            background: #000; transform: translateY(-50%) translateZ(10px); z-index: 20;
         }}
     </style>
     </head>
@@ -102,12 +91,11 @@ if user_input:
             board.innerHTML = from.map((char1, i) => `
                 <div class="flap-unit">
                     <div class="half top base-new-top"><div class="text">${{to[i]}}</div></div>
-                    <div class="half bottom base-new-bottom"><div class="text">${{to[i]}}</div></div>
                     <div class="half bottom base-old-bottom"><div class="text">${{char1}}</div></div>
-                    <div class="leaf">
-                        <div class="half top leaf-front"><div class="text">${{char1}}</div></div>
-                        <div class="half bottom leaf-back"><div class="text">${{to[i]}}</div></div>
-                    </div>
+                    
+                    <div class="half top leaf-old"><div class="text">${{char1}}</div></div>
+                    
+                    <div class="half bottom leaf-new"><div class="text">${{to[i]}}</div></div>
                 </div>
             `).join('');
         }}
@@ -126,8 +114,6 @@ if user_input:
             const units = document.querySelectorAll('.flap-unit');
             units.forEach((u, i) => {{
                 setTimeout(() => {{
-                    // 同步開啟透明度與旋轉動畫
-                    u.classList.add('flipping');
                     u.classList.add('is-active');
                 }}, i * 70);
             }});

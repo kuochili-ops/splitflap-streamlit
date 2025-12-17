@@ -2,17 +2,17 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Absolute", layout="centered")
+st.set_page_config(page_title="Split-Flap Perfect Sync", layout="centered")
 
-# --- 側邊欄配置 ---
-st.sidebar.header("📟 看板模式設定")
-mode = st.sidebar.radio("展示方式", ["單行拆句", "多行列顯示"])
-col_count = st.sidebar.slider("每行字數", 2, 10, 4 if mode == "多行列顯示" else 8)
+# --- 側邊欄：模式切換 ---
+st.sidebar.header("📟 看板設定")
+mode = st.sidebar.radio("展示模式", ["單行拆句", "多行排列"])
+col_count = st.sidebar.slider("每行字數", 2, 10, 4 if mode == "多行排列" else 8)
 
-st.title("📟 物理翻板：絕對隔離版")
-st.caption("強制渲染刷新，徹底解決字元拼合與上下不一致問題。")
+st.title("📟 物理翻板：邏輯重構版")
+st.caption("已修正靜態拼合錯誤，確保字元上下部絕對一致。")
 
-# --- 文字邏輯 ---
+# --- 處理 A/B 兩組文字 ---
 if mode == "單行拆句":
     raw_input = st.text_input("輸入句子", "謝謝光臨歡迎再來")
     chars = list(raw_input)
@@ -31,14 +31,14 @@ else:
     s2 += [" "] * (max_l - len(s2))
     display_cols = col_count
 
-# --- HTML/JS ---
+# --- HTML/JS 核心結構 ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
 <head>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
-    body {{ background: transparent; display: flex; flex-direction: column; align-items: center; padding: 20px 0; overflow: hidden; }}
+    body {{ background: transparent; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }}
     
     .board {{
         display: grid; grid-template-columns: repeat({display_cols}, 72px);
@@ -60,9 +60,9 @@ html_code = f"""
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     .text {{ height: 100px; line-height: 100px; text-align: center; width: 100%; }}
 
-    /* 物理隔離層級 */
-    .base-top {{ z-index: 1; }} 
-    .base-bottom {{ z-index: 2; }}
+    /* 物理層級設定 */
+    .base-top {{ z-index: 1; }}    /* 預備顯示的下一個字(上半) */
+    .base-bottom {{ z-index: 2; }} /* 當前顯示的字(下半) */
     
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
@@ -70,14 +70,14 @@ html_code = f"""
         transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         transform-style: preserve-3d;
     }}
-    .leaf-front {{ z-index: 11; }} 
-    .leaf-back {{ transform: rotateX(-180deg); z-index: 10; }}
+    .leaf-front {{ z-index: 11; }} /* 當前顯示的字(上半) */
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 10; }} /* 下一個顯示的字(下半) */
 
     .flipping {{ transform: rotateX(-180deg); }}
 
     .flap-unit::after {{
-        content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-        background: #000; transform: translateY(-50%) translateZ(30px); z-index: 50;
+        content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1px;
+        background: #000; transform: translateY(-50%) translateZ(20px); z-index: 30;
     }}
 </style>
 </head>
@@ -86,8 +86,10 @@ html_code = f"""
 
 <script>
     const tA = {s1}, tB = {s2};
-    let currentIsA = true, isAnimating = false;
+    let currentIsA = true;
+    let isAnimating = false;
 
+    // 初始化：確保所有面一開始都顯示 tA 的內容
     function init() {{
         document.getElementById('board').innerHTML = tA.map((c, i) => `
             <div class="flap-unit" id="unit-${{i}}">
@@ -113,30 +115,24 @@ html_code = f"""
                 const leaf = u.querySelector('.leaf');
                 leaf.classList.add('flipping');
 
-                // 核心：在動畫一半時(0.3s)，強制將被遮住的舊字隱藏
-                setTimeout(() => {{
-                   u.querySelector('.base-bottom .text').style.visibility = 'hidden';
-                }}, 300);
-
-                // 動畫結束處理
                 leaf.addEventListener('transitionend', function handler() {{
                     leaf.removeEventListener('transitionend', handler);
                     
-                    // 1. 同步更換所有文字內容
+                    // 1. 動畫結束：現在整個單元應該看起來都是 nextArr[i]
+                    // 修正 base-bottom (下半部底座) 使其同步
                     u.querySelector('.base-bottom .text').innerText = nextArr[i];
-                    u.querySelector('.base-bottom .text').style.visibility = 'visible';
+                    // 修正 leaf-front (葉片正面) 使其同步
                     u.querySelector('.leaf-front .text').innerText = nextArr[i];
                     
-                    // 2. 靜默歸位葉片
+                    // 2. 靜默歸位葉片 (0度)
                     leaf.style.transition = 'none';
                     leaf.classList.remove('flipping');
                     
-                    // 3. 預填下一次內容
+                    // 3. 預備「下下一次」的字元在 base-top 與 leaf-back
                     u.querySelector('.base-top .text').innerText = futureArr[i];
                     u.querySelector('.leaf-back .text').innerText = futureArr[i];
 
-                    // 4. 強制刷新
-                    void leaf.offsetWidth;
+                    void leaf.offsetWidth; // 強制重繪
                     leaf.style.transition = '';
                     
                     if (i === units.length - 1) {{

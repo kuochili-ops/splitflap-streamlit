@@ -2,13 +2,17 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Locked-Sync", layout="centered")
+st.set_page_config(page_title="Split-Flap Zero-Error", layout="centered")
 
-# --- 側邊欄設定 ---
 st.sidebar.header("📟 看板模式設定")
-mode = st.sidebar.radio("展示方式", ["單行拆句 (前段變後段)", "多行列顯示 (長句循環)"])
+mode = st.sidebar.radio("展示方式", ["單行拆句", "多行排列"])
+col_count = st.sidebar.slider("每行字數", 2, 10, 4 if mode == "多行排列" else 8)
 
-if mode == "單行拆句 (前段變後段)":
+st.title("📟 物理翻板：內容鎖定同步版")
+st.caption("保證靜態時上下部絕對一致，且無論翻幾次都維持物理下翻。")
+
+# --- 處理文字邏輯 ---
+if mode == "單行拆句":
     raw_input = st.text_input("輸入句子", "謝謝光臨歡迎再來")
     chars = list(raw_input)
     mid = math.ceil(len(chars) / 2)
@@ -18,16 +22,15 @@ if mode == "單行拆句 (前段變後段)":
     s2 += [" "] * (max_l - len(s2))
     display_cols = max_l
 else:
-    col_count = st.sidebar.slider("每行顯示字數", 2, 10, 4)
-    s1_input = st.text_input("第一句內容", "往事就是我的安慰")
-    s2_input = st.text_input("第二句內容", "妳無愛我無所謂啦")
+    s1_input = st.text_input("第一句", "往事就是我的安慰")
+    s2_input = st.text_input("第二句", "妳無愛我無所謂啦")
     s1, s2 = list(s1_input), list(s2_input)
     max_l = max(len(s1), len(s2))
     s1 += [" "] * (max_l - len(s1))
     s2 += [" "] * (max_l - len(s2))
     display_cols = col_count
 
-# --- HTML/JavaScript 核心邏輯 ---
+# --- HTML/JS 核心結構 ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -45,7 +48,6 @@ html_code = f"""
         position: relative; width: 68px; height: 100px;
         background-color: #111; border-radius: 4px;
         font-family: 'Noto Sans TC', sans-serif; font-size: 52px; font-weight: 900; color: #fff;
-        transform-style: preserve-3d;
     }}
 
     .half {{
@@ -57,9 +59,9 @@ html_code = f"""
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     .text {{ height: 100px; line-height: 100px; text-align: center; width: 100%; }}
 
-    /* 物理層級：葉片翻轉邏輯 */
-    .base-top {{ z-index: 1; }}    /* 下一個字之上半部 */
-    .base-bottom {{ z-index: 2; }} /* 當前字之下半部 */
+    /* 物理分層 */
+    .base-top {{ z-index: 1; }}    /* 下一個字的上半 */
+    .base-bottom {{ z-index: 2; }} /* 目前字的下半 */
     
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
@@ -67,8 +69,8 @@ html_code = f"""
         transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         transform-style: preserve-3d;
     }}
-    .leaf-front {{ z-index: 11; }} /* 當前字之上半部 */
-    .leaf-back {{ transform: rotateX(-180deg); z-index: 10; }} /* 下一個字之下半部 */
+    .leaf-front {{ z-index: 11; }} /* 目前字的上半 */
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 10; }} /* 下一個字的下半 */
 
     .flipping {{ transform: rotateX(-180deg); }}
 
@@ -82,20 +84,20 @@ html_code = f"""
 <div class="board" id="board"></div>
 
 <script>
-    const tA = {s1}, tB = {s2};
+    const textA = {s1}, textB = {s2};
     let currentIsA = true;
     let isAnimating = false;
 
-    // 核心初始化：所有面皆顯示第一句 tA，杜絕靜態錯位
+    // 初始化：保證所有面（包括隱藏的面）最初都顯示同一組字元
     function init() {{
         const board = document.getElementById('board');
-        board.innerHTML = tA.map((char, i) => `
+        board.innerHTML = textA.map((char, i) => `
             <div class="flap-unit" id="unit-${{i}}">
-                <div class="half top base-top"><div class="text">${{tB[i]}}</div></div>
+                <div class="half top base-top"><div class="text">${{char}}</div></div>
                 <div class="half bottom base-bottom"><div class="text">${{char}}</div></div>
                 <div class="leaf">
                     <div class="half top leaf-front"><div class="text">${{char}}</div></div>
-                    <div class="half bottom leaf-back"><div class="text">${{tB[i]}}</div></div>
+                    <div class="half bottom leaf-back"><div class="text">${{char}}</div></div>
                 </div>
             </div>`).join('');
     }}
@@ -105,29 +107,32 @@ html_code = f"""
         isAnimating = true;
 
         const units = document.querySelectorAll('.flap-unit');
-        const nowArr = currentIsA ? tA : tB;
-        const nextArr = currentIsA ? tB : tA;
-        const futureArr = currentIsA ? tA : tB; 
+        const nextArr = currentIsA ? textB : textA;
 
         units.forEach((u, i) => {{
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
+                
+                // 第一階段：準備翻轉。偷偷把「被遮住」的面換成目標字
+                u.querySelector('.base-top .text').innerText = nextArr[i];
+                u.querySelector('.leaf-back .text').innerText = nextArr[i];
+
+                // 第二階段：啟動下翻動畫
                 leaf.classList.add('flipping');
 
                 leaf.addEventListener('transitionend', function handler() {{
                     leaf.removeEventListener('transitionend', handler);
                     
-                    // 1. 同步更換靜態文字內容，確保翻轉後上下一致
+                    // 第三階段：動畫結束。瞬間同步所有面，並靜默重置葉片位置
                     u.querySelector('.base-bottom .text').innerText = nextArr[i];
                     u.querySelector('.leaf-front .text').innerText = nextArr[i];
                     
-                    // 2. 瞬間歸位葉片（物理下翻重置）
                     leaf.style.transition = 'none';
                     leaf.classList.remove('flipping');
                     
-                    // 3. 預填下一次目標字元
-                    u.querySelector('.base-top .text').innerText = futureArr[i];
-                    u.querySelector('.leaf-back .text').innerText = futureArr[i];
+                    // 同步預備面，維持一致性
+                    u.querySelector('.base-top .text').innerText = nextArr[i];
+                    u.querySelector('.leaf-back .text').innerText = nextArr[i];
 
                     void leaf.offsetWidth; // 強制瀏覽器重繪
                     leaf.style.transition = '';

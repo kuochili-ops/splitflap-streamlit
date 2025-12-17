@@ -2,10 +2,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap 3D Isolation", layout="centered")
+st.set_page_config(page_title="Split-Flap Dual Guard", layout="centered")
 
-st.title("📟 物理翻板：3D 空間隔離版")
-st.caption("使用 Z 軸位移強制分離層級，解決手機瀏覽器拼合錯誤問題。")
+st.title("📟 物理翻板：雙重保險版")
+st.caption("結合 3D 空間位移與內容鎖定，徹底解決手機瀏覽器亂碼問題。")
 
 user_input = st.text_input("輸入句子", "往事就是我的安慰")
 
@@ -47,16 +47,28 @@ if user_input:
         .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
         .text {{ height: 100px; line-height: 100px; text-align: center; }}
 
-        /* --- 3D 空間位移隔離核心 --- */
-        
-        /* 底座新字：放在最深處 (Z = -2) */
+        /* --- 核心：保險機制 --- */
+
+        /* 初始狀態：隱藏所有後半句(目標)文字 */
+        .base-new-top .text, 
+        .base-new-bottom .text, 
+        .leaf-back .text {{
+            opacity: 0;
+            transition: opacity 0.1s;
+        }}
+
+        /* 翻轉啟動後才顯現目標文字 */
+        .flipping .base-new-top .text, 
+        .flipping .base-new-bottom .text, 
+        .flipping .leaf-back .text {{
+            opacity: 1;
+        }}
+
+        /* 空間深度隔離 */
         .base-new-top {{ transform: translateZ(-2px); }}
         .base-new-bottom {{ transform: translateZ(-2px); }}
-
-        /* 初始舊字下半：放在中間層 (Z = 1) */
         .base-old-bottom {{ transform: translateZ(1px); }}
 
-        /* 翻動葉片：放在最表層 (Z = 5) */
         .leaf {{
             position: absolute; top: 0; left: 0; width: 100%; height: 50%;
             transform-origin: bottom;
@@ -66,12 +78,11 @@ if user_input:
             z-index: 10;
         }}
         
-        /* 葉片正面：保持在葉片的最前方 */
         .leaf-front {{ transform: translateZ(0.1px); }}
-        /* 葉片背面：轉向後方 */
         .leaf-back {{ transform: rotateX(-180deg) translateZ(0.1px); }}
 
-        .flipping {{ transform: translateZ(5px) rotateX(-180deg) !important; }}
+        /* 旋轉狀態 */
+        .is-active .leaf {{ transform: translateZ(5px) rotateX(-180deg); }}
 
         .flap-unit::after {{
             content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
@@ -115,7 +126,9 @@ if user_input:
             const units = document.querySelectorAll('.flap-unit');
             units.forEach((u, i) => {{
                 setTimeout(() => {{
-                    u.querySelector('.leaf').classList.add('flipping');
+                    // 同步開啟透明度與旋轉動畫
+                    u.classList.add('flipping');
+                    u.classList.add('is-active');
                 }}, i * 70);
             }});
         }});

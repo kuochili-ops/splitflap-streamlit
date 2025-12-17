@@ -2,26 +2,25 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Toggle", layout="centered")
+st.set_page_config(page_title="Split-Flap Physical", layout="centered")
 
-st.title("📟 互動翻轉告示板")
-st.caption("輸入一段話，點擊看板切換前後半段")
+st.title("📟 物理翻板告示板")
+st.caption("點擊看板，體驗「上板下翻」的墜落動態")
 
-# 使用者輸入
-user_input = st.text_input("請輸入句子", "人生到底為了啥吃頓好的")
+user_input = st.text_input("輸入句子", "今晚想來點 鼎泰豐小籠包")
 
 if user_input:
-    # 邏輯：將字數除以二
     total_len = len(user_input)
     split_point = math.ceil(total_len / 2)
     
-    part1 = user_input[:split_point]
-    part2 = user_input[split_point:]
+    # 分割上下半句
+    t1 = user_input[:split_point]
+    t2 = user_input[split_point:]
     
-    # 補齊長度，讓兩段呈現一致
-    max_len = max(len(part1), len(part2))
-    text1 = part1.ljust(max_len, " ")
-    text2 = part2.ljust(max_len, " ")
+    # 補齊長度
+    max_len = max(len(t1), len(t2))
+    text1 = t1.ljust(max_len, " ")
+    text2 = t2.ljust(max_len, " ")
 
     html_code = f"""
     <!DOCTYPE html>
@@ -30,58 +29,93 @@ if user_input:
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700&display=swap');
         
-        body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; overflow: hidden; }}
+        body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; }}
         
         .board {{
-            background: #111;
-            padding: 15px;
-            border-radius: 10px;
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
-            gap: 6px;
-            border: 4px solid #333;
-            cursor: pointer;
+            gap: 8px;
             perspective: 1000px;
+            cursor: pointer;
         }}
 
-        .flap-card {{
+        /* 每一格的容器 */
+        .flap {{
             position: relative;
-            width: 50px;
-            height: 80px;
-            background: #1a1a1a;
-            border-radius: 4px;
+            width: 60px;
+            height: 90px;
+            background-color: #333;
+            border-radius: 6px;
             font-family: 'Noto Sans TC', sans-serif;
-            font-size: 40px;
+            font-size: 50px;
             font-weight: bold;
             color: #ddd;
-            line-height: 80px;
+            line-height: 90px;
             text-align: center;
         }}
 
-        /* 中間切割線 */
-        .flap-card::after {{
+        /* 上半部與下半部的共用樣式 */
+        .top, .bottom {{
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            background: #1a1a1a;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }}
+
+        .top {{
+            top: 0;
+            border-radius: 6px 6px 0 0;
+            line-height: 90px; /* 顯示文字上半部 */
+            border-bottom: 1px solid rgba(0,0,0,0.5);
+        }}
+
+        .bottom {{
+            bottom: 0;
+            border-radius: 0 0 6px 6px;
+            line-height: 0px; /* 顯示文字下半部 */
+        }}
+
+        /* 翻轉中的葉片 */
+        .leaf {{
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 50%;
+            background: #1a1a1a;
+            border-radius: 6px 6px 0 0;
+            z-index: 5;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: bottom;
+            line-height: 90px;
+            overflow: hidden;
+            backface-visibility: hidden;
+        }}
+
+        /* 翻轉後的背面 */
+        .leaf-back {{
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1a1a1a;
+            transform: rotateX(-180deg);
+            transform-origin: bottom;
+            line-height: 0px;
+            backface-visibility: hidden;
+            border-radius: 0 0 6px 6px;
+        }}
+
+        .flipped .leaf {{
+            transform: rotateX(-180deg);
+        }}
+
+        /* 中間陰影線 */
+        .flap::after {{
             content: "";
             position: absolute;
             top: 50%; left: 0; width: 100%; height: 2px;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.8);
             z-index: 10;
-        }}
-
-        /* 翻轉動畫 */
-        .flip-anim {{
-            animation: flip-half 0.5s ease-in-out forwards;
-        }}
-
-        @keyframes flip-half {{
-            0% {{ transform: rotateX(0deg); }}
-            50% {{ transform: rotateX(-90deg); color: #888; }} /* 翻到一半 */
-            51% {{ transform: rotateX(90deg); color: #888; }}  /* 從背後出現 */
-            100% {{ transform: rotateX(0deg); }}
-        }}
-
-        @media (max-width: 480px) {{
-            .flap-card {{ width: 38px; height: 60px; font-size: 28px; line-height: 60px; }}
         }}
     </style>
     </head>
@@ -94,52 +128,41 @@ if user_input:
         const t2 = Array.from("{text2}");
         const board = document.getElementById('board');
         let currentPhase = 1;
-        let isAnimating = false;
 
-        // 初始化
-        function init() {{
-            t1.forEach(char => {{
-                const card = document.createElement('div');
-                card.className = 'flap-card';
-                card.innerText = char === ' ' ? '\\u00A0' : char;
-                board.appendChild(card);
-            }});
-        }}
-
-        function toggle() {{
-            if (isAnimating) return;
-            isAnimating = true;
+        function createFlap(charA, charB) {{
+            const wrap = document.createElement('div');
+            wrap.className = 'flap';
             
-            const cards = document.querySelectorAll('.flap-card');
-            const targetText = (currentPhase === 1) ? t2 : t1;
-
-            cards.forEach((card, i) => {{
-                setTimeout(() => {{
-                    // 觸發動畫
-                    card.classList.remove('flip-anim');
-                    void card.offsetWidth; 
-                    card.classList.add('flip-anim');
-
-                    // 在翻轉到 90 度的瞬間換字 (約 250ms)
-                    setTimeout(() => {{
-                        const newChar = targetText[i] === ' ' ? '\\u00A0' : targetText[i];
-                        card.innerText = newChar;
-                    }}, 250);
-
-                    if (i === cards.length - 1) {{
-                        setTimeout(() => {{ isAnimating = false; }}, 500);
-                    }}
-                }}, i * 40); // 瀑布流依次翻轉
-            }});
-
-            currentPhase = (currentPhase === 1) ? 2 : 1;
+            // 下層靜態文字 (B)
+            wrap.innerHTML = `
+                <div class="top">${{charB}}</div>
+                <div class="bottom">${{charA}}</div>
+                <div class="leaf">${{charA}}</div>
+                <div class="leaf-back">${{charB}}</div>
+            `;
+            return wrap;
         }}
 
-        board.addEventListener('click', toggle);
+        function init() {{
+            t1.forEach((char, i) => {{
+                board.appendChild(createFlap(char, t2[i]));
+            }});
+        }}
+
+        function doFlip() {{
+            const flaps = document.querySelectorAll('.flap');
+            flaps.forEach((flap, i) => {{
+                setTimeout(() => {{
+                    flap.classList.toggle('flipped');
+                }}, i * 60);
+            }});
+        }}
+
+        board.addEventListener('click', doFlip);
         init();
     </script>
     </body>
     </html>
     """
     
-    components.html(html_code, height=300)
+    components.html(html_code, height=400)

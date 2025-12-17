@@ -2,12 +2,12 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Final Fix", layout="centered")
+st.set_page_config(page_title="Natural Split-Flap", layout="centered")
 
-st.title("📟 物理翻板：字元拼合終極版")
-st.caption("修正了中文字元上下組合錯誤。點擊看板切換前後半句。")
+st.title("📟 物理翻板：自然動態版")
+st.caption("優化了翻轉曲線與光影效果，讓動作更流暢自然。")
 
-user_input = st.text_input("輸入句子", "謝謝光臨歡迎再來")
+user_input = st.text_input("輸入句子", "往事就是我的安慰")
 
 if user_input:
     chars = list(user_input)
@@ -19,7 +19,6 @@ if user_input:
     while len(t1) < max_len: t1.append(" ")
     while len(t2) < max_len: t2.append(" ")
 
-    # 使用雙大括號 {{ }} 來轉義，避免 f-string 解析錯誤
     html_code = f"""
     <!DOCTYPE html>
     <html>
@@ -29,13 +28,13 @@ if user_input:
         body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; }}
         
         .board {{
-            display: flex; flex-wrap: wrap; gap: 10px; perspective: 1000px; justify-content: center;
+            display: flex; flex-wrap: wrap; gap: 12px; perspective: 1500px; justify-content: center;
         }}
 
         .flap-unit {{
             position: relative; width: 70px; height: 100px;
-            background-color: #1a1a1a; border-radius: 6px;
-            font-family: 'Noto Sans TC', sans-serif; font-size: 60px; font-weight: 900; color: #fff;
+            background-color: #111; border-radius: 6px;
+            font-family: 'Noto Sans TC', sans-serif; font-size: 60px; font-weight: 900; color: #eee;
         }}
 
         .half {{
@@ -49,21 +48,32 @@ if user_input:
 
         .text {{ height: 100px; line-height: 100px; text-align: center; }}
 
+        /* 增加光影效果 */
+        .top::before {{
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 100%); pointer-events: none;
+        }}
+
+        /* 翻動葉片：使用更自然的緩動 */
         .leaf {{
             position: absolute; top: 0; left: 0; width: 100%; height: 50%;
             z-index: 10; transform-origin: bottom;
-            transition: transform 0.5s ease-in;
+            transition: transform 0.6s cubic-bezier(0.45, 0.05, 0.55, 0.95);
             transform-style: preserve-3d;
         }}
 
-        .leaf-front {{ z-index: 2; }}
-        .leaf-back {{ transform: rotateX(-180deg); z-index: 1; }}
+        .leaf-front {{ z-index: 2; border-bottom: 1px solid #000; }}
+        .leaf-back {{ 
+            transform: rotateX(-180deg); z-index: 1; 
+            background: #1a1a1a; /* 確保背面顏色一致 */
+        }}
 
         .flipping {{ transform: rotateX(-180deg); }}
 
+        /* 軸心裝飾 */
         .flap-unit::after {{
             content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-            background: rgba(0,0,0,0.8); z-index: 20;
+            background: #000; z-index: 20; transform: translateY(-50%);
         }}
     </style>
     </head>
@@ -73,56 +83,40 @@ if user_input:
     <script>
         const s1 = {t1};
         const s2 = {t2};
-        let currentText = s1;
-        let isAnimating = false;
+        let isT1 = true;
 
-        function createHTML(chars) {{
-            return chars.map(char => `
+        function render() {{
+            const current = isT1 ? s1 : s2;
+            const target = isT1 ? s2 : s1;
+            
+            board.innerHTML = current.map((c, i) => `
                 <div class="flap-unit">
-                    <div class="half top"><div class="text">${{char}}</div></div>
-                    <div class="half bottom"><div class="text">${{char}}</div></div>
+                    <div class="half top"><div class="text">${{target[i]}}</div></div>
+                    <div class="half bottom"><div class="text">${{c}}</div></div>
                     <div class="leaf">
-                        <div class="half top leaf-front"><div class="text">${{char}}</div></div>
-                        <div class="half bottom leaf-back"><div class="text">${{char}}</div></div>
+                        <div class="half top leaf-front"><div class="text">${{c}}</div></div>
+                        <div class="half bottom leaf-back"><div class="text">${{target[i]}}</div></div>
                     </div>
                 </div>
             `).join('');
         }}
 
         const board = document.getElementById('board');
-        board.innerHTML = createHTML(s1);
+        render();
 
         board.addEventListener('click', () => {{
-            if (isAnimating) return;
-            isAnimating = true;
-
-            const nextText = (currentText === s1) ? s2 : s1;
             const units = document.querySelectorAll('.flap-unit');
-
             units.forEach((unit, i) => {{
                 setTimeout(() => {{
-                    const leaf = unit.querySelector('.leaf');
-                    const leafBackText = leaf.querySelector('.leaf-back .text');
-                    const topBaseText = unit.querySelector('.top .text');
-
-                    leafBackText.innerText = nextText[i];
-                    topBaseText.innerText = nextText[i];
-
-                    leaf.classList.add('flipping');
-
-                    setTimeout(() => {{
-                        unit.querySelector('.bottom .text').innerText = nextText[i];
-                    }}, 250);
-
-                    if (i === units.length - 1) {{
-                        setTimeout(() => {{
-                            board.innerHTML = createHTML(nextText);
-                            currentText = nextText;
-                            isAnimating = false;
-                        }}, 550);
-                    }}
-                }}, i * 50);
+                    unit.querySelector('.leaf').classList.add('flipping');
+                }}, i * 60);
             }});
+
+            // 動畫結束後徹底切換狀態
+            setTimeout(() => {{
+                isT1 = !isT1;
+                render();
+            }}, 800);
         }});
     </script>
     </body>

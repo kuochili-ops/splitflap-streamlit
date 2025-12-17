@@ -25,7 +25,6 @@ html_code = f"""
         --unit-width: calc(min(72px, 94vw / {max_l} - 6px));
         --unit-height: calc(var(--unit-width) * 1.5);
         --font-size: calc(var(--unit-width) * 0.85);
-        --board-bg: #0d0d0d;
         --card-bg: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
     }}
 
@@ -70,27 +69,20 @@ html_code = f"""
     }}
     .text {{ height: var(--unit-height); line-height: var(--unit-height); text-align: center; width: 100%; }}
 
-    .base-top {{ z-index: 1; }} 
-    .base-bottom {{ z-index: 2; }}
-
     .leaf {{ 
         position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
         z-index: 15; transform-origin: bottom; 
         transition: transform 0.55s cubic-bezier(0.5, 0, 0.1, 1.25);
         transform-style: preserve-3d;
-        will-change: transform, filter;
+        will-change: transform;
     }}
 
     .leaf-front {{ z-index: 16; background: var(--card-bg); }} 
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #1a1a1a; }}
     
-    /* 增加動態模糊效果 */
-    .flipping {{ 
-        transform: rotateX(-180deg); 
-        filter: contrast(1.1);
-    }}
+    .flipping {{ transform: rotateX(-180deg); }}
 
-    /* 改良版中間轉軸軸承 */
+    /* 中間轉軸軸承 */
     .flap-unit::before {{
         content: ""; position: absolute; top: 50%; left: -2px; width: calc(100% + 4px); height: 4px;
         background: linear-gradient(180deg, #111, #444, #111);
@@ -133,8 +125,7 @@ html_code = f"""
         const nextArr = currentIsA ? tB : tA;
 
         units.forEach((u, i) => {{
-            // 使用非線性延遲，營造更高級的節奏感
-            const delay = 40 * i + (Math.sin(i * 0.5) * 20);
+            const delay = 40 * i + (Math.random() * 20);
             
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');

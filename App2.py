@@ -19,7 +19,7 @@ st.markdown("""
 query_params = st.query_params
 is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
-default_val = urllib.parse.unquote(raw_url_text) if raw_url_text else "Serena 是我的女神"
+default_val = urllib.parse.unquote(raw_url_text) if raw_url_text else "請輸入訊息，我可以一行一行輪播！"
 
 # 側邊欄或頂部控制 (嵌入模式下隱藏)
 if not is_embedded:

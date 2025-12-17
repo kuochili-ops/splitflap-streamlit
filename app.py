@@ -3,40 +3,46 @@ import streamlit.components.v1 as components
 import math
 import urllib.parse
 
-# --- 1. 極致 UI 隱藏設定 ---
+# --- 1. 頁面隱藏設定 (完全去除邊框與滾動條) ---
 st.set_page_config(layout="centered")
 st.markdown("""
     <style>
-    /* 隱藏所有 Streamlit 預設組件 */
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    /* 移除邊距讓看板置頂 */
-    .block-container {padding-top: 0rem; padding-bottom: 0rem;}
-    body {background-color: transparent;}
-    /* 調整滑桿在 App 中的顯示 (嵌入時會消失) */
-    .stSlider label {color: #666; font-size: 0.9rem;}
+    .block-container {padding: 0px; margin: 0px;}
+    body {background-color: transparent; overflow: hidden;}
+    [data-testid="stVerticalBlock"] {gap: 0rem;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 獲取文字與參數 ---
+# --- 2. 強化版文字獲取與編碼修正 ---
 query_params = st.query_params
 is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_text = query_params.get("text", "")
 
-# 強制解碼網址中文，若無則顯示預設
-default_val = urllib.parse.unquote(raw_text) if raw_text else "Serena 是我的女神"
+# 修正亂碼關鍵：先手動解碼 URL，再處理 Streamlit 可能產生的編碼錯誤
+def safe_decode(text):
+    if not text: return "Serena 是我的女神"
+    # 處理 URL 編碼
+    decoded = urllib.parse.unquote(text)
+    # 避免雙重編碼導致的亂碼
+    try:
+        return decoded.encode('latin-1').decode('utf-8')
+    except:
+        return decoded
 
-# 介面控制
+input_text = safe_decode(raw_text)
+
+# 控制參數
 if not is_embedded:
     col1, col2 = st.columns([3, 1])
     with col1:
-        input_text = st.text_input("輸入內容", default_val)
+        input_text = st.text_input("輸入內容", input_text)
     with col2:
-        stay_seconds = st.slider("停留秒數", 0.5, 5.0, 1.5, 0.5)
+        stay_seconds = st.slider("停留秒數", 0.5, 5.0, 2.0, 0.5)
 else:
-    input_text = default_val
-    stay_seconds = float(query_params.get("stay", 1.5))
+    stay_seconds = float(query_params.get("stay", 2.0))
 
-# --- 3. 核心邏輯：動態寬度計算 (商數限定 10 格) ---
+# --- 3. 動態寬度邏輯 (您的規格) ---
 N = len(input_text)
 if N <= 1:
     cols = 1
@@ -44,13 +50,12 @@ else:
     quotient = math.ceil(N / 2)
     cols = quotient if quotient < 10 else 10
 
-# 切割多行並補齊空格
 rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)]
 for row in rows_data:
     while len(row) < cols:
         row.append(" ")
 
-# --- 4. 生成嵌入 HTML ---
+# --- 4. 旗艦版翻板 HTML (修正渲染問題) ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -59,14 +64,13 @@ html_code = f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
     :root {{
-        --unit-width: calc(min(72px, 94vw / {cols} - 6px));
+        --unit-width: calc(min(72px, 98vw / {cols} - 6px));
         --unit-height: calc(var(--unit-width) * 1.5);
         --font-size: calc(var(--unit-width) * 0.85);
-        --card-bg: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
     }}
     body {{ 
         background: transparent; display: flex; justify-content: center; align-items: center; 
-        height: 100vh; margin: 0; overflow: hidden; cursor: pointer; user-select: none;
+        height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
     }}
     .board-row {{ 
         display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); 
@@ -74,31 +78,25 @@ html_code = f"""
     }}
     .flap-unit {{ 
         position: relative; width: var(--unit-width); height: var(--unit-height); 
-        background: #000; border-radius: 6px; font-family: 'Noto Sans TC', sans-serif; 
-        font-size: var(--font-size); font-weight: 900; color: #f0f0f0;
+        background: #000; border-radius: 4px; font-family: 'Noto Sans TC', sans-serif; 
+        font-size: var(--font-size); font-weight: 900; color: #fff;
     }}
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
-        background: var(--card-bg); display: flex; justify-content: center; 
-        backface-visibility: hidden; -webkit-backface-visibility: hidden;
+        background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%); 
+        display: flex; justify-content: center; backface-visibility: hidden;
     }}
-    .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 1px solid #000; }}
-    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
-    .text {{ height: var(--unit-height); line-height: var(--unit-height); text-align: center; width: 100%; }}
+    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 1px solid #000; }}
+    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
+    .text {{ height: var(--unit-height); line-height: var(--unit-height); text-align: center; }}
     .leaf {{ 
         position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
         z-index: 15; transform-origin: bottom; 
-        transition: transform 0.55s cubic-bezier(0.5, 0, 0.1, 1.25); 
-        transform-style: preserve-3d;
+        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1.2); transform-style: preserve-3d;
     }}
-    .leaf-front {{ z-index: 16; background: var(--card-bg); }} 
+    .leaf-front {{ z-index: 16; background: #2a2a2a; }} 
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #1a1a1a; }}
     .flipping {{ transform: rotateX(-180deg); }}
-    .flap-unit::before {{
-        content: ""; position: absolute; top: 50%; left: -1px; width: calc(100% + 2px); height: 3px;
-        background: linear-gradient(180deg, #000, #444, #000);
-        transform: translateY(-50%) translateZ(10px); z-index: 60; border-radius: 1px;
-    }}
 </style>
 </head>
 <body>
@@ -114,13 +112,15 @@ html_code = f"""
         document.getElementById('board').innerHTML = chars.map(c => `
             <div class="flap-unit">
                 <div class="half top bt"><div class="text">${{c}}</div></div>
-                <div class="half bottom bb"><div class="text">${{c}}</div></div>
+                <div class="half bottom bb"><div class="text">${{charToHtml(c)}}</div></div>
                 <div class="leaf">
-                    <div class="half top lf"><div class="text">${{c}}</div></div>
-                    <div class="half bottom lb"><div class="text">${{c}}</div></div>
+                    <div class="half top lf"><div class="text">${{charToHtml(c)}}</div></div>
+                    <div class="half bottom lb"><div class="text">${{charToHtml(c)}}</div></div>
                 </div>
             </div>`).join('');
     }}
+
+    function charToHtml(c) {{ return c === " " ? "&nbsp;" : c; }}
 
     function flip() {{
         if (allData.length <= 1 || busy) return;
@@ -132,13 +132,13 @@ html_code = f"""
         units.forEach((u, i) => {{
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
-                u.querySelector('.bt .text').innerText = chars[i];
-                u.querySelector('.lb .text').innerText = chars[i];
+                u.querySelector('.bt .text').innerHTML = charToHtml(chars[i]);
+                u.querySelector('.lb .text').innerHTML = charToHtml(chars[i]);
                 leaf.classList.add('flipping');
                 leaf.addEventListener('transitionend', function end() {{
                     leaf.removeEventListener('transitionend', end);
-                    u.querySelector('.bb .text').innerText = chars[i];
-                    u.querySelector('.lf .text').innerText = chars[i];
+                    u.querySelector('.bb .text').innerHTML = charToHtml(chars[i]);
+                    u.querySelector('.lf .text').innerHTML = charToHtml(chars[i]);
                     leaf.style.transition = 'none';
                     leaf.classList.remove('flipping');
                     leaf.offsetHeight;
@@ -163,4 +163,5 @@ html_code = f"""
 </html>
 """
 
-components.html(html_code, height=250)
+# 計算高度以適應不同行數
+components.html(html_code, height=200 if is_embedded else 300)

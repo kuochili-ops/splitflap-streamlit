@@ -2,10 +2,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Ultimate Split-Flap", layout="centered")
+st.set_page_config(page_title="Split-Flap Stable", layout="centered")
 
-st.title("📟 物理翻板：全靜態穩定版")
-st.caption("使用純 CSS 物理疊層結構，徹底根絕拼合錯誤與動作閃爍。")
+st.title("📟 物理翻板：狀態隔離版")
+st.caption("解決初始狀態字元拼合錯誤。點擊看板開始翻轉。")
 
 user_input = st.text_input("輸入句子", "往事就是我的安慰")
 
@@ -25,10 +25,10 @@ if user_input:
     <head>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
-        body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; overflow: hidden; }}
+        body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; }}
         
         .board {{
-            display: flex; flex-wrap: wrap; gap: 10px; perspective: 1000px; justify-content: center;
+            display: flex; flex-wrap: wrap; gap: 10px; perspective: 1200px; justify-content: center;
         }}
 
         .flap-unit {{
@@ -37,7 +37,6 @@ if user_input:
             font-family: 'Noto Sans TC', sans-serif; font-size: 60px; font-weight: 900; color: #fff;
         }}
 
-        /* 通用半格容器 */
         .half {{
             position: absolute; left: 0; width: 100%; height: 50%;
             overflow: hidden; background: #1a1a1a; display: flex; justify-content: center;
@@ -47,35 +46,35 @@ if user_input:
         .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
         .text {{ height: 100px; line-height: 100px; text-align: center; }}
 
-        /* --- 核心四層結構 --- */
+        /* --- 隔離層級設計 --- */
         
-        /* 1. 最底層下半部：顯示新字的下半 (目標) */
+        /* 預設隱藏新字層，防止手機渲染錯誤 */
+        .base-new-top, .base-new-bottom, .leaf-back {{
+            visibility: hidden;
+        }}
+
+        /* 啟動後才顯示新字層 */
+        .active .base-new-top, .active .base-new-bottom, .active .leaf-back {{
+            visibility: visible;
+        }}
+
+        /* 層級順序 */
         .base-new-bottom {{ z-index: 1; }}
-
-        /* 2. 底座上半部：顯示新字的上半 (目標) */
         .base-new-top {{ z-index: 2; }}
+        .base-old-bottom {{ z-index: 3; }} /* 初始顯示的舊字下半 */
 
-        /* 3. 靜態覆蓋層：顯示舊字的下半 (起始) */
-        /* 當葉片翻下來時，會蓋掉這一層 */
-        .base-old-bottom {{ z-index: 3; }}
-
-        /* 4. 動態翻轉葉片 */
         .leaf {{
             position: absolute; top: 0; left: 0; width: 100%; height: 50%;
             z-index: 10; transform-origin: bottom;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             transform-style: preserve-3d;
         }}
-        .leaf-front {{ z-index: 12; }} /* 舊字上半部 */
-        .leaf-back {{ 
-            transform: rotateX(-180deg); z-index: 11; 
-            background: #1a1a1a;
-        }} /* 新字下半部 */
-
-        /* 狀態切換 */
-        .active .leaf {{ transform: rotateX(-180deg); }}
         
-        /* 視覺裝飾：轉軸線 */
+        .leaf-front {{ z-index: 12; }} /* 初始顯示的舊字上半 */
+        .leaf-back {{ transform: rotateX(-180deg); z-index: 11; }}
+
+        .flipping {{ transform: rotateX(-180deg); }}
+
         .flap-unit::after {{
             content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
             background: #000; z-index: 20; transform: translateY(-50%);
@@ -109,7 +108,6 @@ if user_input:
         let isFlipped = false;
         board.addEventListener('click', () => {{
             if (isFlipped) {{
-                // 若要往回翻，直接重置 DOM 重新開始，這是最穩定的做法
                 isFlipped = false;
                 createUnits(s1, s2);
                 return;
@@ -118,8 +116,10 @@ if user_input:
             isFlipped = true;
             const units = document.querySelectorAll('.flap-unit');
             units.forEach((u, i) => {{
+                // 點擊瞬間開啟新字層的 visibility
+                u.classList.add('active');
                 setTimeout(() => {{
-                    u.classList.add('active');
+                    u.querySelector('.leaf').classList.add('flipping');
                 }}, i * 70);
             }});
         }});

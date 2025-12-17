@@ -1,37 +1,27 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import math
 
-st.set_page_config(page_title="Stable Split-Flap", layout="centered")
+st.set_page_config(page_title="Split-Flap Toggle", layout="centered")
 
-# 這裡包含了常用的中文字、英數與「全形空格」
-# 注意：這串字元集必須涵蓋你輸入的所有字，否則它會因為找不到而跳過或報錯
-CHAR_SET = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ！？。，、：；「」人生到底為了啥吃頓好的"
+st.title("📟 互動翻轉告示板")
+st.caption("輸入一段話，點擊看板切換前後半段")
 
-def smart_split_text(text):
-    if not text: return "READY", "GO"
-    # 統一轉為大寫以匹配 CHAR_SET
-    text = text.upper()
-    length = len(text)
-    mid = length // 2
-    if length <= 5: return text, text
-    
-    split_index = text.rfind(' ', 0, mid + 2)
-    if split_index == -1: split_index = mid
-    return text[:split_index].strip(), text[split_index:].strip()
-
-st.title("⚙️ 穩定版機械翻板")
-st.caption("解決中文匹配問題，點擊看板進行循環切換")
-
-user_input = st.text_input("輸入內容（請確保字元在字盤內）", "人生到底為了啥 吃頓好的")
+# 使用者輸入
+user_input = st.text_input("請輸入句子", "人生到底為了啥吃頓好的")
 
 if user_input:
-    text1, text2 = smart_split_text(user_input)
-    # 看板長度設固定，避免排版跳動
-    BOARD_SIZE = 12
+    # 邏輯：將字數除以二
+    total_len = len(user_input)
+    split_point = math.ceil(total_len / 2)
     
-    # 使用標準空格補齊
-    safe_text1 = text1.ljust(BOARD_SIZE, " ")
-    safe_text2 = text2.ljust(BOARD_SIZE, " ")
+    part1 = user_input[:split_point]
+    part2 = user_input[split_point:]
+    
+    # 補齊長度，讓兩段呈現一致
+    max_len = max(len(part1), len(part2))
+    text1 = part1.ljust(max_len, " ")
+    text2 = part2.ljust(max_len, " ")
 
     html_code = f"""
     <!DOCTYPE html>
@@ -39,124 +29,117 @@ if user_input:
     <head>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700&display=swap');
-        body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; }}
+        
+        body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; overflow: hidden; }}
         
         .board {{
             background: #111;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 15px;
+            border-radius: 10px;
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 4px;
+            gap: 6px;
             border: 4px solid #333;
             cursor: pointer;
+            perspective: 1000px;
         }}
 
-        .flap-unit {{
-            width: 45px;
-            height: 65px;
-            background: #1a1a1a;
+        .flap-card {{
             position: relative;
-            font-family: 'Noto Sans TC', sans-serif;
-            font-size: 32px;
-            color: #efefef;
-            text-align: center;
-            line-height: 65px;
+            width: 50px;
+            height: 80px;
+            background: #1a1a1a;
             border-radius: 4px;
-            perspective: 300px;
-            overflow: hidden;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-size: 40px;
+            font-weight: bold;
+            color: #ddd;
+            line-height: 80px;
+            text-align: center;
         }}
 
-        .flap-unit::after {{
+        /* 中間切割線 */
+        .flap-card::after {{
             content: "";
             position: absolute;
-            top: 50%; left: 0; width: 100%; height: 1px;
-            background: rgba(0,0,0,0.8);
+            top: 50%; left: 0; width: 100%; height: 2px;
+            background: rgba(0,0,0,0.9);
             z-index: 10;
         }}
 
-        .flipping {{
-            animation: flap-anim 0.08s ease-in-out;
+        /* 翻轉動畫 */
+        .flip-anim {{
+            animation: flip-half 0.5s ease-in-out forwards;
         }}
 
-        @keyframes flap-anim {{
-            0% {{ transform: rotateX(0deg); opacity: 1; }}
-            50% {{ transform: rotateX(-90deg); opacity: 0.7; }}
-            100% {{ transform: rotateX(0deg); opacity: 1; }}
+        @keyframes flip-half {{
+            0% {{ transform: rotateX(0deg); }}
+            50% {{ transform: rotateX(-90deg); color: #888; }} /* 翻到一半 */
+            51% {{ transform: rotateX(90deg); color: #888; }}  /* 從背後出現 */
+            100% {{ transform: rotateX(0deg); }}
+        }}
+
+        @media (max-width: 480px) {{
+            .flap-card {{ width: 38px; height: 60px; font-size: 28px; line-height: 60px; }}
         }}
     </style>
     </head>
     <body>
+
     <div class="board" id="board"></div>
 
     <script>
-        // 確保這裡的字串與 Python 端的 CHAR_SET 完全一致
-        const charSet = Array.from("{CHAR_SET}"); 
-        const textPhase1 = "{safe_text1}";
-        const textPhase2 = "{safe_text2}";
+        const t1 = Array.from("{text1}");
+        const t2 = Array.from("{text2}");
         const board = document.getElementById('board');
         let currentPhase = 1;
         let isAnimating = false;
 
+        // 初始化
         function init() {{
-            for (let i = 0; i < {BOARD_SIZE}; i++) {{
-                const unit = document.createElement('div');
-                unit.className = 'flap-unit';
-                unit.innerText = textPhase1[i] || " ";
-                board.appendChild(unit);
-            }}
+            t1.forEach(char => {{
+                const card = document.createElement('div');
+                card.className = 'flap-card';
+                card.innerText = char === ' ' ? '\\u00A0' : char;
+                board.appendChild(card);
+            }});
         }}
 
-        async function animateTo(targetString) {{
+        function toggle() {{
+            if (isAnimating) return;
             isAnimating = true;
-            const units = document.querySelectorAll('.flap-unit');
-            const promises = [];
+            
+            const cards = document.querySelectorAll('.flap-card');
+            const targetText = (currentPhase === 1) ? t2 : t1;
 
-            units.forEach((unit, i) => {{
-                promises.push(new Promise(async (resolve) => {{
-                    let targetChar = targetString[i] || " ";
-                    
-                    // 檢查目標字是否在字元集內，不在的話強制改為空格
-                    if (!charSet.includes(targetChar)) targetChar = " ";
+            cards.forEach((card, i) => {{
+                setTimeout(() => {{
+                    // 觸發動畫
+                    card.classList.remove('flip-anim');
+                    void card.offsetWidth; 
+                    card.classList.add('flip-anim');
 
-                    let maxAttempts = charSet.length * 2; // 安全鎖：最多跑兩圈
-                    let attempts = 0;
+                    // 在翻轉到 90 度的瞬間換字 (約 250ms)
+                    setTimeout(() => {{
+                        const newChar = targetText[i] === ' ' ? '\\u00A0' : targetText[i];
+                        card.innerText = newChar;
+                    }}, 250);
 
-                    while (unit.innerText !== targetChar && attempts < maxAttempts) {{
-                        let currentIndex = charSet.indexOf(unit.innerText);
-                        if (currentIndex === -1) currentIndex = 0;
-
-                        let nextIndex = (currentIndex + 1) % charSet.length;
-                        unit.innerText = charSet[nextIndex];
-
-                        // 動畫效果
-                        unit.classList.remove('flipping');
-                        void unit.offsetWidth; 
-                        unit.classList.add('flipping');
-
-                        await new Promise(r => setTimeout(r, 40)); 
-                        attempts++;
+                    if (i === cards.length - 1) {{
+                        setTimeout(() => {{ isAnimating = false; }}, 500);
                     }}
-                    resolve();
-                }}));
+                }}, i * 40); // 瀑布流依次翻轉
             }});
 
-            await Promise.all(promises);
-            isAnimating = false;
+            currentPhase = (currentPhase === 1) ? 2 : 1;
         }}
 
-        board.addEventListener('click', () => {{
-            if (isAnimating) return;
-            const target = (currentPhase === 1) ? textPhase2 : textPhase1;
-            animateTo(target);
-            currentPhase = (currentPhase === 1) ? 2 : 1;
-        }});
-
+        board.addEventListener('click', toggle);
         init();
     </script>
     </body>
     </html>
     """
     
-    components.html(html_code, height=350)
+    components.html(html_code, height=300)

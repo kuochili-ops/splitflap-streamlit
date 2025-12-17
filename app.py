@@ -2,16 +2,17 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Zero-Error", layout="centered")
+st.set_page_config(page_title="Split-Flap Perfect Sync", layout="centered")
 
+# --- 側邊欄設定 ---
 st.sidebar.header("📟 看板模式設定")
 mode = st.sidebar.radio("展示方式", ["單行拆句", "多行排列"])
 col_count = st.sidebar.slider("每行字數", 2, 10, 4 if mode == "多行排列" else 8)
 
-st.title("📟 物理翻板：內容鎖定同步版")
-st.caption("保證靜態時上下部絕對一致，且無論翻幾次都維持物理下翻。")
+st.title("📟 物理翻板：內容鎖定版")
+st.caption("確保翻轉前、中、後，字元拼合絕對精確。")
 
-# --- 處理文字邏輯 ---
+# --- 處理文字內容 ---
 if mode == "單行拆句":
     raw_input = st.text_input("輸入句子", "謝謝光臨歡迎再來")
     chars = list(raw_input)
@@ -30,7 +31,7 @@ else:
     s2 += [" "] * (max_l - len(s2))
     display_cols = col_count
 
-# --- HTML/JS 核心結構 ---
+# --- HTML/JavaScript ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -41,7 +42,7 @@ html_code = f"""
     
     .board {{
         display: grid; grid-template-columns: repeat({display_cols}, 72px);
-        gap: 12px; perspective: 1500px; justify-content: center;
+        gap: 12px; perspective: 2000px; justify-content: center;
     }}
 
     .flap-unit {{
@@ -59,9 +60,9 @@ html_code = f"""
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     .text {{ height: 100px; line-height: 100px; text-align: center; width: 100%; }}
 
-    /* 物理分層 */
-    .base-top {{ z-index: 1; }}    /* 下一個字的上半 */
-    .base-bottom {{ z-index: 2; }} /* 目前字的下半 */
+    /* 物理層級結構 */
+    .base-top {{ z-index: 1; }} 
+    .base-bottom {{ z-index: 2; }}
     
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
@@ -69,8 +70,8 @@ html_code = f"""
         transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         transform-style: preserve-3d;
     }}
-    .leaf-front {{ z-index: 11; }} /* 目前字的上半 */
-    .leaf-back {{ transform: rotateX(-180deg); z-index: 10; }} /* 下一個字的下半 */
+    .leaf-front {{ z-index: 11; }} 
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 10; }}
 
     .flipping {{ transform: rotateX(-180deg); }}
 
@@ -84,14 +85,14 @@ html_code = f"""
 <div class="board" id="board"></div>
 
 <script>
-    const textA = {s1}, textB = {s2};
+    const tA = {s1}, tB = {s2};
     let currentIsA = true;
     let isAnimating = false;
 
-    // 初始化：保證所有面（包括隱藏的面）最初都顯示同一組字元
+    // 初始化：強制所有面在開始前都顯示 tA 的字，保證組合正確
     function init() {{
         const board = document.getElementById('board');
-        board.innerHTML = textA.map((char, i) => `
+        board.innerHTML = tA.map((char, i) => `
             <div class="flap-unit" id="unit-${{i}}">
                 <div class="half top base-top"><div class="text">${{char}}</div></div>
                 <div class="half bottom base-bottom"><div class="text">${{char}}</div></div>
@@ -107,34 +108,35 @@ html_code = f"""
         isAnimating = true;
 
         const units = document.querySelectorAll('.flap-unit');
-        const nextArr = currentIsA ? textB : textA;
+        const nextArr = currentIsA ? tB : tA;
 
         units.forEach((u, i) => {{
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
                 
-                // 第一階段：準備翻轉。偷偷把「被遮住」的面換成目標字
+                // --- 步驟 1：翻轉前一瞬間，把「即將出現」的內容塞入底層與背面 ---
                 u.querySelector('.base-top .text').innerText = nextArr[i];
                 u.querySelector('.leaf-back .text').innerText = nextArr[i];
 
-                // 第二階段：啟動下翻動畫
+                // --- 步驟 2：啟動動畫 ---
                 leaf.classList.add('flipping');
 
                 leaf.addEventListener('transitionend', function handler() {{
                     leaf.removeEventListener('transitionend', handler);
                     
-                    // 第三階段：動畫結束。瞬間同步所有面，並靜默重置葉片位置
+                    // --- 步驟 3：動畫結束，把「正面」與「底層」也換成新字，完成鎖定 ---
                     u.querySelector('.base-bottom .text').innerText = nextArr[i];
                     u.querySelector('.leaf-front .text').innerText = nextArr[i];
                     
+                    // 瞬間重置角度，因為內容已一致，肉眼看不出重置
                     leaf.style.transition = 'none';
                     leaf.classList.remove('flipping');
                     
-                    // 同步預備面，維持一致性
+                    // 同步 base-top 以應付靜態顯示
                     u.querySelector('.base-top .text').innerText = nextArr[i];
                     u.querySelector('.leaf-back .text').innerText = nextArr[i];
 
-                    void leaf.offsetWidth; // 強制瀏覽器重繪
+                    void leaf.offsetWidth; // 強制重繪
                     leaf.style.transition = '';
                     
                     if (i === units.length - 1) {{

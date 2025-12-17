@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Silk Smooth", layout="centered")
+st.set_page_config(page_title="Split-Flap Ultra Smooth", layout="centered")
 
 # --- 文字處理 ---
 raw_input = st.text_input("輸入句子", "黃千凌是我今生的最愛")
@@ -13,25 +13,51 @@ max_l = max(len(s1), len(s2))
 s1 += [" "] * (max_l - len(s1))
 s2 += [" "] * (max_l - len(s2))
 
+# 將資料轉為 JS 可讀格式
+s1_js = str(s1)
+s2_js = str(s2)
+
 html_code = f"""
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
-    body {{ background: transparent; display: flex; flex-direction: column; align-items: center; padding: 20px 0; overflow: hidden; }}
+    
+    :root {{
+        /* 根據字數自動計算寬度，確保不超出手機螢幕 */
+        --unit-width: calc(min(68px, 90vw / {max_l} - 10px));
+        --unit-height: calc(var(--unit-width) * 1.47);
+        --font-size: calc(var(--unit-width) * 0.76);
+    }}
+
+    body {{ 
+        background: transparent; 
+        display: flex; 
+        justify-content: center; 
+        padding: 20px 0; 
+        margin: 0;
+        overflow: hidden;
+    }}
     
     .board {{ 
         display: grid; 
-        grid-template-columns: repeat({max_l}, 72px); 
-        gap: 12px; 
-        perspective: 2500px; 
+        grid-template-columns: repeat({max_l}, var(--unit-width)); 
+        gap: clamp(4px, 1vw, 12px); 
+        perspective: 2000px; 
     }}
 
     .flap-unit {{ 
-        position: relative; width: 68px; height: 100px; 
-        background: #111; border-radius: 4px; 
-        font-family: 'Noto Sans TC', sans-serif; font-size: 52px; font-weight: 900; color: #fff;
+        position: relative; 
+        width: var(--unit-width); 
+        height: var(--unit-height); 
+        background: #111; 
+        border-radius: 4px; 
+        font-family: 'Noto Sans TC', sans-serif; 
+        font-size: var(--font-size); 
+        font-weight: 900; 
+        color: #fff;
     }}
 
     .half {{ 
@@ -42,7 +68,7 @@ html_code = f"""
 
     .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 1px solid #000; }}
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
-    .text {{ height: 100px; line-height: 100px; text-align: center; width: 100%; }}
+    .text {{ height: var(--unit-height); line-height: var(--unit-height); text-align: center; width: 100%; }}
 
     .base-top {{ z-index: 1; }} 
     .base-bottom {{ z-index: 2; }}
@@ -50,19 +76,18 @@ html_code = f"""
     .leaf {{ 
         position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
         z-index: 10; transform-origin: bottom; 
-        transition: transform 0.5s cubic-bezier(0.35, 0, 0.25, 1);
+        transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
         transform-style: preserve-3d;
-        will-change: transform; /* 硬體加速關鍵 */
+        will-change: transform;
     }}
 
     .leaf-front {{ z-index: 11; }} 
     .leaf-back {{ transform: rotateX(-180deg); z-index: 10; }}
     .flipping {{ transform: rotateX(-180deg); }}
 
-    /* 中間裝飾細線 */
     .flap-unit::after {{
-        content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1px;
-        background: rgba(0,0,0,0.6); transform: translateY(-50%) translateZ(30px); z-index: 50;
+        content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px;
+        background: rgba(0,0,0,0.9); transform: translateY(-50%) translateZ(10px); z-index: 50;
     }}
 </style>
 </head>
@@ -70,7 +95,7 @@ html_code = f"""
 <div class="board" id="board"></div>
 
 <script>
-    const tA = {s1}, tB = {s2};
+    const tA = {s1_js}, tB = {s2_js};
     let currentIsA = true;
     let isAnimating = false;
 
@@ -86,53 +111,49 @@ html_code = f"""
             </div>`).join('');
     }}
 
-    async function flip() {{
+    function flip() {{
         if (isAnimating) return;
         isAnimating = true;
 
         const units = document.querySelectorAll('.flap-unit');
         const nextArr = currentIsA ? tB : tA;
 
-        for (let i = 0; i < units.length; i++) {{
-            const u = units[i];
-            const leaf = u.querySelector('.leaf');
-            
-            // 延遲發動，營造波浪效果
+        units.forEach((u, i) => {{
+            // 降低間隔時間讓動作更連貫
             setTimeout(() => {{
-                // 翻轉前準備
+                const leaf = u.querySelector('.leaf');
+                
+                // 1. 準備背景內容
                 u.querySelector('.base-top .text').innerText = nextArr[i];
                 u.querySelector('.leaf-back .text').innerText = nextArr[i];
 
+                // 2. 執行翻轉
                 leaf.classList.add('flipping');
 
-                const onEnd = () => {{
-                    leaf.removeEventListener('transitionend', onEnd);
+                // 3. 使用一次性事件處理
+                const finalize = () => {{
+                    leaf.removeEventListener('transitionend', finalize);
                     
-                    // 瞬間更換所有面為新字
+                    // 同步目前可見的面
                     u.querySelector('.base-bottom .text').innerText = nextArr[i];
                     u.querySelector('.leaf-front .text').innerText = nextArr[i];
                     
-                    // 靜默重置，使用 requestAnimationFrame 確保流暢
-                    requestAnimationFrame(() => {{
-                        leaf.style.transition = 'none';
-                        leaf.classList.remove('flipping');
-                        
-                        u.querySelector('.base-top .text').innerText = nextArr[i];
-                        u.querySelector('.leaf-back .text').innerText = nextArr[i];
-
-                        requestAnimationFrame(() => {{
-                            leaf.style.transition = '';
-                        }});
-                    }});
+                    // 瞬間歸位 (不觸發動畫)
+                    leaf.style.transition = 'none';
+                    leaf.classList.remove('flipping');
+                    
+                    // 強制重繪後恢復動畫屬性
+                    leaf.offsetHeight; 
+                    leaf.style.transition = '';
 
                     if (i === units.length - 1) {{
                         currentIsA = !currentIsA;
                         isAnimating = false;
                     }}
                 }};
-                leaf.addEventListener('transitionend', onEnd);
-            }}, i * 60);
-        }}
+                leaf.addEventListener('transitionend', finalize);
+            }}, i * 45); 
+        }});
     }}
 
     document.body.addEventListener('click', flip);
@@ -142,4 +163,4 @@ html_code = f"""
 </html>
 """
 
-components.html(html_code, height=600)
+components.html(html_code, height=450)

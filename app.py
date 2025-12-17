@@ -1,177 +1,164 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Interactive Flap Board", layout="centered")
+st.set_page_config(page_title="Realistic Split-Flap", layout="centered")
+
+# 設定支援的字符序列 (擬真翻牌的順序)
+CHAR_SET = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ日月火水木金土天地人上下左右的一是在不了有個我"
 
 def smart_split_text(text):
-    if not text: return "TOUCH", "ME"
+    if not text: return "READY", "GO"
+    text = text.upper() # 轉大寫以匹配字符集
     length = len(text)
     mid = length // 2
     if length <= 5: return text, text
-    
-    # 找空格切分，若無則強制平分
     split_index = text.rfind(' ', 0, mid + 2)
     if split_index == -1: split_index = mid
-    
     return text[:split_index].strip(), text[split_index:].strip()
 
-st.title("🔘 互動式翻牌告示板")
-st.write("點擊下方的告示板來切換訊息內容")
+st.title("⚙️ 擬真機械翻板告示板")
+st.caption("點擊看板，體驗循序翻牌的機械動感")
 
-user_input = st.text_input("輸入你想說的話", "人生到底為了啥 為了吃頓好的")
-run_btn = st.button("更新內容")
+user_input = st.text_input("輸入內容", "FLIGHT 888 TAIPEI")
 
 if user_input:
     text1, text2 = smart_split_text(user_input)
+    BOARD_SIZE = max(len(text1), len(text2), 10)
     
-    # 計算看板長度，最少 8 格
-    BOARD_SIZE = max(len(text1), len(text2), 8)
-    
-    def pad_text(t, size):
-        return t.ljust(size, "\u00A0")
-
-    safe_text1 = pad_text(text1, BOARD_SIZE)
-    safe_text2 = pad_text(text2, BOARD_SIZE)
+    safe_text1 = text1.ljust(BOARD_SIZE, " ")
+    safe_text2 = text2.ljust(BOARD_SIZE, " ")
 
     html_code = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@700&display=swap');
+        body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; overflow: hidden; }}
         
-        body {{
-            background-color: transparent;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            padding: 20px 0;
-            user-select: none; /* 防止點擊時選取到文字 */
-        }}
-
         .board {{
-            background: linear-gradient(145deg, #111, #222);
-            padding: 20px;
-            border-radius: 15px;
+            background: #111;
+            padding: 15px;
+            border-radius: 8px;
             display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 8px;
-            border: 5px solid #333;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
-            max-width: 95vw;
-            cursor: pointer; /* 讓使用者知道可以點擊 */
-            transition: transform 0.1s;
-        }}
-        
-        .board:active {{
-            transform: scale(0.98); /* 點擊時的縮小反饋 */
-        }}
-        
-        .char-box {{
-            width: 45px;
-            height: 70px;
-            background-color: #1a1a1a;
-            color: #ffffff;
-            font-family: 'Noto Sans TC', sans-serif;
-            font-size: 36px;
-            font-weight: bold;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-radius: 6px;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid #000;
+            gap: 4px;
+            border: 4px solid #333;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }}
 
-        .char-box::after {{
+        .flap-unit {{
+            width: 40px;
+            height: 60px;
+            background: #222;
+            position: relative;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 34px;
+            color: #ddd;
+            text-align: center;
+            line-height: 60px;
+            border-radius: 4px;
+            perspective: 200px;
+        }}
+
+        /* 上半部與下半部遮罩 */
+        .flap-unit::before {{
             content: "";
             position: absolute;
             top: 50%; left: 0; width: 100%; height: 2px;
             background: rgba(0,0,0,0.8);
-            z-index: 5;
+            z-index: 10;
         }}
 
-        .overlay {{
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(0,0,0,0.2) 100%);
-            pointer-events: none;
-        }}
-
-        /* 翻牌動畫 */
+        /* 翻牌動畫：模擬單次拍打 */
         .flipping {{
-            animation: flipDown 0.6s cubic-bezier(0.455, 0.03, 0.515, 0.955);
+            animation: flap-anim 0.1s step-end;
         }}
 
-        @keyframes flipDown {{
-            0% {{ transform: rotateX(0deg); }}
-            50% {{ transform: rotateX(-90deg); opacity: 0.8; }}
-            51% {{ transform: rotateX(90deg); opacity: 0.8; }}
-            100% {{ transform: rotateX(0deg); }}
-        }}
-
-        @media (max-width: 480px) {{
-            .char-box {{ width: 36px; height: 58px; font-size: 26px; }}
-            .board {{ padding: 12px; gap: 5px; }}
+        @keyframes flap-anim {{
+            0% {{ transform: rotateX(0deg); background: #333; }}
+            50% {{ transform: rotateX(-90deg); background: #444; }}
+            100% {{ transform: rotateX(0deg); background: #222; }}
         }}
     </style>
     </head>
     <body>
 
-    <div class="board" id="board" title="點擊切換訊息"></div>
+    <div class="board" id="board"></div>
 
     <script>
-        const text1 = "{safe_text1}";
-        const text2 = "{safe_text2}";
+        const charSet = "{CHAR_SET}";
+        const textPhase1 = "{safe_text1}";
+        const textPhase2 = "{safe_text2}";
         const board = document.getElementById('board');
-        let currentPhase = 1; 
+        let currentPhase = 1;
         let isAnimating = false;
 
+        // 初始化看板
         function init() {{
-            board.innerHTML = '';
-            text1.split('').forEach(char => {{
-                const box = document.createElement('div');
-                box.className = 'char-box';
-                box.innerHTML = `<span>${{char === ' ' ? '&nbsp;' : char}}</span><div class="overlay"></div>`;
-                board.appendChild(box);
-            }});
+            for (let i = 0; i < {BOARD_SIZE}; i++) {{
+                const unit = document.createElement('div');
+                unit.className = 'flap-unit';
+                unit.innerText = textPhase1[i];
+                board.appendChild(unit);
+            }}
         }}
 
-        function toggleFlip() {{
-            if (isAnimating) return; // 動畫中防止重複觸發
+        // 核心邏輯：循序翻動
+        async function animateTo(targetString) {{
             isAnimating = true;
-            
-            const targetText = (currentPhase === 1) ? text2 : text1;
-            const boxes = document.querySelectorAll('.char-box');
-            
-            boxes.forEach((box, i) => {{
-                setTimeout(() => {{
-                    box.classList.remove('flipping');
-                    void box.offsetWidth; // 強制重新渲染觸發動畫
-                    box.classList.add('flipping');
+            const units = document.querySelectorAll('.flap-unit');
+            const promises = [];
+
+            units.forEach((unit, i) => {{
+                promises.push(new Promise(async (resolve) => {{
+                    let currentStr = unit.innerText;
+                    let targetStr = targetString[i];
                     
-                    setTimeout(() => {{
-                        const char = targetText[i] === ' ' ? '&nbsp;' : targetText[i];
-                        box.querySelector('span').innerHTML = char;
-                    }}, 300);
-                    
-                    // 最後一個字動畫結束後解鎖
-                    if (i === boxes.length - 1) {{
-                        setTimeout(() => {{ isAnimating = false; }}, 600);
+                    // 如果目標跟現在一樣，就不動
+                    if (currentStr === targetStr) return resolve();
+
+                    // 尋找在字符集中的位置
+                    let currentIndex = charSet.indexOf(currentStr);
+                    if (currentIndex === -1) currentIndex = 0;
+
+                    // 開始循序翻轉
+                    while (unit.innerText !== targetStr) {{
+                        currentIndex = (currentIndex + 1) % charSet.length;
+                        let nextChar = charSet[currentIndex];
+
+                        // 觸發一次物理動畫效果
+                        unit.classList.remove('flipping');
+                        void unit.offsetWidth; 
+                        unit.classList.add('flipping');
+                        
+                        unit.innerText = nextChar;
+
+                        // 模擬機械翻轉的速度 (毫秒)
+                        await new Promise(r => setTimeout(r, 40)); 
+                        
+                        // 到了就停止
+                        if (nextChar === targetStr) break;
                     }}
-                }}, i * 50);
+                    resolve();
+                }}));
             }});
-            
-            currentPhase = (currentPhase === 1) ? 2 : 1;
+
+            await Promise.all(promises);
+            isAnimating = false;
         }}
 
-        board.addEventListener('click', toggleFlip);
+        board.addEventListener('click', () => {{
+            if (isAnimating) return;
+            const target = (currentPhase === 1) ? textPhase2 : textPhase1;
+            animateTo(target);
+            currentPhase = (currentPhase === 1) ? 2 : 1;
+        }});
+
         init();
     </script>
     </body>
     </html>
     """
     
-    components.html(html_code, height=350)
+    components.html(html_code, height=300)

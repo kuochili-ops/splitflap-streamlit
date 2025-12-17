@@ -2,22 +2,20 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Physical", layout="centered")
+st.set_page_config(page_title="Split-Flap Perfect", layout="centered")
 
-st.title("📟 物理翻板告示板")
-st.caption("點擊看板，體驗「上板下翻」的墜落動態")
+st.title("📟 完美物理翻板")
+st.caption("點擊看板，體驗正確的「上板下翻」物理變換")
 
 user_input = st.text_input("輸入句子", "今晚想來點 鼎泰豐小籠包")
 
 if user_input:
+    # 邏輯：平分文字
     total_len = len(user_input)
     split_point = math.ceil(total_len / 2)
-    
-    # 分割上下半句
     t1 = user_input[:split_point]
     t2 = user_input[split_point:]
     
-    # 補齊長度
     max_len = max(len(t1), len(t2))
     text1 = t1.ljust(max_len, " ")
     text2 = t2.ljust(max_len, " ")
@@ -34,83 +32,79 @@ if user_input:
         .board {{
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 10px;
             perspective: 1000px;
             cursor: pointer;
         }}
 
-        /* 每一格的容器 */
-        .flap {{
+        .flap-unit {{
             position: relative;
             width: 60px;
             height: 90px;
-            background-color: #333;
+            background-color: #1a1a1a;
             border-radius: 6px;
             font-family: 'Noto Sans TC', sans-serif;
             font-size: 50px;
             font-weight: bold;
-            color: #ddd;
-            line-height: 90px;
-            text-align: center;
+            color: #efefef;
         }}
 
-        /* 上半部與下半部的共用樣式 */
-        .top, .bottom {{
+        /* 共通設定：將字體定位在中間，透過 overflow 切割 */
+        .base-top, .base-bottom, .leaf-front, .leaf-back {{
             position: absolute;
             left: 0;
             width: 100%;
             height: 50%;
             overflow: hidden;
             background: #1a1a1a;
-            -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
+            text-align: center;
         }}
 
-        .top {{
+        /* 上半截的文字定位 */
+        .base-top, .leaf-front {{
             top: 0;
+            line-height: 90px;
             border-radius: 6px 6px 0 0;
-            line-height: 90px; /* 顯示文字上半部 */
+            z-index: 1;
+        }}
+
+        /* 下半截的文字定位 */
+        .base-bottom, .leaf-back {{
+            bottom: 0;
+            line-height: 0px; /* 讓字體往上飄，露出下半截 */
+            border-radius: 0 0 6px 6px;
+            z-index: 0;
+        }}
+
+        /* 翻轉葉片：關鍵在於 transform-origin 在底部 */
+        .leaf-front {{
+            z-index: 3;
+            transition: transform 0.6s ease-in;
+            transform-origin: bottom;
             border-bottom: 1px solid rgba(0,0,0,0.5);
         }}
 
-        .bottom {{
-            bottom: 0;
-            border-radius: 0 0 6px 6px;
-            line-height: 0px; /* 顯示文字下半部 */
-        }}
-
-        /* 翻轉中的葉片 */
-        .leaf {{
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 50%;
-            background: #1a1a1a;
-            border-radius: 6px 6px 0 0;
-            z-index: 5;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-origin: bottom;
-            line-height: 90px;
-            overflow: hidden;
-            backface-visibility: hidden;
-        }}
-
-        /* 翻轉後的背面 */
         .leaf-back {{
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #1a1a1a;
-            transform: rotateX(-180deg);
-            transform-origin: bottom;
-            line-height: 0px;
-            backface-visibility: hidden;
-            border-radius: 0 0 6px 6px;
+            z-index: 4;
+            transition: transform 0.6s ease-in;
+            transform-origin: top; /* 背面要從頂部轉下來 */
+            transform: rotateX(180deg);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
         }}
 
-        .flipped .leaf {{
+        /* 動態類別：點擊後觸發 */
+        .flipped .leaf-front {{
             transform: rotateX(-180deg);
         }}
+        .flipped .leaf-back {{
+            transform: rotateX(0deg);
+        }}
 
-        /* 中間陰影線 */
-        .flap::after {{
+        /* 裝飾線 */
+        .flap-unit::after {{
             content: "";
             position: absolute;
             top: 50%; left: 0; width: 100%; height: 2px;
@@ -129,40 +123,55 @@ if user_input:
         const board = document.getElementById('board');
         let currentPhase = 1;
 
-        function createFlap(charA, charB) {{
-            const wrap = document.createElement('div');
-            wrap.className = 'flap';
-            
-            // 下層靜態文字 (B)
-            wrap.innerHTML = `
-                <div class="top">${{charB}}</div>
-                <div class="bottom">${{charA}}</div>
-                <div class="leaf">${{charA}}</div>
-                <div class="leaf-back">${{charB}}</div>
-            `;
-            return wrap;
-        }}
-
-        function init() {{
-            t1.forEach((char, i) => {{
-                board.appendChild(createFlap(char, t2[i]));
+        function renderBoard(fromText, toText) {{
+            board.innerHTML = '';
+            fromText.forEach((char, i) => {{
+                const targetChar = toText[i] || " ";
+                const unit = document.createElement('div');
+                unit.className = 'flap-unit';
+                
+                // HTML 結構：
+                // base-top: 新字的上半
+                // base-bottom: 舊字的下半 (會被蓋住) -> 更新為新字的下半
+                // leaf-front: 舊字的上半 (翻下去)
+                // leaf-back: 新字的下半 (翻下來露出)
+                unit.innerHTML = `
+                    <div class="base-top">${{targetChar}}</div>
+                    <div class="base-bottom">${{targetChar}}</div>
+                    <div class="leaf-front">${{char}}</div>
+                    <div class="leaf-back">${{targetChar}}</div>
+                `;
+                board.appendChild(unit);
             }});
         }}
 
-        function doFlip() {{
-            const flaps = document.querySelectorAll('.flap');
-            flaps.forEach((flap, i) => {{
+        function toggle() {{
+            const units = document.querySelectorAll('.flap-unit');
+            units.forEach((unit, i) => {{
                 setTimeout(() => {{
-                    flap.classList.toggle('flipped');
-                }}, i * 60);
+                    unit.classList.add('flipped');
+                }}, i * 50);
             }});
+            
+            // 動畫結束後，重置狀態以便下次翻轉
+            setTimeout(() => {{
+                const oldT1 = [...t1];
+                const oldT2 = [...t2];
+                if (currentPhase === 1) {{
+                    renderBoard(t2, t1);
+                    currentPhase = 2;
+                }} else {{
+                    renderBoard(t1, t2);
+                    currentPhase = 1;
+                }}
+            }}, 1000);
         }}
 
-        board.addEventListener('click', doFlip);
-        init();
+        renderBoard(t1, t2);
+        board.addEventListener('click', toggle);
     </script>
     </body>
     </html>
     """
     
-    components.html(html_code, height=400)
+    components.html(html_code, height=450)

@@ -8,39 +8,45 @@ st.set_page_config(layout="centered")
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding-top: 2rem;}
+    .block-container {padding-top: 1rem;}
     body {background-color: transparent;}
+    /* 讓 Slider 的文字顏色更明顯 */
+    .stSlider label {color: #555; font-weight: bold;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 獲取文字並解碼 ---
+# --- 2. 獲取文字與控制參數 ---
 query_params = st.query_params
 is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
 default_val = urllib.parse.unquote(raw_url_text) if raw_url_text else "Serena 是我的女神"
 
+# 側邊欄或頂部控制 (嵌入模式下隱藏)
 if not is_embedded:
-    input_text = st.text_input("輸入句子", default_val)
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        input_text = st.text_input("輸入句子", default_val)
+    with col2:
+        stay_seconds = st.slider("停留秒數", 1.0, 10.0, 2.0, 0.5)
 else:
     input_text = default_val
+    # 嵌入模式可透過網址參數控制秒數 ?stay=3
+    stay_seconds = float(query_params.get("stay", 2.0))
 
-# --- 3. 動態計算每行字元數 (The Logic) ---
+# --- 3. 動態計算每行字元數 (Your Logic) ---
 N = len(input_text)
 if N <= 1:
     cols = 1
 else:
-    # 商 = 總數除以 2 (無條件進位)
     quotient = math.ceil(N / 2)
-    # 商如果少於 10，寬度就是商；超過 10，寬度就是 10
     cols = quotient if quotient < 10 else 10
 
-# 根據計算出的 cols 進行切割
 rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)]
 for row in rows_data:
     while len(row) < cols:
         row.append(" ")
 
-# --- 4. 生成 HTML (含自動輪播 JS) ---
+# --- 4. 生成 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -54,7 +60,13 @@ html_code = f"""
         --font-size: calc(var(--unit-width) * 0.85);
         --card-bg: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
     }}
-    body {{ background: transparent; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }}
+    body {{ 
+        background: transparent; 
+        display: flex; justify-content: center; align-items: center; 
+        height: 100vh; margin: 0; overflow: hidden; 
+        cursor: pointer; /* 提示可點擊 */
+        user-select: none; -webkit-user-select: none;
+    }}
     
     .board-row {{ 
         display: grid; 
@@ -74,7 +86,7 @@ html_code = f"""
     }}
     .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 1.5px solid #000; }}
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
-    .text {{ height: var(--unit-height); line-height: var(--unit-height); text-align: center; }}
+    .text {{ height: var(--unit-height); line-height: var(--unit-height); text-align: center; width: 100%; }}
     .leaf {{ 
         position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
         z-index: 15; transform-origin: bottom; 
@@ -84,6 +96,13 @@ html_code = f"""
     .leaf-front {{ z-index: 16; background: var(--card-bg); }} 
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #1a1a1a; }}
     .flipping {{ transform: rotateX(-180deg); }}
+
+    /* 中央轉軸細節 */
+    .flap-unit::before {{
+        content: ""; position: absolute; top: 50%; left: -1px; width: calc(100% + 2px); height: 3px;
+        background: linear-gradient(180deg, #000, #444, #000);
+        transform: translateY(-50%) translateZ(10px); z-index: 60; border-radius: 1px;
+    }}
 </style>
 </head>
 <body>
@@ -91,7 +110,10 @@ html_code = f"""
 
 <script>
     const allRows = {rows_data};
+    const stayTime = {stay_seconds} * 1000;
     let currentRowIndex = 0;
+    let isAnimating = false;
+    let autoTimer = null;
 
     function createRow(contentArray) {{
         return contentArray.map(char => `
@@ -108,10 +130,12 @@ html_code = f"""
 
     function init() {{
         document.getElementById('board-container').innerHTML = createRow(allRows[0]);
+        resetTimer();
     }}
 
     function performFlip() {{
-        if (allRows.length <= 1) return;
+        if (allRows.length <= 1 || isAnimating) return;
+        isAnimating = true;
 
         const nextRowIndex = (currentRowIndex + 1) % allRows.length;
         const nextChars = allRows[nextRowIndex];
@@ -120,7 +144,6 @@ html_code = f"""
         units.forEach((u, i) => {{
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
-                // 準備背面的字 (即將翻下來的字)
                 u.querySelector('.base-top .text').innerText = nextChars[i];
                 u.querySelector('.leaf-back .text').innerText = nextChars[i];
                 
@@ -128,25 +151,38 @@ html_code = f"""
 
                 leaf.addEventListener('transitionend', function onEnd() {{
                     leaf.removeEventListener('transitionend', onEnd);
-                    // 同步底部的字
                     u.querySelector('.base-bottom .text').innerText = nextChars[i];
                     u.querySelector('.leaf-front .text').innerText = nextChars[i];
                     
-                    // 重置動畫狀態
                     leaf.style.transition = 'none';
                     leaf.classList.remove('flipping');
-                    leaf.offsetHeight; // 強制重繪
+                    leaf.offsetHeight; 
                     leaf.style.transition = '';
+                    
+                    if (i === units.length - 1) {{
+                        isAnimating = false;
+                        resetTimer(); // 翻轉完畢後重新計時
+                    }}
                 }});
-            }}, i * 50);
+            }}, i * 40);
         }});
 
         currentRowIndex = nextRowIndex;
     }}
 
+    function resetTimer() {{
+        if (autoTimer) clearInterval(autoTimer);
+        autoTimer = setInterval(performFlip, stayTime);
+    }}
+
+    // 點擊或觸控換行
+    document.body.addEventListener('click', () => {{
+        if (!isAnimating) {{
+            performFlip();
+        }}
+    }});
+
     init();
-    // 每一秒翻轉一次
-    setInterval(performFlip, 2000); // 1秒停留 + 約0.6秒動畫 = 2秒一循環較舒適，可改回 1000
 </script>
 </body>
 </html>

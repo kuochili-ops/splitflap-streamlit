@@ -2,117 +2,180 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Multi-Line", layout="centered")
+st.set_page_config(page_title="Split-Flap Pro Max", layout="centered")
 
-st.title("📟 物理翻板：多行絕對穩定版")
-st.caption("自動處理長句換行，並修復多行狀態下的層級競爭問題。")
+# --- 側邊欄配置 ---
+st.sidebar.header("📟 看板設定")
+mode = st.sidebar.selectbox("展示模式", ["單行拆分 (A+B)", "多行排列 (長句)"])
+col_count = st.sidebar.slider("每行字數 (僅多行模式)", 2, 10, 4)
 
-user_input = st.text_input("輸入句子", "妳無愛我無所謂妳放撒我無所謂往事就是我的安慰")
+st.title("📟 物理翻板：極致穩定版")
+st.caption("支援模式切換，且所有翻轉動作均維持物理下翻。")
 
-if user_input:
-    chars = list(user_input)
-    # 自動切割為 4 個一組的行，讓顯示更整齊
-    rows = [chars[i:i + 4] for i in range(0, len(chars), 4)]
+# --- 處理文字邏輯 ---
+if mode == "單行拆分 (A+B)":
+    raw_input = st.text_input("輸入句子", "謝謝光臨歡迎再來")
+    chars = list(raw_input)
+    mid = math.ceil(len(chars) / 2)
+    s1 = chars[:mid]
+    s2 = chars[mid:]
+    max_l = max(len(s1), len(s2))
+    s1 += [" "] * (max_l - len(s1))
+    s2 += [" "] * (max_l - len(s2))
+    display_cols = max_l
+else:
+    s1_input = st.text_input("第一句 (初始)", "往事就是我的安慰")
+    s2_input = st.text_input("第二句 (翻轉後)", "妳無愛我無所謂啦")
     
-    # 這裡我們模擬「前半段」與「後半段」的切換邏輯
-    # 您可以根據需要修改 t1 (初始) 與 t2 (目標)
-    t1 = chars
-    # 目標文字：將原句反轉或平移，這裡示範簡單的位移
-    t2 = chars[4:] + chars[:4] 
+    s1 = list(s1_input)
+    s2 = list(s2_input)
+    max_l = max(len(s1), len(s2))
+    s1 += [" "] * (max_l - len(s1))
+    s2 += [" "] * (max_l - len(s2))
+    display_cols = col_count
 
-    html_code = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
-        body {{ background: transparent; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }}
-        
-        .board {{
-            display: grid;
-            grid-template-columns: repeat(4, 75px);
-            gap: 15px;
-            perspective: 2000px;
-        }}
+# --- HTML/JavaScript ---
+html_code = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
+    
+    body {{ 
+        background: transparent; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        padding: 20px 0; 
+        overflow: hidden;
+    }}
+    
+    .board {{
+        display: grid;
+        grid-template-columns: repeat({display_cols}, 75px);
+        gap: 12px;
+        perspective: 1500px;
+        justify-content: center;
+    }}
 
-        .flap-unit {{
-            position: relative; width: 70px; height: 100px;
-            background-color: #111; border-radius: 6px;
-            font-family: 'Noto Sans TC', sans-serif; font-size: 55px; font-weight: 900; color: #fff;
-            transform-style: preserve-3d;
-        }}
+    .flap-unit {{
+        position: relative; width: 70px; height: 100px;
+        background-color: #111; border-radius: 6px;
+        font-family: 'Noto Sans TC', sans-serif; font-size: 55px; font-weight: 900; color: #fff;
+        transform-style: preserve-3d;
+    }}
 
-        .half {{
-            position: absolute; left: 0; width: 100%; height: 50%;
-            overflow: hidden; background: #1a1a1a; display: flex; justify-content: center;
-            -webkit-backface-visibility: visible; backface-visibility: visible;
-        }}
-        .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 1px solid #000; }}
-        .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
-        .text {{ height: 100px; line-height: 100px; text-align: center; }}
+    /* 半格基礎樣式 */
+    .half {{
+        position: absolute; left: 0; width: 100%; height: 50%;
+        overflow: hidden; background: #1a1a1a; display: flex; justify-content: center;
+        backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    }}
+    .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 1px solid #000; }}
+    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
+    .text {{ height: 100px; line-height: 100px; text-align: center; }}
 
-        /* --- 穩定版物理層級 --- */
-        .base-t2-top {{ z-index: 1; transform: translateZ(0px); }}
-        .base-t1-bottom {{ z-index: 2; transform: translateZ(1px); }}
+    /* 層級設計 (始終保持下翻關鍵) */
+    .base-top {{ z-index: 1; }}    /* 下一個字的上半 */
+    .base-bottom {{ z-index: 2; }} /* 當前字的下半 */
+    
+    .leaf {{
+        position: absolute; top: 0; left: 0; width: 100%; height: 50%;
+        z-index: 10; transform-origin: bottom;
+        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-style: preserve-3d;
+    }}
+    .leaf-front {{ z-index: 11; }} /* 當前字的上半 */
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 10; }} /* 下一個字的下半 */
 
-        .leaf-old {{
-            position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-            transform-origin: bottom; z-index: 10;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.1s;
-            transform: translateZ(4px) rotateX(0deg);
-        }}
+    /* 動畫類別 */
+    .flipping {{ transform: rotateX(-180deg); }}
 
-        .leaf-new {{
-            position: absolute; top: 50%; left: 0; width: 100%; height: 50%;
-            transform-origin: top; z-index: 5;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.1s;
-            transform: translateZ(3px) rotateX(180deg);
-            opacity: 0;
-        }}
+    .flap-unit::after {{
+        content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
+        background: #000; transform: translateY(-50%) translateZ(10px); z-index: 20;
+    }}
+</style>
+</head>
+<body>
+<div class="board" id="board"></div>
 
-        /* 往 B 翻 (去程) */
-        .to-b .leaf-old {{ transform: translateZ(4px) rotateX(-180deg); opacity: 0; }}
-        .to-b .leaf-new {{ transform: translateZ(3px) rotateX(0deg); z-index: 12; opacity: 1; }}
+<script>
+    const textA = {s1};
+    const textB = {s2};
+    let currentText = [...textA];
+    let targetText = [...textB];
+    let isAnimating = false;
 
-        /* 裝飾線：強制置頂 */
-        .flap-unit::after {{
-            content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-            background: #000; transform: translateY(-50%) translateZ(20px); z-index: 30;
-        }}
-    </style>
-    </head>
-    <body>
-    <div class="board" id="board"></div>
+    const board = document.getElementById('board');
 
-    <script>
-        const s1 = {t1};
-        const s2 = {t2};
-        const board = document.getElementById('board');
-
-        board.innerHTML = s1.map((charA, i) => `
-            <div class="flap-unit" data-index="${{i}}">
-                <div class="half top base-t2-top"><div class="text">${{s2[i] || ""}}</div></div>
-                <div class="half bottom base-t1-bottom"><div class="text">${{charA}}</div></div>
-                <div class="half top leaf-old"><div class="text">${{charA}}</div></div>
-                <div class="half bottom leaf-new"><div class="text">${{s2[i] || ""}}</div></div>
+    // 初始化看板
+    function init() {{
+        board.innerHTML = currentText.map((char, i) => `
+            <div class="flap-unit" id="unit-${{i}}">
+                <div class="half top base-top"><div class="text">${{targetText[i]}}</div></div>
+                <div class="half bottom base-bottom"><div class="text">${{char}}</div></div>
+                <div class="leaf">
+                    <div class="half top leaf-front"><div class="text">${{char}}</div></div>
+                    <div class="half bottom leaf-back"><div class="text">${{targetText[i]}}</div></div>
+                </div>
             </div>
         `).join('');
+    }}
 
-        let isB = false;
-        board.addEventListener('click', () => {{
-            isB = !isB;
-            const units = document.querySelectorAll('.flap-unit');
-            units.forEach((u, i) => {{
-                // 增加行與行之間的微小延遲，增加節奏感
+    // 核心下翻邏輯
+    function flipAll() {{
+        if (isAnimating) return;
+        isAnimating = true;
+
+        const units = document.querySelectorAll('.flap-unit');
+        
+        units.forEach((u, i) => {{
+            setTimeout(() => {{
+                const leaf = u.querySelector('.leaf');
+                leaf.classList.add('flipping');
+                
+                // 動畫結束後：靜默重置
                 setTimeout(() => {{
-                    if (isB) u.classList.add('to-b');
-                    else u.classList.remove('to-b');
-                }}, i * 50);
-            }});
+                    // 1. 將當前格的底座內容更新為目標字
+                    u.querySelector('.base-bottom .text').innerText = targetText[i];
+                    u.querySelector('.leaf-front .text').innerText = targetText[i];
+                    
+                    // 2. 瞬間重置葉片位置 (無動畫)
+                    leaf.style.transition = 'none';
+                    leaf.classList.remove('flipping');
+                    
+                    // 3. 準備下一次的目標
+                    const nextTarget = (targetText === textB) ? textA[i] : textB[i];
+                    u.querySelector('.base-top .text').innerText = nextTarget;
+                    u.querySelector('.leaf-back .text').innerText = nextTarget;
+
+                    // 4. 恢復動畫效果
+                    setTimeout(() => {{ leaf.style.transition = ''; }}, 50);
+                    
+                    if (i === units.length - 1) {{
+                        // 交換狀態
+                        const temp = currentText;
+                        currentText = targetText;
+                        targetText = (targetText === textB) ? textA : textB;
+                        isAnimating = false;
+                    }}
+                }}, 650); 
+            }}, i * 60);
         }});
-    </script>
-    </body>
-    </html>
-    """
-    
-    components.html(html_code, height=600)
+    }}
+
+    board.addEventListener('click', flipAll);
+    init();
+</script>
+</body>
+</html>
+"""
+
+components.html(html_code, height=600)
+
+if mode == "單行拆分 (A+B)":
+    st.info("💡 模式：單行拆分。將輸入的句子平分為兩段進行下翻切換。")
+else:
+    st.info(f"💡 模式：多行排列。在「第一句」與「第二句」之間進行下翻循環。目前設定每行 {col_count} 個字。")

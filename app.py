@@ -2,10 +2,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Stable", layout="centered")
+st.set_page_config(page_title="Split-Flap 3D Isolation", layout="centered")
 
-st.title("📟 物理翻板：狀態隔離版")
-st.caption("解決初始狀態字元拼合錯誤。點擊看板開始翻轉。")
+st.title("📟 物理翻板：3D 空間隔離版")
+st.caption("使用 Z 軸位移強制分離層級，解決手機瀏覽器拼合錯誤問題。")
 
 user_input = st.text_input("輸入句子", "往事就是我的安慰")
 
@@ -28,13 +28,14 @@ if user_input:
         body {{ background: transparent; display: flex; justify-content: center; padding: 20px 0; }}
         
         .board {{
-            display: flex; flex-wrap: wrap; gap: 10px; perspective: 1200px; justify-content: center;
+            display: flex; flex-wrap: wrap; gap: 10px; perspective: 2000px; justify-content: center;
         }}
 
         .flap-unit {{
             position: relative; width: 70px; height: 100px;
             background-color: #111; border-radius: 6px;
             font-family: 'Noto Sans TC', sans-serif; font-size: 60px; font-weight: 900; color: #fff;
+            transform-style: preserve-3d;
         }}
 
         .half {{
@@ -46,38 +47,35 @@ if user_input:
         .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
         .text {{ height: 100px; line-height: 100px; text-align: center; }}
 
-        /* --- 隔離層級設計 --- */
+        /* --- 3D 空間位移隔離核心 --- */
         
-        /* 預設隱藏新字層，防止手機渲染錯誤 */
-        .base-new-top, .base-new-bottom, .leaf-back {{
-            visibility: hidden;
-        }}
+        /* 底座新字：放在最深處 (Z = -2) */
+        .base-new-top {{ transform: translateZ(-2px); }}
+        .base-new-bottom {{ transform: translateZ(-2px); }}
 
-        /* 啟動後才顯示新字層 */
-        .active .base-new-top, .active .base-new-bottom, .active .leaf-back {{
-            visibility: visible;
-        }}
+        /* 初始舊字下半：放在中間層 (Z = 1) */
+        .base-old-bottom {{ transform: translateZ(1px); }}
 
-        /* 層級順序 */
-        .base-new-bottom {{ z-index: 1; }}
-        .base-new-top {{ z-index: 2; }}
-        .base-old-bottom {{ z-index: 3; }} /* 初始顯示的舊字下半 */
-
+        /* 翻動葉片：放在最表層 (Z = 5) */
         .leaf {{
             position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-            z-index: 10; transform-origin: bottom;
+            transform-origin: bottom;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             transform-style: preserve-3d;
+            transform: translateZ(5px);
+            z-index: 10;
         }}
         
-        .leaf-front {{ z-index: 12; }} /* 初始顯示的舊字上半 */
-        .leaf-back {{ transform: rotateX(-180deg); z-index: 11; }}
+        /* 葉片正面：保持在葉片的最前方 */
+        .leaf-front {{ transform: translateZ(0.1px); }}
+        /* 葉片背面：轉向後方 */
+        .leaf-back {{ transform: rotateX(-180deg) translateZ(0.1px); }}
 
-        .flipping {{ transform: rotateX(-180deg); }}
+        .flipping {{ transform: translateZ(5px) rotateX(-180deg) !important; }}
 
         .flap-unit::after {{
             content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-            background: #000; z-index: 20; transform: translateY(-50%);
+            background: #000; transform: translateY(-50%) translateZ(6px); z-index: 20;
         }}
     </style>
     </head>
@@ -116,8 +114,6 @@ if user_input:
             isFlipped = true;
             const units = document.querySelectorAll('.flap-unit');
             units.forEach((u, i) => {{
-                // 點擊瞬間開啟新字層的 visibility
-                u.classList.add('active');
                 setTimeout(() => {{
                     u.querySelector('.leaf').classList.add('flipping');
                 }}, i * 70);

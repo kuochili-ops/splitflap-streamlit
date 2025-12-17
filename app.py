@@ -2,10 +2,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-st.set_page_config(page_title="Split-Flap Seamless", layout="centered")
+st.set_page_config(page_title="Split-Flap Pro", layout="centered")
 
-st.title("📟 物理翻板：雙向流暢版")
-st.caption("現在不論前翻還是後翻，都具備完整的物理墮落動態。")
+st.title("📟 物理翻板：雙向無縫版")
+st.caption("無論從 A 到 B 還是從 B 到 A，都擁有完整的物理加速與墮落動態。")
 
 user_input = st.text_input("輸入句子", "往事就是我的安慰")
 
@@ -47,33 +47,33 @@ if user_input:
         .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
         .text {{ height: 100px; line-height: 100px; text-align: center; }}
 
-        /* --- 雙向物理結構 --- */
-        
-        /* 基礎層：固定顯示 B 句上半與 A 句下半 */
-        .base-t2 {{ transform: translateZ(0px); }} 
-        .base-t1 {{ transform: translateZ(1px); }}
+        /* --- 靜態底座：固定在最深處 --- */
+        .base-t2 {{ transform: translateZ(0px); z-index: 1; }} /* 只有 A 翻下後才看得到它 */
+        .base-t1 {{ transform: translateZ(0px); z-index: 1; }} /* 只有 B 翻下後才看得到它 */
 
-        /* 葉片 A (後半部)：負責從 A 翻到 B */
-        .leaf-to-b {{
+        /* --- 雙向葉片結構 --- */
+        
+        /* 葉片 A (由 A 翻向 B) */
+        .leaf-a {{
             position: absolute; top: 0; left: 0; width: 100%; height: 50%;
             transform-origin: bottom; z-index: 10;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: translateZ(4px) rotateX(0deg);
-        }}
-        .leaf-to-b .back {{ transform: rotateX(-180deg); background: #1a1a1a; }}
-
-        /* 葉片 B (前半部)：負責從 B 翻回 A */
-        .leaf-to-a {{
-            position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-            transform-origin: bottom; z-index: 5;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             transform: translateZ(2px) rotateX(0deg);
         }}
-        .leaf-to-a .back {{ transform: rotateX(-180deg); background: #1a1a1a; }}
+        /* 葉片 B (由 B 翻向 A) */
+        .leaf-b {{
+            position: absolute; top: 50%; left: 0; width: 100%; height: 50%;
+            transform-origin: top; z-index: 5;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateZ(2px) rotateX(180deg);
+        }}
 
-        /* 動畫狀態 */
-        .flipped-to-b .leaf-to-b {{ transform: translateZ(4px) rotateX(-180deg); }}
-        .flipped-to-a .leaf-to-a {{ transform: translateZ(2px) rotateX(-180deg); z-index: 12; }}
+        /* 狀態 1: A -> B */
+        .to-b .leaf-a {{ transform: translateZ(2px) rotateX(-180deg); z-index: 5; }}
+        .to-b .leaf-b {{ transform: translateZ(2px) rotateX(0deg); z-index: 10; }}
+
+        /* 狀態 2: B -> A (即還原) */
+        /* transition 會自動處理反向動畫，無需額外類別 */
 
         .flap-unit::after {{
             content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
@@ -90,45 +90,25 @@ if user_input:
         const board = document.getElementById('board');
 
         board.innerHTML = s1.map((charA, i) => `
-            <div class="flap-unit" id="unit-${{i}}">
+            <div class="flap-unit">
                 <div class="half top base-t2"><div class="text">${{s2[i]}}</div></div>
                 <div class="half bottom base-t1"><div class="text">${{charA}}</div></div>
                 
-                <div class="leaf-to-a">
-                    <div class="half top front"><div class="text">${{s2[i]}}</div></div>
-                    <div class="half bottom back"><div class="text">${{charA}}</div></div>
-                </div>
-
-                <div class="leaf-to-b">
-                    <div class="half top front"><div class="text">${{charA}}</div></div>
-                    <div class="half bottom back"><div class="text">${{s2[i]}}</div></div>
-                </div>
+                <div class="half top leaf-a"><div class="text">${{charA}}</div></div>
+                <div class="half bottom leaf-b"><div class="text">${{s2[i]}}</div></div>
             </div>
         `).join('');
 
-        let state = "A"; // A or B
+        let isB = false;
         board.addEventListener('click', () => {{
+            isB = !isB;
             const units = document.querySelectorAll('.flap-unit');
-            
-            if (state === "A") {{
-                state = "B";
-                units.forEach((u, i) => {{
-                    setTimeout(() => u.classList.add('flipped-to-b'), i * 70);
-                }});
-            }} else {{
-                state = "A";
-                units.forEach((u, i) => {{
-                    // 清除去程狀態，並啟動回程動畫
-                    setTimeout(() => {{
-                        u.classList.remove('flipped-to-b');
-                        u.classList.add('flipped-to-a');
-                    }}, i * 70);
-                }});
-                // 動畫結束後重置回程葉片，準備下一次循環
+            units.forEach((u, i) => {{
                 setTimeout(() => {{
-                    units.forEach(u => u.classList.remove('flipped-to-a'));
-                }}, 1000 + units.length * 70);
-            }}
+                    if (isB) u.classList.add('to-b');
+                    else u.classList.remove('to-b');
+                }}, i * 70);
+            }});
         }});
     </script>
     </body>

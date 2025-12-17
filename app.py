@@ -19,6 +19,7 @@ if user_input:
     while len(t1) < max_len: t1.append(" ")
     while len(t2) < max_len: t2.append(" ")
 
+    # 使用雙大括號 {{ }} 來轉義，避免 f-string 解析錯誤
     html_code = f"""
     <!DOCTYPE html>
     <html>
@@ -37,7 +38,6 @@ if user_input:
             font-family: 'Noto Sans TC', sans-serif; font-size: 60px; font-weight: 900; color: #fff;
         }}
 
-        /* 絕對精準裁切 */
         .half {{
             position: absolute; left: 0; width: 100%; height: 50%;
             overflow: hidden; background: #1a1a1a; display: flex; justify-content: center;
@@ -47,10 +47,8 @@ if user_input:
         .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 1px solid #000; }}
         .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
 
-        /* 文字容器強制對齊 */
         .text {{ height: 100px; line-height: 100px; text-align: center; }}
 
-        /* 翻轉葉片 */
         .leaf {{
             position: absolute; top: 0; left: 0; width: 100%; height: 50%;
             z-index: 10; transform-origin: bottom;
@@ -61,7 +59,6 @@ if user_input:
         .leaf-front {{ z-index: 2; }}
         .leaf-back {{ transform: rotateX(-180deg); z-index: 1; }}
 
-        /* 動畫類別 */
         .flipping {{ transform: rotateX(-180deg); }}
 
         .flap-unit::after {{
@@ -108,19 +105,15 @@ if user_input:
                     const leafBackText = leaf.querySelector('.leaf-back .text');
                     const topBaseText = unit.querySelector('.top .text');
 
-                    // 1. 準備：將葉片背面和底座上半部預設為「新字」
                     leafBackText.innerText = nextText[i];
                     topBaseText.innerText = nextText[i];
 
-                    // 2. 開始下翻
                     leaf.classList.add('flipping');
 
-                    // 3. 關鍵：翻到一半時，把底座下半部也換成「新字」
                     setTimeout(() => {{
                         unit.querySelector('.bottom .text').innerText = nextText[i];
                     }}, 250);
 
-                    // 4. 動畫結束，重置 DOM 結構確保穩定
                     if (i === units.length - 1) {{
                         setTimeout(() => {{
                             board.innerHTML = createHTML(nextText);
@@ -130,7 +123,7 @@ if user_input:
                     }}
                 }}, i * 50);
             }});
-        });
+        }});
     </script>
     </body>
     </html>

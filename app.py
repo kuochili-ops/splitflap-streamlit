@@ -72,17 +72,22 @@ html_code = f"""
     .leaf {{ 
         position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
         z-index: 15; transform-origin: bottom; 
+        /* 更具物理感的回彈曲線 */
         transition: transform 0.55s cubic-bezier(0.5, 0, 0.1, 1.25);
         transform-style: preserve-3d;
-        will-change: transform;
+        will-change: transform, filter;
     }}
 
     .leaf-front {{ z-index: 16; background: var(--card-bg); }} 
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #1a1a1a; }}
     
-    .flipping {{ transform: rotateX(-180deg); }}
+    /* 增加動態模糊感 */
+    .flipping {{ 
+        transform: rotateX(-180deg); 
+        filter: contrast(1.1);
+    }}
 
-    /* 中間轉軸軸承 */
+    /* 中央轉軸軸承設計 */
     .flap-unit::before {{
         content: ""; position: absolute; top: 50%; left: -2px; width: calc(100% + 4px); height: 4px;
         background: linear-gradient(180deg, #111, #444, #111);
@@ -90,7 +95,7 @@ html_code = f"""
         border-radius: 2px;
     }}
 
-    /* 漸進式陰影 */
+    /* 翻轉時的遮蓋陰影 */
     .leaf-front::after {{
         content: ""; position: absolute; top:0; left:0; width:100%; height:100%;
         background: rgba(0,0,0,0); transition: background 0.4s;
@@ -108,7 +113,7 @@ html_code = f"""
 
     function init() {{
         document.getElementById('board').innerHTML = tA.map((c, i) => `
-            <div class="flap-unit" style="z-index: ${{100-i}}">
+            <div class="flap-unit">
                 <div class="half top base-top"><div class="text">${{c}}</div></div>
                 <div class="half bottom base-bottom"><div class="text">${{c}}</div></div>
                 <div class="leaf">
@@ -125,7 +130,8 @@ html_code = f"""
         const nextArr = currentIsA ? tB : tA;
 
         units.forEach((u, i) => {{
-            const delay = 40 * i + (Math.random() * 20);
+            // 加入隨機化微延遲
+            const delay = 40 * i + (Math.random() * 15);
             
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');

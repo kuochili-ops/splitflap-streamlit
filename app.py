@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-# --- 1. 頁面透明化樣式 ---
+# --- 1. 頁面佈局 ---
 st.set_page_config(layout="centered")
 st.markdown("""
     <style>
@@ -13,10 +13,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-input_text_raw = st.query_params.get("text", "訊息載入中")
+input_text_raw = st.query_params.get("text", "載入中")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 2. 核心 HTML (加入更深層次的光影設計) ---
+# --- 2. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -27,8 +27,9 @@ html_code = f"""
     :root {{
         --font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
         --flip-speed: 0.65s;
-        /* 💡 質感漸層：模擬物理翻板的磨砂金屬光澤 */
-        --card-bg: linear-gradient(180deg, #444 0%, #222 49%, #050505 50%, #1a1a1a 100%);
+        --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 49%, #000 50%, #1a1a1a 100%);
+        /* 🔧 動態字體大小：設為寬度的 85%，確保不溢出 */
+        --font-size: calc(var(--unit-width, 70px) * 0.85);
     }}
     body {{ 
         background: transparent; display: flex; justify-content: center; 
@@ -40,12 +41,14 @@ html_code = f"""
         gap: 12px; perspective: 2500px; 
     }}
     .flap-unit {{ 
-        position: relative; width: var(--unit-width, 70px); height: calc(var(--unit-width, 70px) * 1.5); 
-        background: #000; border-radius: 8px; 
-        font-family: var(--font-family); font-size: calc(var(--unit-width, 70px) * 1.15); 
+        position: relative; 
+        width: var(--unit-width, 70px); 
+        height: calc(var(--unit-width, 70px) * 1.4); 
+        background: #000; border-radius: 6px; 
+        font-family: var(--font-family); 
+        font-size: var(--font-size); 
         font-weight: 900; color: #fff; 
-        /* 💡 雙層環境光陰影 */
-        box-shadow: 0 20px 40px rgba(0,0,0,0.7), 0 5px 15px rgba(0,0,0,0.4);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.7);
     }}
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
@@ -54,22 +57,20 @@ html_code = f"""
     }}
     .top {{ 
         top: 0; height: calc(50% + 1px); align-items: flex-start; 
-        border-radius: 8px 8px 0 0; border-bottom: 1.5px solid rgba(0,0,0,0.9);
-        /* 💡 頂部高光線，模擬上方燈光照射邊緣 */
-        box-shadow: inset 0 2px 5px rgba(255,255,255,0.15);
+        border-radius: 6px 6px 0 0; border-bottom: 1px solid rgba(0,0,0,0.9);
+        box-shadow: inset 0 2px 4px rgba(255,255,255,0.1);
     }}
     .bottom {{ 
         bottom: 0; height: 50%; align-items: flex-end; 
-        border-radius: 0 0 8px 8px; 
-        /* 💡 底部稍微變暗，增加景深感 */
+        border-radius: 0 0 6px 6px; 
         background: linear-gradient(180deg, #111 0%, #000 100%);
     }}
     .text {{ 
-        height: calc(var(--unit-width, 70px) * 1.5); width: 100%; 
+        height: calc(var(--unit-width, 70px) * 1.4); width: 100%; 
         text-align: center; position: absolute; left: 0; 
-        line-height: calc(var(--unit-width, 70px) * 1.5);
-        /* 💡 文字微弱發光，模擬夜間告示牌效果 */
-        text-shadow: 0 0 8px rgba(255,255,255,0.2);
+        line-height: calc(var(--unit-width, 70px) * 1.4);
+        /* 🔧 增加字元間距縮減，防止寬字元溢出 */
+        letter-spacing: -2px;
     }}
     .top .text {{ top: 0; }}
     .bottom .text {{ bottom: 0; }}
@@ -79,19 +80,17 @@ html_code = f"""
         transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); 
         transform-style: preserve-3d; 
     }}
-    .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 8px 8px 0 0; }} 
+    .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 6px 6px 0 0; }} 
     .leaf-back {{ 
         transform: rotateX(-180deg); z-index: 15; background: #111; 
         display: flex; justify-content: center; align-items: flex-end; 
-        overflow: hidden; border-radius: 0 0 8px 8px; 
+        overflow: hidden; border-radius: 0 0 6px 6px; 
     }}
     .flipping {{ transform: rotateX(-180deg); }}
-    /* 💡 轉軸陰影加深，增加物理感 */
     .flap-unit::before {{ 
         content: ""; position: absolute; top: 50%; left: 0; 
-        width: 100%; height: 3px; background: rgba(0,0,0,0.95); 
+        width: 100%; height: 2px; background: rgba(0,0,0,0.9); 
         transform: translateY(-50%); z-index: 60; 
-        box-shadow: 0 1px 2px rgba(255,255,255,0.05);
     }}
 </style>
 </head>
@@ -110,6 +109,7 @@ html_code = f"""
     let rowsData = [];
     let maxCols = 1;
 
+    // 解析行列
     if (cleanText.includes('，') || cleanText.includes(',')) {{
         const parts = cleanText.replace(/，/g, ',').split(',');
         maxCols = Math.max(...parts.map(p => p.trim().length));
@@ -121,7 +121,8 @@ html_code = f"""
         }}
     }}
     
-    const unitW = Math.min(85, Math.floor((window.innerWidth * 0.9) / maxCols));
+    // 🔧 關鍵計算：根據視窗寬度與字數動態決定翻板大小
+    const unitW = Math.min(80, Math.floor((window.innerWidth * 0.95) / maxCols) - 12);
     document.documentElement.style.setProperty('--cols', maxCols);
     document.documentElement.style.setProperty('--unit-width', unitW + 'px');
 

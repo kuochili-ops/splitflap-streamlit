@@ -45,7 +45,7 @@ rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)
 for row in rows_data:
     while len(row) < cols: row.append(" ")
 
-# --- 4. 核心 HTML (解決最後一動殘缺問題) ---
+# --- 4. 核心 HTML (移除最後一動重置邏輯) ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -70,9 +70,8 @@ html_code = f"""
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    /* 修復關鍵：上半部稍微多給 0.5px 並調整裁剪邊緣，防止靜止時的渲染殘缺 */
-    .top {{ top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
-    .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; }}
+    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
+    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     
     .text {{ 
         height: var(--unit-height); line-height: var(--unit-height); 
@@ -118,41 +117,36 @@ html_code = f"""
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
                 
-                // 1. 預先換好背面的字
+                // 1. 下一次翻轉開始前，先瞬間重置上一動的狀態 (transition: none)
+                leaf.style.transition = 'none';
+                leaf.classList.remove('flipping');
+                // 將底座字體換成當前正確的字
+                const currentTxt = u.querySelector('.base-t .text').innerText;
+                u.querySelector('.leaf-f .text').innerText = currentTxt;
+                u.querySelector('.base-b .text').innerText = currentTxt;
+                leaf.offsetHeight; // 強制重繪
+
+                // 2. 準備本次要翻過去的字
                 u.querySelector('.leaf-b .text').innerText = nextChars[i];
                 
-                // 2. 開始旋轉
+                // 3. 開始翻轉
+                leaf.style.transition = '';
                 leaf.classList.add('flipping');
 
-                // 3. 在旋轉至 90 度時，同步切換「底層上半部」
+                // 4. 90度時同步底層上半部
                 setTimeout(() => {{
                     u.querySelector('.base-t .text').innerText = nextChars[i];
                 }}, 280);
 
-                // 4. 重點：動畫結束後不移除 'flipping' 類別，而是直接把底層也換掉
-                // 這樣可以避免「最後一動」產生的渲染跳動
+                // 5. 動畫結束：只同步底層下半部，不移除 flipping 類別，避免「最後一動」跳動
                 leaf.addEventListener('transitionend', function end() {{
                     leaf.removeEventListener('transitionend', end);
-                    
-                    // 同步底座下半部
                     u.querySelector('.base-b .text').innerText = nextChars[i];
                     
                     if (i === units.length - 1) {{ 
-                        // 全部翻完後，低調重置 leaf
-                        setTimeout(() => {{
-                            units.forEach((unit, idx) => {{
-                                const l = unit.querySelector('.leaf');
-                                l.style.transition = 'none';
-                                l.classList.remove('flipping');
-                                // 確保重置時文字一致
-                                unit.querySelector('.leaf-f .text').innerText = nextChars[idx];
-                                l.offsetHeight; // 強制重繪
-                                l.style.transition = '';
-                            }});
-                            busy = false; 
-                            startTimer();
-                        }}, 50);
-                    }
+                        busy = false; 
+                        startTimer(); 
+                    }}
                 }}, {{once: true}});
             }}, i * 45);
         }});

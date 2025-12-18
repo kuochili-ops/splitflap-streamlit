@@ -4,85 +4,46 @@ import math
 import urllib.parse
 import html
 
-# --- 1. 頁面隱藏與樣式設定 ---
+# --- 1. 極簡看板頁面設定 ---
 st.set_page_config(layout="centered")
+st.markdown("""
+    <style>
+    /* 徹底隱藏 Streamlit UI */
+    header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
+    .block-container {padding: 0; background-color: transparent !important;}
+    .stApp {background-color: transparent !important;}
+    body {background-color: transparent !important; margin: 0; padding: 0;}
+    iframe {border: none;}
+    </style>
+    """, unsafe_allow_html=True)
 
-# 判斷是否為嵌入模式
-query_params = st.query_params
-is_embedded = query_params.get("embed", "false").lower() == "true"
-
-# 樣式：如果是嵌入模式才隱藏所有介面
-if is_embedded:
-    st.markdown("""
-        <style>
-        header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-        .block-container {padding: 0; background-color: transparent !important;}
-        .stApp {background-color: transparent !important;}
-        body {background-color: transparent !important;}
-        </style>
-        """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-        <style>
-        header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-        .stApp {background-color: #0e1117;}
-        /* 讓單獨執行時的文字清楚一點 */
-        .stTextInput label, .stSlider label {color: #eee !important;}
-        </style>
-        """, unsafe_allow_html=True)
-
-# --- 2. 核心解碼邏輯 (簡化版，防出錯) ---
+# --- 2. 萬能解碼邏輯 (防止 &#...; 亂碼) ---
 def get_clean_text():
-    raw_query = query_params.get("text", "")
-    if not raw_query:
-        return "輸入訊息，即可在此呈現"
-    
-    # 網址解碼 -> HTML 實體解碼
-    try:
-        # 使用 unquote_plus 處理空格與特殊符號
-        text = urllib.parse.unquote_plus(raw_query)
-        # 處理 &#...; 形式的亂碼
-        text = html.unescape(text)
-        return text
-    except:
-        return raw_query
+    raw_query = st.query_params.get("text", "訊息載入中")
+    # 處理 URL 編碼與 HTML 實體 (如影片中的亂碼)
+    text = urllib.parse.unquote_plus(raw_query)
+    text = html.unescape(text)
+    return text
 
-# --- 3. 介面控制 ---
-if not is_embedded:
-    st.title("📟 物理翻板控制台")
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        input_content = st.text_input("訊息內容 (可用逗號隔開換行)", get_clean_text())
-    with col2:
-        stay_seconds = st.slider("停留秒數", 1.0, 10.0, 2.5, 0.5)
-else:
-    input_content = get_clean_text()
-    stay_seconds = float(query_params.get("stay", 2.5))
+input_content = get_clean_text()
+stay_seconds = float(st.query_params.get("stay", 2.5))
 
-# --- 4. 計算行列 ---
-# 清理文字中的換行符號
+# --- 3. 處理行列數據 ---
 final_text = input_content.replace("\\n", " ").replace("\n", " ")
-
 if "，" in final_text or "," in final_text:
     raw_rows = final_text.replace("，", ",").split(",")
     max_w = max(len(r.strip()) for r in raw_rows)
     cols = min(max(max_w, 1), 10)
-    rows_data = []
-    for r in raw_rows:
-        row_chars = list(r.strip())
-        while len(row_chars) < cols: row_chars.append(" ")
-        rows_data.append(row_chars[:cols])
+    rows_data = [list(r.strip().ljust(cols)) for r in raw_rows]
 else:
     N = len(final_text)
     cols = min(math.ceil(N / 2), 10) if N > 1 else 1
-    rows_data = [list(final_text[i:i+cols]) for i in range(0, len(final_text), cols)]
-    for row in rows_data:
-        while len(row) < cols: row.append(" ")
+    rows_data = [list(final_text[i:i+cols].ljust(cols)) for i in range(0, len(final_text), cols)]
 
-# --- 5. 看板 HTML ---
+# --- 4. 物理翻板 HTML 代碼 (純淨看板) ---
 html_code = f"""
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
 <meta charset="UTF-8">
 <style>
@@ -97,7 +58,7 @@ html_code = f"""
     body {{ background: transparent !important; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; cursor: pointer; user-select: none; }}
     .board-row {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 8px; perspective: 2000px; }}
     .flap-unit {{ position: relative; width: var(--unit-width); height: var(--unit-height); background: #000; border-radius: 6px; font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); font-weight: 900; color: #f0f0f0; }}
-    .half {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--card-bg); display: flex; justify-content: center; backface-visibility: hidden; -webkit-backface-visibility: hidden; }}
+    .half {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--card-bg); display: flex; justify-content: center; backface-visibility: hidden; }}
     .top {{ top: 0; height: calc(50% + 1px); align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.5); }}
     .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 6px 6px; }}
     .text {{ height: var(--unit-height); width: 100%; text-align: center; position: absolute; left: 0; line-height: var(--unit-height); }}
@@ -163,18 +124,13 @@ html_code = f"""
         autoTimer = setInterval(performFlip, stayTime);
     }}
 
-    function init() {{
-        const container = document.getElementById('board-container');
-        if(allRows.length > 0) {{
-            container.innerHTML = createRow(allRows[0]);
-            resetTimer();
-        }}
-    }}
+    window.onload = () => {{
+        document.getElementById('board-container').innerHTML = createRow(allRows[0]);
+        resetTimer();
+    }};
     document.body.addEventListener('click', () => {{ if (!isAnimating) performFlip(); }});
-    window.onload = init;
 </script>
 </body>
 </html>
 """
-
 components.html(html_code, height=450)

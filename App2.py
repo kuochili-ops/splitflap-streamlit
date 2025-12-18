@@ -9,18 +9,18 @@ st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
     .block-container {padding: 0 !important; margin: 0 !important;}
-    body {background-color: transparent !important; overflow: hidden;}
+    body {background-color: transparent !important; overflow: hidden; margin: 0;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 您的分段規劃邏輯 ---
+# --- 2. 參數獲取與分段邏輯 ---
 query_params = st.query_params
 raw_text = query_params.get("text", "")
-input_text = urllib.parse.unquote(raw_text) if raw_text else "質感看板正常顯示"
+input_text = urllib.parse.unquote(raw_text) if raw_text else "質感看板正常顯示中"
 stay_sec = float(query_params.get("stay", 3.0))
 
 N = len(input_text)
-# 邏輯：20字內除以二(最多10字)，超過20字固定10字一幕
+# 您要求的邏輯：20字內自動除以二，超過20字固定10字一幕
 if N <= 20:
     cols = math.ceil(N / 2) if N > 1 else 1
     if cols > 10: cols = 10
@@ -30,9 +30,9 @@ else:
 # 切割分段
 rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)]
 for row in rows_data:
-    while len(row) < cols: row.append(" ") # 補空格
+    while len(row) < cols: row.append(" ")
 
-# --- 3. 核心 HTML (解決無字問題) ---
+# --- 3. 生成 HTML (採用絕對定位確保文字不消失) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -49,13 +49,13 @@ html_code = f"""
     #board {{
         display: grid; gap: 8px;
         grid-template-columns: repeat({cols}, 60px);
-        transform: scale(min(1, calc(94vw / {cols * 68}))); /* 螢幕自動縮放 */
+        /* 💡 確保在手機上自動縮小，不會破圖 */
+        transform: scale(min(1, calc(95vw / {cols * 68}))); 
     }}
 
     .flap {{
         position: relative; width: 60px; height: 90px;
         background: #000; border-radius: 4px;
-        font-size: 54px; font-weight: 900; color: #FFFFFF !important; /* 強制白色 */
         perspective: 1000px;
     }}
 
@@ -63,30 +63,31 @@ html_code = f"""
         position: absolute; left: 0; width: 100%; height: 50%;
         overflow: hidden; backface-visibility: hidden;
         background: linear-gradient(180deg, #333 0%, #1a1a1a 100%);
+        display: flex; justify-content: center;
+    }}
+
+    /* 💡 改用絕對定位與 transform 確保文字在中心 */
+    .text {{
+        position: absolute; width: 100%; height: 180px; /* 看板總高的兩倍 */
+        font-size: 54px; font-weight: 900; color: #FFFFFF !important;
+        text-align: center; line-height: 180px;
+        left: 0;
     }}
 
     .top {{ 
         top: 0; border-radius: 4px 4px 0 0; border-bottom: 1px solid #000;
-        display: flex; align-items: flex-start; justify-content: center;
-        transform-origin: bottom; transition: transform 0.6s; z-index: 2;
+        align-items: flex-start; transform-origin: bottom; transition: transform 0.6s; z-index: 2;
     }}
+    .top .text {{ top: 0; }}
 
     .bottom {{ 
         bottom: 0; border-radius: 0 0 4px 4px;
-        display: flex; align-items: flex-end; justify-content: center;
-        background: linear-gradient(180deg, #151515 0%, #000 100%); z-index: 1;
+        align-items: flex-end; z-index: 1;
     }}
+    .bottom .text {{ bottom: 0; }}
 
-    /* 💡 徹底解決「沒字」或「半字」：強制行高並確保顏色顯示 */
-    .text {{ 
-        display: block; width: 100%; height: 180px; 
-        line-height: 180px; text-align: center; color: #FFFFFF;
-    }}
-    
-    .bottom .text {{ transform: translateY(-50%); }}
     .flipping .top {{ transform: rotateX(-180deg); }}
 
-    /* 轉軸細節 */
     .flap::after {{
         content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
         background: rgba(0,0,0,0.8); z-index: 5; transform: translateY(-50%);
@@ -109,10 +110,9 @@ html_code = f"""
                 </div>
             `).join('');
 
-            // 觸發翻轉動畫
             setTimeout(() => {{
                 document.querySelectorAll('.flap').forEach((f, i) => {{
-                    setTimeout(() => f.classList.add('flipping'), i * 70);
+                    setTimeout(() => f.classList.add('flipping'), i * 65);
                 }});
             }}, 50);
 
@@ -126,5 +126,5 @@ html_code = f"""
 </html>
 """
 
-# --- 4. 關鍵修正：解決容器高度裁切問題 ---
-components.html(html_code, height=250)
+# --- 4. 給予充足高度預算 ---
+components.html(html_code, height=220)

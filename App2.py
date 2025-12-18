@@ -17,7 +17,6 @@ st.markdown("""
 # --- 2. OpenWeatherMap 數據處理 ---
 OWM_API_KEY = "Dcd113bba5675965ccf9e60a7e6d06e5"
 
-# 定義台灣主要城市的經緯度
 CITY_LIST = {
     "台北": {"lat": 25.03, "lon": 121.56},
     "台中": {"lat": 24.14, "lon": 120.67},
@@ -32,12 +31,10 @@ CITY_LIST = {
 def get_real_weather():
     weather_results = {}
     for city, pos in CITY_LIST.items():
-        # 使用 units=metric 取得攝氏溫度，lang=zh_tw 取得中文描述
         url = f"https://api.openweathermap.org/data/2.5/weather?lat={pos['lat']}&lon={pos['lon']}&appid={OWM_API_KEY}&units=metric&lang=zh_tw"
         try:
             res = requests.get(url, timeout=3)
             data = res.json()
-            # 取得描述並修剪為兩個字
             raw_desc = data['weather'][0]['description']
             if "晴" in raw_desc: short_desc = "晴天"
             elif "雲" in raw_desc: short_desc = "多雲"
@@ -51,9 +48,7 @@ def get_real_weather():
             continue
     return weather_results
 
-# 預先抓取資料
 current_weather = get_real_weather()
-# 若 API 尚未啟用或失敗，提供保險數據
 if not current_weather:
     current_weather = {"台北": {"desc": "連線", "temp": "中"}}
 
@@ -70,46 +65,85 @@ html_code = f"""
     :root {{
         --font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
         --flip-speed: 0.6s;
+        /* 預設純黑背景的翻板底色 */
         --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
+        --text-color: #fff;
+        --separator-color: rgba(255,255,255,0.15);
+        --date-separator-color: rgba(255,255,255,0.4);
+        --flip-unit-shadow: 0 8px 15px rgba(0,0,0,0.6);
+        --flap-unit-bg: #000;
+        --leaf-back-bg: #111;
+        --split-line-bg: rgba(0,0,0,0.95);
     }}
+
+    /* --- 風格設定 --- */
+    /* 0: 預設純黑 */
+    body.style-0 {{
+        background: transparent;
+        --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
+        --text-color: #fff;
+        --separator-color: rgba(255,255,255,0.15);
+        --date-separator-color: rgba(255,255,255,0.4);
+        --flip-unit-shadow: 0 8px 15px rgba(0,0,0,0.6);
+        --flap-unit-bg: #000;
+        --leaf-back-bg: #111;
+        --split-line-bg: rgba(0,0,0,0.95);
+    }}
+    /* 1: 清水模風格 */
+    body.style-1 {{
+        background: url('https://i.imgur.com/kK3h9j9.jpg') no-repeat center center fixed; /* 清水模紋理 */
+        background-size: cover;
+        --card-bg: rgba(30, 30, 30, 0.7); /* 半透明深灰 */
+        --text-color: #eee; /* 字體淺色 */
+        --separator-color: rgba(255,255,255,0.3);
+        --date-separator-color: rgba(255,255,255,0.6);
+        --flip-unit-shadow: 8px 8px 20px rgba(0,0,0,0.5), -8px -8px 20px rgba(255,255,255,0.05); /* 複雜陰影模擬光影 */
+        --flap-unit-bg: rgba(0,0,0,0.6); /* 半透明黑底 */
+        --leaf-back-bg: rgba(15,15,15,0.7);
+        --split-line-bg: rgba(0,0,0,0.7);
+    }}
+
+    /* --- 字體設定 (維持不變) --- */
     body.font-style-0 {{ --font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }}
     body.font-style-1 {{ --font-family: "Noto Serif TC", "PMingLiU", serif; }}
     body.font-style-2 {{ --font-family: "STKaiti", "BiauKai", "DFKai-SB", cursive; }}
 
     body {{ 
-        background: transparent; display: flex; flex-direction: column; 
-        justify-content: flex-start; align-items: center; 
-        height: 100vh; margin: 0; padding-top: 40px; 
-        overflow: hidden; gap: 12px;
-        user-select: none;
+        display: flex; flex-direction: column; justify-content: flex-start; align-items: center; 
+        height: 100vh; margin: 0; padding-top: 40px; overflow: hidden; gap: 12px;
+        user-select: none; transition: background-image 0.5s ease; /* 背景切換動畫 */
     }}
     .row {{ display: flex; gap: 6px; align-items: center; justify-content: center; width: 100%; }}
     .time-group {{ display: flex; gap: 4px; }}
-    .date-separator {{ font-family: var(--font-family); font-size: 32px; color: rgba(255,255,255,0.4); font-weight: 900; }}
-    .colon-separator {{ font-family: var(--font-family); font-size: 20px; color: rgba(255,255,255,0.15); font-weight: 900; }}
+    
+    .date-separator {{ 
+        font-family: var(--font-family); font-size: 32px; color: var(--date-separator-color); 
+        font-weight: 900; padding: 0 2px;
+    }}
+    .colon-separator {{ font-family: var(--font-family); font-size: 20px; color: var(--separator-color); font-weight: 900; }}
     
     .flap-unit {{ 
         position: relative; width: 42px; height: 62px; 
-        background: #000; border-radius: 5px; 
+        background: var(--flap-unit-bg); border-radius: 5px; 
         font-family: var(--font-family); font-size: 42px; 
-        font-weight: 900; color: #fff; 
-        box-shadow: 0 8px 15px rgba(0,0,0,0.6);
+        font-weight: 900; color: var(--text-color); 
+        box-shadow: var(--flip-unit-shadow); transition: box-shadow 0.5s ease, background-color 0.5s ease;
     }}
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
         background: var(--card-bg); display: flex; justify-content: center; 
-        backface-visibility: hidden;
+        backface-visibility: hidden; transition: background-color 0.5s ease;
     }}
     .top {{ top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 5px 5px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
-    .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 5px 5px; background: linear-gradient(180deg, #151515 0%, #000 100%); }}
+    .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 5px 5px; background: linear-gradient(180deg, var(--leaf-back-bg) 0%, rgba(0,0,0,0.8) 100%); }}
     .text {{ height: 62px; width: 100%; text-align: center; position: absolute; left: 0; line-height: 62px; }}
     .top .text {{ top: 0; }}
     .bottom .text {{ bottom: 0; }}
     .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
     .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 5px 5px 0 0; }} 
-    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 5px 5px; }}
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: var(--leaf-back-bg); display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 5px 5px; }}
     .flipping {{ transform: rotateX(-180deg); }}
-    .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0,0,0,0.95); transform: translateY(-50%); z-index: 60; }}
+    .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: var(--split-line-bg); transform: translateY(-50%); z-index: 60; }}
 
     .small-row .flap-unit {{ width: 32px; height: 48px; font-size: 26px; }}
     .small-row .text {{ height: 48px; line-height: 48px; }}
@@ -121,6 +155,7 @@ html_code = f"""
         background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
         border-radius: 50%; display: flex; align-items: center; justify-content: center;
         color: rgba(255,255,255,0.3); font-size: 18px; cursor: pointer; z-index: 100;
+        transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
     }}
 
     @media (max-width: 480px) {{
@@ -129,7 +164,7 @@ html_code = f"""
     }}
 </style>
 </head>
-<body class="font-style-0">
+<body class="font-style-0 style-0">
     <div id="style-switcher">A</div>
 
     <div class="row"><div class="time-group" id="year"></div></div>
@@ -163,7 +198,8 @@ html_code = f"""
     const weatherData = {weather_json};
     const cities = Object.keys(weatherData).length > 0 ? Object.keys(weatherData) : ["台北"];
     let cityIdx = 0;
-    let fontIdx = 0;
+    let fontStyleIdx = 0; // 0: 黑體, 1: 明體, 2: 楷體
+    let boardStyleIdx = 0; // 0: 純黑, 1: 清水模
 
     function createFlap(val) {{
         return `<div class="flap-unit">
@@ -200,7 +236,7 @@ html_code = f"""
                     unit.querySelector('.leaf-front .text').innerText = num;
                     leaf.style.transition = 'none';
                     leaf.classList.remove('flipping');
-                    leaf.offsetHeight;
+                    leaf.offsetHeight; // Force reflow
                     leaf.style.transition = '';
                 }}, {{once: true}});
             }}
@@ -239,9 +275,16 @@ html_code = f"""
         }};
         
         document.getElementById('style-switcher').onclick = () => {{
-            document.body.classList.remove(`font-style-${{fontIdx}}`);
-            fontIdx = (fontIdx + 1) % 3;
-            document.body.classList.add(`font-style-${{fontIdx}}`);
+            const body = document.body;
+            // 先切換版面風格
+            body.classList.remove(`style-${{boardStyleIdx}}`);
+            boardStyleIdx = (boardStyleIdx + 1) % 2; // 0: 純黑, 1: 清水模
+            body.classList.add(`style-${{boardStyleIdx}}`);
+
+            // 再切換字體風格 (保持循環在3種字體間)
+            body.classList.remove(`font-style-${{fontStyleIdx}}`);
+            fontStyleIdx = (fontStyleIdx + 1) % 3;
+            body.classList.add(`font-style-${{fontStyleIdx}}`);
         }};
     }};
 </script>

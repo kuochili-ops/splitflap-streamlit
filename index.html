@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
         body { 
@@ -12,35 +13,33 @@
         }
         #board {
             display: grid;
-            /* 💡 自動根據字數排列 */
             grid-template-columns: repeat(var(--cols), var(--unit-w));
-            gap: 10px;
+            gap: 12px;
         }
         .flap {
             position: relative;
             width: var(--unit-w);
             height: calc(var(--unit-w) * 1.4);
-            background: #000;
-            border-radius: 6px;
-            /* 💡 動態字體大小，確保不溢出 */
-            font-size: calc(var(--unit-w) * 0.8);
+            background: #111;
+            border-radius: 8px;
+            font-size: calc(var(--unit-w) * 0.85);
             font-weight: 900; color: #fff;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.7);
         }
         .half {
             position: absolute; width: 100%; height: 50%;
             overflow: hidden; display: flex; justify-content: center;
-            /* 💡 質感漸層光影 */
-            background: linear-gradient(180deg, #333 0%, #111 49%, #000 50%, #111 100%);
+            /* 💡 物理光影質感：頂部高光與底部深邃感 */
+            background: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 49%, #000 50%, #1a1a1a 100%);
         }
         .top { 
-            top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; 
-            border-bottom: 1px solid #000;
-            box-shadow: inset 0 1px 3px rgba(255,255,255,0.2);
+            top: 0; align-items: flex-start; border-radius: 8px 8px 0 0; 
+            border-bottom: 1.5px solid rgba(0,0,0,0.9);
+            box-shadow: inset 0 2px 4px rgba(255,255,255,0.15);
         }
         .bottom { 
-            bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; 
-            background: linear-gradient(180deg, #111 0%, #000 100%);
+            bottom: 0; align-items: flex-end; border-radius: 0 0 8px 8px; 
+            background: linear-gradient(180deg, #151515 0%, #000 100%);
         }
         .text { 
             height: 200%; line-height: calc(var(--unit-w) * 2.8);
@@ -52,14 +51,13 @@
 <body>
     <div id="board"></div>
     <script>
-        // 🔧 只要在這裡修改文字即可
-        const text = "質感顯示"; 
+        // 🔧 透過 URL 參數獲取文字，例如：?text=你好
+        const params = new URLSearchParams(window.location.search);
+        const text = params.get('text') || "質感顯示"; 
         
         const board = document.getElementById('board');
         const chars = text.split('');
-        
-        // 🔧 計算適合的寬度 (自動縮放)
-        const unitW = Math.min(80, Math.floor((window.innerWidth * 0.9) / chars.length));
+        const unitW = Math.min(80, Math.floor((window.innerWidth * 0.95) / chars.length) - 10);
         
         board.style.setProperty('--cols', chars.length);
         board.style.setProperty('--unit-w', unitW + 'px');

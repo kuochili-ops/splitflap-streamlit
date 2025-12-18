@@ -8,11 +8,12 @@ st.markdown("""
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
     .block-container {padding: 0 !important; background-color: transparent !important;}
     .stApp {background: transparent !important;}
-    iframe {border: none; width: 100%; height: 100vh; overflow: hidden;}
+    /* 讓 iframe 貼近頂部 */
+    iframe {border: none; width: 100%; height: 100vh; overflow: hidden; margin-top: -50px;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 核心 HTML (包含農曆與天氣邏輯) ---
+# --- 2. 核心 HTML ---
 html_code = """
 <!DOCTYPE html>
 <html>
@@ -26,72 +27,72 @@ html_code = """
         --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
     }
     body { 
-        background: transparent; display: flex; flex-direction: column; justify-content: center; 
-        align-items: center; height: 100vh; margin: 0; overflow: hidden; gap: 8px;
+        background: transparent; display: flex; flex-direction: column; 
+        justify-content: flex-start; /* 改為靠頂部排列 */
+        align-items: center; height: 100vh; margin: 0; padding-top: 40px; /* 頂部預留適度空間 */
+        overflow: hidden; gap: 12px;
         user-select: none; -webkit-user-select: none;
     }
     .row { display: flex; gap: 6px; align-items: center; justify-content: center; width: 100%; }
-    .time-group { display: flex; gap: 3px; }
-    .separator { font-family: var(--font-family); font-size: 18px; color: rgba(255,255,255,0.15); font-weight: 900; }
+    .time-group { display: flex; gap: 4px; }
+    .separator { font-family: var(--font-family); font-size: 20px; color: rgba(255,255,255,0.15); font-weight: 900; }
     
     /* 翻板基礎單位 */
     .flap-unit { 
-        position: relative; width: 38px; height: 55px; 
-        background: #000; border-radius: 4px; 
-        font-family: var(--font-family); font-size: 38px; 
+        position: relative; width: 42px; height: 62px; 
+        background: #000; border-radius: 5px; 
+        font-family: var(--font-family); font-size: 42px; 
         font-weight: 900; color: #fff; 
-        box-shadow: 0 6px 15px rgba(0,0,0,0.6);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.6);
     }
     .half { 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }
-    .top { top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }
-    .bottom { bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; background: linear-gradient(180deg, #151515 0%, #000 100%); }
-    .text { height: 55px; width: 100%; text-align: center; position: absolute; left: 0; line-height: 55px; }
+    .top { top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 5px 5px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }
+    .bottom { bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 5px 5px; background: linear-gradient(180deg, #151515 0%, #000 100%); }
+    .text { height: 62px; width: 100%; text-align: center; position: absolute; left: 0; line-height: 62px; }
     .top .text { top: 0; }
     .bottom .text { bottom: 0; }
     .leaf { position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }
-    .leaf-front { z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; } 
-    .leaf-back { transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }
+    .leaf-front { z-index: 16; background: var(--card-bg); border-radius: 5px 5px 0 0; } 
+    .leaf-back { transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 5px 5px; }
     .flipping { transform: rotateX(-180deg); }
-    .flap-unit::before { content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.9); transform: translateY(-50%); z-index: 60; }
+    .flap-unit::before { content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0,0,0,0.95); transform: translateY(-50%); z-index: 60; }
 
-    /* 輔助資訊列 (農曆/星期/節氣) */
-    .small-flap .flap-unit { width: 30px; height: 42px; font-size: 24px; }
-    .small-flap .text { height: 42px; line-height: 42px; }
+    /* 輔助列小翻板 */
+    .small-row .flap-unit { width: 32px; height: 48px; font-size: 26px; }
+    .small-row .text { height: 48px; line-height: 48px; }
 
-    /* 天氣列觸碰區域 */
-    .weather-active-area { cursor: pointer; padding: 5px; border-radius: 12px; transition: 0.2s; }
-    .weather-active-area:active { transform: scale(0.98); background: rgba(255,255,255,0.05); }
+    /* 天氣列觸碰效果 */
+    .weather-box { cursor: pointer; border-radius: 12px; transition: background 0.2s; padding: 5px; }
+    .weather-box:active { background: rgba(255,255,255,0.08); }
 
-    .footer-note { margin-top: 10px; font-family: var(--font-family); font-size: 11px; color: rgba(255, 255, 255, 0.15); letter-spacing: 1px; }
+    .footer-note { margin-top: 20px; font-family: var(--font-family); font-size: 11px; color: rgba(255, 255, 255, 0.1); letter-spacing: 2px; }
 </style>
 </head>
 <body>
-    <div class="row small-flap">
+    <div class="row">
         <div class="time-group" id="year"></div>
-        <div class="separator">/</div>
-        <div class="time-group" id="dayOfWeek"></div>
     </div>
     
-    <div class="row small-flap">
-        <div class="time-group" id="lunar-date"></div>
-        <div class="separator">·</div>
-        <div class="time-group" id="solar-term"></div>
-    </div>
-
     <div class="row">
         <div class="time-group" id="date"></div>
     </div>
     
-    <div class="row small-flap weather-active-area" id="weather-trigger">
-        <div id="weather-city" class="time-group"></div>
-        <div style="width:5px"></div>
-        <div id="weather-desc" class="time-group"></div>
-        <div style="width:5px"></div>
-        <div id="weather-temp" class="time-group"></div>
+    <div class="row small-row">
+        <div class="time-group" id="lunar"></div>
+        <div class="separator">·</div>
+        <div class="time-group" id="solar-term"></div>
+    </div>
+
+    <div class="row small-row weather-box" id="weather-trigger">
+        <div class="time-group" id="weather-city"></div>
+        <div style="width:4px"></div>
+        <div class="time-group" id="weather-desc"></div>
+        <div style="width:4px"></div>
+        <div class="time-group" id="weather-temp"></div>
     </div>
 
     <div class="row">
@@ -102,15 +103,15 @@ html_code = """
         <div class="time-group" id="seconds"></div>
     </div>
 
-    <div class="footer-note">𓃥白六萬年曆時鐘</div>
+    <div class="footer-note">𓃥白六萬年曆</div>
 
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
 <script>
     const cities = ["台北", "新北", "桃園", "新竹", "台中", "彰化", "嘉義", "台南", "高雄", "宜蘭", "花蓮", "台東"];
-    const weatherStates = ["晴", "雲", "陰", "雨"];
-    let cityIndex = 0;
+    const forecasts = ["晴", "多雲", "陰天", "小雨", "雷雨"];
+    let cityIdx = 0;
 
-    function createFlapHTML(val) {
+    function createFlap(val) {
         return `<div class="flap-unit">
             <div class="half top base-top"><div class="text">${val}</div></div>
             <div class="half bottom base-bottom"><div class="text">${val}</div></div>
@@ -125,12 +126,10 @@ html_code = """
         let str = value.toString();
         const group = document.getElementById(id);
         let units = group.querySelectorAll('.flap-unit');
-        
         if (units.length !== str.length) {
-            group.innerHTML = str.split('').map(c => createFlapHTML(c)).join('');
+            group.innerHTML = str.split('').map(c => createFlap(c)).join('');
             units = group.querySelectorAll('.flap-unit');
         }
-
         str.split('').forEach((num, i) => {
             const unit = units[i];
             const currentNum = unit.querySelector('.base-top .text').innerText;
@@ -153,63 +152,41 @@ html_code = """
         });
     }
 
-    function updateWeather() {
-        const cityName = cities[cityIndex];
-        // 隨機生成氣候與溫度（真實應用可介接 API）
-        const desc = weatherStates[Math.floor(Math.random() * weatherStates.length)];
-        const temp = (20 + (cityIndex % 5)) + "°";
-        
+    function refreshWeather() {
+        const cityName = cities[cityIdx];
+        const desc = forecasts[Math.floor(Math.random() * forecasts.length)];
+        const temp = (18 + Math.floor(Math.random() * 10)) + "°";
         updateGroup('weather-city', cityName);
         updateGroup('weather-desc', desc);
         updateGroup('weather-temp', temp);
     }
 
-    function updateClock() {
+    function tick() {
         const now = new Date();
         const lunar = Lunar.fromDate(now);
         
-        // 年 & 星期
         updateGroup('year', now.getFullYear());
-        updateGroup('dayOfWeek', "週" + "日一二三四五六"[now.getDay()]);
-        
-        // 農曆 (取月日，例如 十一廿八)
-        const lunarStr = lunar.getMonthInChinese() + "月" + lunar.getDayInChinese();
-        updateGroup('lunar-date', lunarStr);
-        
-        // 節氣 (若當天無節氣則顯示當月節氣)
-        const term = lunar.getJieQi() || lunar.getPrevJieQi().getName();
-        updateGroup('solar-term', term);
-        
-        // 西曆月日
-        const mmdd = (now.getMonth() + 1).toString().padStart(2, '0') + 
-                     now.getDate().toString().padStart(2, '0');
-        updateGroup('date', mmdd);
-        
-        // 時間
+        updateGroup('date', (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0'));
+        updateGroup('lunar', lunar.getMonthInChinese() + "月" + lunar.getDayInChinese());
+        updateGroup('solar-term', lunar.getJieQi() || lunar.getPrevJieQi().getName());
         updateGroup('hours', now.getHours().toString().padStart(2, '0'));
         updateGroup('minutes', now.getMinutes().toString().padStart(2, '0'));
         updateGroup('seconds', now.getSeconds().toString().padStart(2, '0'));
     }
 
     window.onload = () => {
-        updateClock();
-        updateWeather();
-        setInterval(updateClock, 1000);
+        tick();
+        refreshWeather();
+        setInterval(tick, 1000);
 
-        const weatherArea = document.getElementById('weather-trigger');
-        const trigger = () => {
-            cityIndex = (cityIndex + 1) % cities.length;
-            updateWeather();
-        };
-        weatherArea.addEventListener('click', trigger);
-        weatherArea.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            trigger();
-        }, {passive: false});
+        const wArea = document.getElementById('weather-trigger');
+        const change = () => { cityIdx = (cityIdx + 1) % cities.length; refreshWeather(); };
+        wArea.addEventListener('click', change);
+        wArea.addEventListener('touchstart', (e) => { e.preventDefault(); change(); }, {passive: false});
     };
 </script>
 </body>
 </html>
 """
 
-components.html(html_code, height=850)
+components.html(html_code, height=900)

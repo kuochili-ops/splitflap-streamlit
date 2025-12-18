@@ -18,7 +18,6 @@ st.markdown("""
 CWA_API_KEY = "CWA-A6F3874E-27F3-4AA3-AF5A-96B365798F79"
 
 def get_taiwan_weather():
-    """從氣象署獲取全台縣市即時天氣預報"""
     url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization={CWA_API_KEY}"
     try:
         response = requests.get(url, timeout=5)
@@ -26,22 +25,20 @@ def get_taiwan_weather():
         locations = data['records']['location']
         weather_dict = {}
         for loc in locations:
-            city = loc['locationName'].replace('臺', '台') # 統一字體
-            # Wx: 天氣現象, MaxT: 最高溫度
+            city = loc['locationName'].replace('臺', '台')
             desc = loc['weatherElement'][0]['time'][0]['parameter']['parameterName']
             temp = loc['weatherElement'][4]['time'][0]['parameter']['parameterName']
-            
-            # 格式化描述為兩個字
-            short_desc = desc[:2] if len(desc) >= 2 else desc + "天"
+            # 強制縮減或補齊為兩個字
+            short_desc = desc[:2] if len(desc) >= 2 else desc.ljust(2, '天')
             weather_dict[city] = {"desc": short_desc, "temp": temp + "°"}
         return weather_dict
-    except Exception as e:
-        return None
+    except:
+        return {}
 
-# 獲取初始天氣數據
 real_weather_data = get_taiwan_weather()
+weather_json = json.dumps(real_weather_data)
 
-# --- 3. 核心 HTML ---
+# --- 3. 核心 HTML (使用 f-string 需小心處理大括號) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -145,9 +142,8 @@ html_code = f"""
 
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
 <script>
-    // 從 Python 傳入的真實天氣數據
-    const weatherData = {json.dumps(real_weather_data or {{}})};
-    const cities = Object.keys(weatherData).length > 0 ? Object.keys(weatherData) : ["台北", "台中", "高雄"];
+    const weatherData = {weather_json};
+    const cities = Object.keys(weatherData).length > 0 ? Object.keys(weatherData) : ["台北", "新北", "桃園", "新竹", "台中", "彰化", "嘉義", "台南", "高雄", "宜蘭", "花蓮", "台東"];
     let cityIdx = 0;
     let fontIdx = 0;
 
@@ -195,7 +191,7 @@ html_code = f"""
 
     function refreshWeather() {{
         const cityName = cities[cityIdx];
-        const data = weatherData[cityName] || {{desc: "--", temp: "--°"}};
+        const data = weatherData[cityName] || {{desc: "未知", temp: "--°"}};
         updateGroup('weather-city', cityName);
         updateGroup('weather-desc', data.desc);
         updateGroup('weather-temp', data.temp);
@@ -219,15 +215,16 @@ html_code = f"""
         refreshWeather();
         setInterval(tick, 1000);
         
-        const wArea = document.getElementById('weather-trigger');
-        wArea.addEventListener('click', () => {{ cityIdx = (cityIdx + 1) % cities.length; refreshWeather(); }});
+        document.getElementById('weather-trigger').onclick = () => {{
+            cityIdx = (cityIdx + 1) % cities.length;
+            refreshWeather();
+        }};
         
-        const styleBtn = document.getElementById('style-switcher');
-        styleBtn.addEventListener('click', () => {{
+        document.getElementById('style-switcher').onclick = () => {{
             document.body.classList.remove(`font-style-${{fontIdx}}`);
             fontIdx = (fontIdx + 1) % 3;
             document.body.classList.add(`font-style-${{fontIdx}}`);
-        }});
+        }};
     }};
 </script>
 </body>

@@ -1,6 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
+# --- 1. 頁面配置 ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
@@ -11,9 +12,12 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- 2. 參數獲取 ---
 input_text_raw = st.query_params.get("text", "聖誕快樂")
-stay_sec = float(st.query_params.get("stay", 2.5))
+# 強制只取第一段，且最多 10 個字
+display_text = input_text_raw.replace('，', ',').split(',')[0][:10]
 
+# --- 3. 純淨看板 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -27,109 +31,70 @@ html_code = f"""
     }}
     body {{ 
         background: #000; display: flex; flex-direction: column; justify-content: center; 
-        align-items: center; min-height: 100vh; margin: 0; padding: 15px; box-sizing: border-box; 
+        align-items: center; height: 100vh; margin: 0; padding: 10px; box-sizing: border-box; 
+        overflow: hidden;
     }}
     #board-container {{ 
         display: grid; 
-        grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 40px)); 
-        gap: 6px; 
+        grid-template-columns: repeat({len(display_text)}, var(--unit-width, 40px)); 
+        gap: 8px; 
         perspective: 1000px;
-        justify-content: center;
+        transform: scale(1.1);
     }}
     .flap-unit {{ 
         position: relative; 
         width: var(--unit-width, 40px); 
         height: calc(var(--unit-width, 40px) * 1.4); 
-        background: #000; border-radius: 4px; 
+        background: #000; border-radius: 6px; 
         font-family: var(--font-family); 
-        font-size: calc(var(--unit-width, 40px) * 0.95); 
+        font-size: calc(var(--unit-width, 40px) * 1.0); 
         font-weight: 900; color: #fff; 
-        box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.9);
     }}
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
         background: var(--card-bg); display: flex; justify-content: center; 
-        backface-visibility: hidden; -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
     }}
-    .top {{ top: 0; height: 50%; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000; }}
-    .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; background: linear-gradient(180deg, #111 0%, #000 100%); }}
+    .top {{ top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 0.5px solid #000; }}
+    .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 6px 6px; background: linear-gradient(180deg, #111 0%, #000 100%); }}
     .text {{ height: calc(var(--unit-width, 40px) * 1.4); width: 100%; text-align: center; position: absolute; line-height: calc(var(--unit-width, 40px) * 1.4); }}
-    .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform 0.6s; transform-style: preserve-3d; }}
-    .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
-    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }}
-    .flipping {{ transform: rotateX(-180deg); }}
-    .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: #000; transform: translateY(-50%); z-index: 60; }}
+    
+    /* 中間切線 */
+    .flap-unit::before {{ 
+        content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; 
+        background: rgba(0,0,0,1); transform: translateY(-50%); z-index: 60; 
+    }}
 
-    .footer-note {{ margin-top: 40px; font-family: var(--font-family); font-size: 13px; color: rgba(255, 255, 255, 0.3); letter-spacing: 2px; }}
+    .footer-note {{ margin-top: 50px; font-family: var(--font-family); font-size: 14px; color: rgba(255, 255, 255, 0.35); letter-spacing: 3px; }}
 </style>
 </head>
 <body>
-    <div id="board-container"></div>
+    <div id="board-container">
+        {"".join([f'''
+        <div class="flap-unit">
+            <div class="half top"><div class="text">{char}</div></div>
+            <div class="half bottom"><div class="text">{char}</div></div>
+        </div>
+        ''' for char in display_text])}
+    </div>
     <div class="footer-note">𓃥白六訊息告示牌</div>
 
 <script>
-    function ultimateDecode(str) {{
-        let d = str;
-        try {{ d = decodeURIComponent(d.replace(/\\+/g, ' ')); }} catch(e) {{}}
-        const textarea = document.createElement('textarea');
-        textarea.innerHTML = d;
-        return textarea.value;
-    }}
-
-    const rawText = ultimateDecode("{input_text_raw}");
-    
-    // 🚀 新增：自動換行邏輯 (超過 10 個字自動切分)
-    function wrapText(text, limit = 10) {{
-        let result = [];
-        let parts = text.includes('，') || text.includes(',') ? text.replace(/，/g, ',').split(',') : [text];
-        
-        parts.forEach(p => {{
-            let str = p.trim();
-            for (let i = 0; i < str.length; i += limit) {{
-                result.push(str.substring(i, i + limit));
-            }}
-        }});
-        return result;
-    }}
-
-    const lines = wrapText(rawText);
-    const maxCols = Math.max(...lines.map(l => l.length));
-
     function adjustSize() {{
         const winW = window.innerWidth - 40;
-        // 確保至少能塞進 maxCols 個字，寬度計算加入 gap
-        const calculatedW = Math.floor((winW - (6 * (maxCols - 1))) / maxCols);
-        // 設定合理區間，寬度不再任由字數無限縮小
-        const finalUnitW = Math.max(30, Math.min(80, calculatedW));
-        
-        document.documentElement.style.setProperty('--cols', maxCols);
+        const charCount = {len(display_text)};
+        // 根據字數動態計算最適合的寬度
+        const calculatedW = Math.floor((winW - (8 * (charCount - 1))) / charCount);
+        // 單行最大寬度限制在 85px 以防平板上太大
+        const finalUnitW = Math.min(85, calculatedW);
         document.documentElement.style.setProperty('--unit-width', finalUnitW + 'px');
     }}
-
-    // 因為現在是一次錄製多行展示，我們將所有文字組成一個大的 Grid
-    function renderBoard() {{
-        const container = document.getElementById('board-container');
-        container.innerHTML = lines.map(line => {{
-            return line.padEnd(maxCols, ' ').split('').map(c => `
-                <div class="flap-unit">
-                    <div class="half top"><div class="text">${{c}}</div></div>
-                    <div class="half bottom"><div class="text">${{c}}</div></div>
-                    <div class="leaf">
-                        <div class="half top leaf-front"><div class="text">${{c}}</div></div>
-                        <div class="half bottom leaf-back"><div class="text">${{c}}</div></div>
-                    </div>
-                </div>`).join('');
-        }}).join('');
-    }}
-
-    window.onload = () => {{
-        adjustSize();
-        renderBoard();
-    }};
+    window.onload = adjustSize;
     window.onresize = adjustSize;
 </script>
 </body>
 </html>
 """
 
-components.html(html_code, height=1000)
+components.html(html_code, height=800)

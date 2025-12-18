@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import math
 import urllib.parse
 
-# --- 1. 頁面佈局優化 ---
+# --- 1. 頁面隱藏與深色主題優化 ---
 st.set_page_config(layout="centered")
 st.markdown("""
     <style>
@@ -14,14 +14,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 獲取文字與控制參數 (防亂碼機制) ---
+# --- 2. 獲取文字與控制參數 ---
 query_params = st.query_params
 is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
 
 def get_safe_text(raw):
-    # 更換預設測試文字
-    if not raw: return "極致對齊，滑順體驗，質感躍升"
+    if not raw: return "筆畫絕對對齊，翻轉毫無殘損"
     try:
         decoded = urllib.parse.unquote(raw)
         return decoded.encode('latin-1').decode('utf-8')
@@ -46,7 +45,7 @@ rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)
 for row in rows_data:
     while len(row) < cols: row.append(" ")
 
-# --- 4. 生成 HTML (解決筆畫殘缺的核心技術) ---
+# --- 4. 生成極致流暢 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -63,18 +62,18 @@ html_code = f"""
     }}
     body {{ background: transparent; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; cursor: pointer; user-select: none; }}
     .board {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 10px; perspective: 1800px; }}
+    
     .flap {{ position: relative; width: var(--unit-width); height: var(--unit-height); background: #000; border-radius: 4px; font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); font-weight: 900; color: #fff; }}
     
-    /* 核心修復：使用絕對中心對齊，解決筆劃殘缺 */
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 1px solid rgba(0,0,0,0.8); }}
-    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
+    .top {{ top: 0; border-radius: 4px 4px 0 0; border-bottom: 1px solid rgba(0,0,0,0.8); }}
+    .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; }}
     
-    /* 強制文字在上下半部絕對共用中線 */
+    /* 核心修復：強制文字共用同一個基準原點 */
     .text {{ 
         height: var(--unit-height); 
         line-height: var(--unit-height); 
@@ -89,7 +88,6 @@ html_code = f"""
     .leaf-back {{ transform: rotateX(-180deg); z-index: 20; background: #1a1a1a; }}
     .flipping {{ transform: rotateX(-180deg); }}
 
-    /* 物理轉軸細節 */
     .flap::after {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0,0,0,0.9); z-index: 50; transform: translateY(-50%); }}
 </style>
 </head>
@@ -126,7 +124,7 @@ html_code = f"""
                 
                 leaf.classList.add('flipping');
 
-                // 精確銜接點：旋轉 90 度時 (約 275ms) 切換視覺字體
+                // 核心同步：旋轉至 90 度瞬間切換剩餘部分
                 setTimeout(() => {{
                     u.querySelector('.leaf-f .text').innerText = nextChars[i];
                     u.querySelector('.base-b .text').innerText = nextChars[i];

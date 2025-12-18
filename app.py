@@ -3,26 +3,25 @@ import streamlit.components.v1 as components
 import math
 import urllib.parse
 
-# --- 1. 頁面隱藏與樣式設定 ---
+# --- 1. 頁面佈局優化 ---
 st.set_page_config(layout="centered")
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding-top: 1rem;}
+    .block-container {padding-top: 2rem;}
     body {background-color: transparent;}
     .stSlider label {color: #555; font-weight: bold;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 獲取文字與控制參數 (防亂碼版) ---
+# --- 2. 強化版文字獲取 ---
 query_params = st.query_params
 is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
 
 def get_safe_text(raw):
-    if not raw: return "女神降臨，自動輪播中"
+    if not raw: return "讓翻頁更滑順，體驗更真實"
     try:
-        # 解決常見的 Streamlit 網址編碼誤判問題
         decoded = urllib.parse.unquote(raw)
         return decoded.encode('latin-1').decode('utf-8')
     except:
@@ -35,11 +34,11 @@ if not is_embedded:
     with col1:
         input_text = st.text_input("輸入句子", input_text)
     with col2:
-        stay_seconds = st.slider("停留秒數", 1.0, 10.0, 2.0, 0.5)
+        stay_seconds = st.slider("停留秒數", 1.0, 10.0, 2.5, 0.5)
 else:
-    stay_seconds = float(query_params.get("stay", 2.0))
+    stay_seconds = float(query_params.get("stay", 2.5))
 
-# --- 3. 動態計算每行字元數 (Your Original Logic) ---
+# --- 3. 動態計算每行字元數 ---
 N = len(input_text)
 if N <= 1:
     cols = 1
@@ -52,7 +51,7 @@ for row in rows_data:
     while len(row) < cols:
         row.append(" ")
 
-# --- 4. 生成 HTML (沿用您最愛的滑順邏輯 + 修復殘缺) ---
+# --- 4. 旗艦級 HTML (極致順滑動畫) ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -63,14 +62,16 @@ html_code = f"""
     :root {{
         --unit-width: calc(min(75px, 94vw / {cols} - 6px));
         --unit-height: calc(var(--unit-width) * 1.5);
-        --font-size: calc(var(--unit-width) * 0.9); /* 稍微調大字體更飽滿 */
+        --font-size: calc(var(--unit-width) * 0.95);
         --card-bg: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+        /* 優化後的物理貝茲曲線：具有自然的回彈感 */
+        --flip-curve: cubic-bezier(0.65, 0, 0.35, 1.35);
     }}
     body {{ 
         background: transparent; display: flex; justify-content: center; align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer; user-select: none;
     }}
-    .board-row {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 8px; perspective: 2000px; }}
+    .board-row {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 8px; perspective: 2500px; }}
     .flap-unit {{ 
         position: relative; width: var(--unit-width); height: var(--unit-height); 
         background: #000; border-radius: 6px; font-family: 'Noto Sans TC', sans-serif; 
@@ -81,27 +82,22 @@ html_code = f"""
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    /* 【核心修正】強迫文字在上下半部絕對對齊，不偏移 */
     .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 1px solid #000; }}
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
-    
-    .text {{ 
-        height: var(--unit-height); line-height: var(--unit-height); 
-        text-align: center; width: 100%; display: block;
-    }}
+    .text {{ height: var(--unit-height); line-height: var(--unit-height); text-align: center; width: 100%; }}
 
     .leaf {{ 
         position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
         z-index: 15; transform-origin: bottom; 
-        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1.2); 
+        transition: transform 0.55s var(--flip-curve); 
         transform-style: preserve-3d;
     }}
     .leaf-front {{ z-index: 16; background: var(--card-bg); }} 
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #1a1a1a; }}
     .flipping {{ transform: rotateX(-180deg); }}
 
-    .flap-unit::before {{
-        content: ""; position: absolute; top: 50%; left: -1px; width: calc(100% + 2px); height: 2px;
+    .flap-unit::after {{
+        content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
         background: #000; transform: translateY(-50%); z-index: 60;
     }}
 </style>
@@ -142,22 +138,27 @@ html_code = f"""
         const nextChars = allRows[nextRowIndex];
         const units = document.querySelectorAll('.flap-unit');
 
+        // 微調：縮短每一格之間的時間差 (35ms)，讓波浪感更連貫
         units.forEach((u, i) => {{
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
+                // 在翻轉開始前，先將頂部底座換成新字
                 u.querySelector('.base-top .text').innerText = nextChars[i];
                 u.querySelector('.leaf-back .text').innerText = nextChars[i];
                 
                 leaf.classList.add('flipping');
 
-                leaf.addEventListener('transitionend', function onEnd() {{
-                    leaf.removeEventListener('transitionend', onEnd);
+                // 翻轉一半時 (約 250ms) 稍微提早同步底部字體，避免閃爍
+                setTimeout(() => {{
                     u.querySelector('.base-bottom .text').innerText = nextChars[i];
                     u.querySelector('.leaf-front .text').innerText = nextChars[i];
-                    
+                }}, 250);
+
+                leaf.addEventListener('transitionend', function onEnd() {{
+                    leaf.removeEventListener('transitionend', onEnd);
                     leaf.style.transition = 'none';
                     leaf.classList.remove('flipping');
-                    leaf.offsetHeight; 
+                    leaf.offsetHeight; // 強制瀏覽器重繪
                     leaf.style.transition = '';
                     
                     if (i === units.length - 1) {{
@@ -165,8 +166,9 @@ html_code = f"""
                         resetTimer();
                     }}
                 }}, {{once: true}});
-            }}, i * 40);
+            }}, i * 35); 
         }});
+
         currentRowIndex = nextRowIndex;
     }}
 
@@ -176,9 +178,7 @@ html_code = f"""
     }}
 
     document.body.addEventListener('click', () => {{
-        if (!isAnimating) {{
-            performFlip();
-        }}
+        if (!isAnimating) performFlip();
     }});
 
     init();

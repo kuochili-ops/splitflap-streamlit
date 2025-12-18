@@ -1,130 +1,199 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import math
-import urllib.parse
 
-# --- 1. 頁面配置 ---
+# --- 1. 頁面透明化與手機適配設定 ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding: 0 !important; margin: 0 !important;}
-    body {background-color: transparent !important; overflow: hidden; margin: 0;}
+    .block-container {padding: 0 !important; background-color: transparent !important;}
+    .stApp {background: transparent !important;}
+    iframe {border: none; width: 100%; height: 100vh; overflow: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 參數獲取與分段邏輯 ---
-query_params = st.query_params
-raw_text = query_params.get("text", "")
-input_text = urllib.parse.unquote(raw_text) if raw_text else "質感看板正常顯示中"
-stay_sec = float(query_params.get("stay", 3.0))
+# --- 2. 參數獲取 ---
+input_text_raw = st.query_params.get("text", "載入中...")
+stay_sec = float(st.query_params.get("stay", 2.5))
 
-N = len(input_text)
-# 您要求的邏輯：20字內自動除以二，超過20字固定10字一幕
-if N <= 20:
-    cols = math.ceil(N / 2) if N > 1 else 1
-    if cols > 10: cols = 10
-else:
-    cols = 10
-
-# 切割分段
-rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)]
-for row in rows_data:
-    while len(row) < cols: row.append(" ")
-
-# --- 3. 生成 HTML (採用絕對定位確保文字不消失) ---
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
-    
+    :root {{
+        --font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+        --flip-speed: 0.6s;
+        --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
+    }}
     body {{ 
-        margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; 
-        height: 100vh; background: transparent; font-family: 'Noto Sans TC', sans-serif;
+        background: transparent; display: flex; flex-direction: column; justify-content: center; 
+        align-items: center; height: 100vh; margin: 0; padding: 10px;
+        box-sizing: border-box; overflow: hidden; 
     }}
-    
-    #board {{
-        display: grid; gap: 8px;
-        grid-template-columns: repeat({cols}, 60px);
-        /* 💡 確保在手機上自動縮小，不會破圖 */
-        transform: scale(min(1, calc(95vw / {cols * 68}))); 
+    /* 看板主容器 */
+    #board-container {{ 
+        display: grid; 
+        grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 40px)); 
+        gap: 6px;
+        perspective: 1500px; 
     }}
-
-    .flap {{
-        position: relative; width: 60px; height: 90px;
-        background: #000; border-radius: 4px;
-        perspective: 1000px;
+    .flap-unit {{ 
+        position: relative; 
+        width: var(--unit-width, 40px); 
+        height: calc(var(--unit-width, 40px) * 1.4); 
+        background: #000; border-radius: 4px; 
+        font-family: var(--font-family); 
+        font-size: calc(var(--unit-width, 40px) * 1.0); 
+        font-weight: 900; color: #fff; 
+        box-shadow: 0 8px 20px rgba(0,0,0,0.7);
     }}
-
-    .half {{
-        position: absolute; left: 0; width: 100%; height: 50%;
-        overflow: hidden; backface-visibility: hidden;
-        background: linear-gradient(180deg, #333 0%, #1a1a1a 100%);
-        display: flex; justify-content: center;
+    .half {{ 
+        position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
+        background: var(--card-bg); display: flex; justify-content: center; 
+        backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-
-    /* 💡 改用絕對定位與 transform 確保文字在中心 */
-    .text {{
-        position: absolute; width: 100%; height: 180px; /* 看板總高的兩倍 */
-        font-size: 54px; font-weight: 900; color: #FFFFFF !important;
-        text-align: center; line-height: 180px;
-        left: 0;
-    }}
-
     .top {{ 
-        top: 0; border-radius: 4px 4px 0 0; border-bottom: 1px solid #000;
-        align-items: flex-start; transform-origin: bottom; transition: transform 0.6s; z-index: 2;
+        top: 0; height: calc(50% + 0.5px); align-items: flex-start; 
+        border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8);
+        box-shadow: inset 0 1px 2px rgba(255,255,255,0.1);
+    }}
+    .bottom {{ 
+        bottom: 0; height: 50%; align-items: flex-end; 
+        border-radius: 0 0 4px 4px; 
+        background: linear-gradient(180deg, #151515 0%, #000 100%);
+    }}
+    .text {{ 
+        height: calc(var(--unit-width, 40px) * 1.4); width: 100%; 
+        text-align: center; position: absolute; left: 0; 
+        line-height: calc(var(--unit-width, 40px) * 1.4);
     }}
     .top .text {{ top: 0; }}
-
-    .bottom {{ 
-        bottom: 0; border-radius: 0 0 4px 4px;
-        align-items: flex-end; z-index: 1;
-    }}
     .bottom .text {{ bottom: 0; }}
+    .leaf {{ 
+        position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
+        z-index: 15; transform-origin: bottom; 
+        transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); 
+        transform-style: preserve-3d; 
+    }}
+    .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
+    .leaf-back {{ 
+        transform: rotateX(-180deg); z-index: 15; background: #111; 
+        display: flex; justify-content: center; align-items: flex-end; 
+        overflow: hidden; border-radius: 0 0 4px 4px; 
+    }}
+    .flipping {{ transform: rotateX(-180deg); }}
+    .flap-unit::before {{ 
+        content: ""; position: absolute; top: 50%; left: 0; 
+        width: 100%; height: 1.5px; background: rgba(0,0,0,0.9); 
+        transform: translateY(-50%); z-index: 60; 
+    }}
 
-    .flipping .top {{ transform: rotateX(-180deg); }}
-
-    .flap::after {{
-        content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-        background: rgba(0,0,0,0.8); z-index: 5; transform: translateY(-50%);
+    /* 下方註明文字樣式 */
+    .footer-note {{
+        margin-top: 25px;
+        font-family: var(--font-family);
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.4);
+        letter-spacing: 2px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }}
 </style>
 </head>
 <body>
-    <div id="board"></div>
-    <script>
-        const chunks = {rows_data};
-        let currentIndex = 0;
-        const board = document.getElementById('board');
+    <div id="board-container"></div>
+    <div class="footer-note">𓃥白六訊息告示牌</div>
 
-        function render() {{
-            const chars = chunks[currentIndex];
-            board.innerHTML = chars.map(c => `
-                <div class="flap">
-                    <div class="half top"><div class="text">${{c}}</div></div>
-                    <div class="half bottom"><div class="text">${{c}}</div></div>
-                </div>
-            `).join('');
+<script>
+    function ultimateDecode(str) {{
+        let d = str;
+        try {{ d = decodeURIComponent(d.replace(/\\+/g, ' ')); }} catch(e) {{}}
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = d;
+        d = textarea.value;
+        textarea.innerHTML = d;
+        return textarea.value;
+    }}
 
-            setTimeout(() => {{
-                document.querySelectorAll('.flap').forEach((f, i) => {{
-                    setTimeout(() => f.classList.add('flipping'), i * 65);
-                }});
-            }}, 50);
+    const cleanText = ultimateDecode("{input_text_raw}");
+    let rowsData = [];
+    let maxCols = 1;
 
-            currentIndex = (currentIndex + 1) % chunks.length;
+    if (cleanText.includes('，') || cleanText.includes(',')) {{
+        const parts = cleanText.replace(/，/g, ',').split(',');
+        maxCols = Math.max(...parts.map(p => p.trim().length));
+        rowsData = parts.map(p => p.trim().padEnd(maxCols, ' ').split(''));
+    }} else {{
+        maxCols = Math.min(Math.ceil(cleanText.length / 2) || 1, 10);
+        for (let i = 0; i < cleanText.length; i += maxCols) {{
+            rowsData.push(cleanText.substring(i, i + maxCols).padEnd(maxCols, ' ').split(''));
         }}
+    }}
 
-        render();
-        if (chunks.length > 1) setInterval(render, {stay_sec * 1000});
-    </script>
+    function adjustSize() {{
+        const winW = window.innerWidth - 40;
+        const calculatedW = Math.floor((winW - (6 * (maxCols - 1))) / maxCols);
+        const finalUnitW = Math.max(25, Math.min(80, calculatedW));
+        document.documentElement.style.setProperty('--cols', maxCols);
+        document.documentElement.style.setProperty('--unit-width', finalUnitW + 'px');
+    }}
+
+    let currentRow = 0, isAnimating = false;
+
+    function createRow(chars) {{
+        return chars.map(c => `
+            <div class="flap-unit">
+                <div class="half top base-top"><div class="text">${{c}}</div></div>
+                <div class="half bottom base-bottom"><div class="text">${{c}}</div></div>
+                <div class="leaf">
+                    <div class="half top leaf-front"><div class="text">${{c}}</div></div>
+                    <div class="half bottom leaf-back"><div class="text">${{c}}</div></div>
+                </div>
+            </div>`).join('');
+    }}
+
+    function flip() {{
+        if (rowsData.length <= 1 || isAnimating) return;
+        isAnimating = true;
+        const nextIdx = (currentRow + 1) % rowsData.length;
+        const nextChars = rowsData[nextIdx];
+        const units = document.querySelectorAll('.flap-unit');
+
+        units.forEach((u, i) => {{
+            setTimeout(() => {{
+                const leaf = u.querySelector('.leaf');
+                u.querySelector('.leaf-back .text').innerText = nextChars[i] || ' ';
+                leaf.classList.add('flipping');
+                setTimeout(() => {{
+                    u.querySelector('.base-top .text').innerText = nextChars[i] || ' ';
+                    u.querySelector('.base-bottom .text').innerText = nextChars[i] || ' ';
+                }}, 300);
+                leaf.addEventListener('transitionend', () => {{
+                    u.querySelector('.leaf-front .text').innerText = nextChars[i] || ' ';
+                    leaf.style.transition = 'none';
+                    leaf.classList.remove('flipping');
+                    leaf.offsetHeight; 
+                    leaf.style.transition = '';
+                    if (i === units.length - 1) isAnimating = false;
+                }}, {{once: true}});
+            }}, i * 40);
+        }});
+        currentRow = nextIdx;
+    }}
+
+    window.onload = () => {{
+        adjustSize();
+        document.getElementById('board-container').innerHTML = createRow(rowsData[0]);
+        if (rowsData.length > 1) setInterval(flip, {stay_sec} * 1000);
+    }};
+    window.onresize = adjustSize;
+</script>
 </body>
 </html>
 """
 
-# --- 4. 給予充足高度預算 ---
-components.html(html_code, height=220)
+components.html(html_code, height=600)

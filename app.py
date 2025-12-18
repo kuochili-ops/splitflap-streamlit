@@ -20,7 +20,7 @@ is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
 
 def get_safe_text(raw):
-    if not raw: return "筆畫精準銜接，穩定不再殘損"
+    if not raw: return "筆畫精準銜接，全時段無殘損"
     try:
         decoded = urllib.parse.unquote(raw)
         return decoded.encode('latin-1').decode('utf-8')
@@ -45,7 +45,7 @@ rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)
 for row in rows_data:
     while len(row) < cols: row.append(" ")
 
-# --- 4. 核心 HTML (徹底優化銜接邏輯) ---
+# --- 4. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -70,8 +70,8 @@ html_code = f"""
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    /* 上半部多給一點餘裕防止中線縫隙 */
-    .top {{ top: 0; height: calc(50% + 0.6px); align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
+    /* 強制補足 1% 高度確保覆蓋中線軸心 */
+    .top {{ top: 0; height: 51%; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
     .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     
     .text {{ 
@@ -96,6 +96,7 @@ html_code = f"""
     const stayTime = {stay_seconds} * 1000;
     let curr = 0, busy = false, timer;
 
+    // 初始化時即確保與動畫狀態結構完全一致
     function build(chars) {{
         document.getElementById('board').innerHTML = chars.map(c => `
             <div class="flap">
@@ -118,30 +119,27 @@ html_code = f"""
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
                 
-                // 【核心修正】: 移除舊的重置動作
-                // 在開始新動畫前，先讓 leaf 無動畫地歸位到 0 度，並換好正面的字
+                // 1. 閃電重置：將板片歸位至 0 度
                 leaf.style.transition = 'none';
                 leaf.classList.remove('flipping');
                 
-                const prevText = u.querySelector('.base-t .text').innerText;
-                u.querySelector('.leaf-f .text').innerText = prevText;
-                u.querySelector('.base-b .text').innerText = prevText;
-                
-                leaf.offsetHeight; // 強制瀏覽器重繪
-
-                // 準備本次要翻過去的背面字
+                // 2. 同步目前顯示的文字到 leaf 正面
+                const currentTxt = u.querySelector('.base-t .text').innerText;
+                u.querySelector('.leaf-f .text').innerText = currentTxt;
                 u.querySelector('.leaf-b .text').innerText = nextChars[i];
                 
-                // 開始翻轉
+                leaf.offsetHeight; // 觸發 reflow
+
+                // 3. 啟動動畫
                 leaf.style.transition = '';
                 leaf.classList.add('flipping');
 
-                // 90度瞬間：更新底層上半部
+                // 4. 90度時切換底層上半部
                 setTimeout(() => {{
                     u.querySelector('.base-t .text').innerText = nextChars[i];
                 }}, 280);
 
-                // 動畫結束：只更新底層下半部，絕對不移除 flipping 類別
+                // 5. 結束時僅切換底層下半部，維持 flipping 狀態
                 leaf.addEventListener('transitionend', function end() {{
                     leaf.removeEventListener('transitionend', end);
                     u.querySelector('.base-b .text').innerText = nextChars[i];

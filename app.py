@@ -20,7 +20,7 @@ is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
 
 def get_safe_text(raw):
-    if not raw: return "筆畫精準銜接，全時段無殘損"
+    if not raw: return "首幀對齊校準，穩定不再殘損"
     try:
         decoded = urllib.parse.unquote(raw)
         return decoded.encode('latin-1').decode('utf-8')
@@ -63,7 +63,12 @@ html_code = f"""
     body {{ background: transparent; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; cursor: pointer; }}
     .board {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 10px; perspective: 2000px; }}
     
-    .flap {{ position: relative; width: var(--unit-width); height: var(--unit-height); background: #000; border-radius: 4px; font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); font-weight: 900; color: #fff; }}
+    .flap {{ 
+        position: relative; width: var(--unit-width); height: var(--unit-height); 
+        background: #000; border-radius: 4px; 
+        font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); 
+        font-weight: 900; color: #fff; line-height: 1;
+    }}
     
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
@@ -71,7 +76,7 @@ html_code = f"""
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
     
-    /* 上半部：增加高度補足軸心，並微調第一個畫面的對齊 */
+    /* 上半部：強制多給 1px 並將文字微調向上 0.5px 鎖定基準線 */
     .top {{ 
         top: 0; height: calc(50% + 1px); align-items: flex-start; 
         border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); 
@@ -79,10 +84,13 @@ html_code = f"""
     .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     
     .text {{ 
-        height: var(--unit-height); line-height: calc(var(--unit-height) - 1px); 
+        height: var(--unit-height); 
+        line-height: var(--unit-height); 
         text-align: center; width: 100%; position: absolute; left: 0;
     }}
-    .top .text {{ top: 0; }}
+    
+    /* 核心對齊補償：針對首幀上半部進行微小的物理位移 */
+    .top .text {{ top: -0.5px; }} 
     .bottom .text {{ bottom: 0; }}
 
     .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 20; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
@@ -122,29 +130,24 @@ html_code = f"""
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
                 
-                // 開始翻轉前，瞬間重置 leaf 狀態
                 leaf.style.transition = 'none';
                 leaf.classList.remove('flipping');
                 
-                // 確保 leaf 正面是目前的字，背面是下一個字
                 const currentTxt = u.querySelector('.base-t .text').innerText;
                 u.querySelector('.leaf-f .text').innerText = currentTxt;
                 u.querySelector('.leaf-b .text').innerText = nextChars[i];
                 
-                leaf.offsetHeight; // 強制重繪
+                leaf.offsetHeight; 
 
-                // 啟動翻轉
                 leaf.style.transition = '';
                 leaf.classList.add('flipping');
 
-                // 關鍵修正：同步更新底層上半部與下半部
-                // 在旋轉到 90 度左右（視覺遮蔽最強時）同時更換底座的字
+                // 中途更換底座文字，消除殘影
                 setTimeout(() => {{
                     u.querySelector('.base-t .text').innerText = nextChars[i];
                     u.querySelector('.base-b .text').innerText = nextChars[i];
                 }}, 300);
 
-                // 動畫結束，不執行任何可能導致跳動的動作
                 leaf.addEventListener('transitionend', function end() {{
                     leaf.removeEventListener('transitionend', end);
                     if (i === units.length - 1) {{ 

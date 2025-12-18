@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import math
 import urllib.parse
 
-# --- 1. 頁面隱藏與深色主題優化 ---
+# --- 1. 頁面佈局設定 ---
 st.set_page_config(layout="centered")
 st.markdown("""
     <style>
@@ -14,12 +14,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 獲取文字與控制參數 ---
+# --- 2. 獲取文字與參數 ---
 query_params = st.query_params
 is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
 
 def get_safe_text(raw):
+    # 使用筆畫較多的字作為預設，最能測試殘缺問題
     if not raw: return "筆畫絕對對齊，翻轉毫無殘損"
     try:
         decoded = urllib.parse.unquote(raw)
@@ -38,14 +39,14 @@ if not is_embedded:
 else:
     stay_seconds = float(query_params.get("stay", 2.5))
 
-# --- 3. 計算行列寬度 ---
+# --- 3. 計算行列 ---
 N = len(input_text)
 cols = min(math.ceil(N / 2), 10) if N > 1 else 1
 rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)]
 for row in rows_data:
     while len(row) < cols: row.append(" ")
 
-# --- 4. 生成極致流暢 HTML ---
+# --- 4. 核心 HTML 與 CSS ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -66,14 +67,23 @@ html_code = f"""
     .flap {{ position: relative; width: var(--unit-width); height: var(--unit-height); background: #000; border-radius: 4px; font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); font-weight: 900; color: #fff; }}
     
     .half {{ 
-        position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
+        position: absolute; left: 0; width: 100%; overflow: hidden; 
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    .top {{ top: 0; border-radius: 4px 4px 0 0; border-bottom: 1px solid rgba(0,0,0,0.8); }}
-    .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; }}
     
-    /* 核心修復：強制文字共用同一個基準原點 */
+    /* 修正點：頂部稍微加高 0.5px 補償縫隙，並鎖定座標 */
+    .top {{ 
+        top: 0; height: calc(50% + 0.5px); 
+        border-radius: 4px 4px 0 0; 
+        border-bottom: 0.5px solid rgba(0,0,0,0.5); 
+    }}
+    .bottom {{ 
+        bottom: 0; height: 50%; 
+        border-radius: 0 0 4px 4px; 
+    }}
+    
+    /* 文字絕對對位 */
     .text {{ 
         height: var(--unit-height); 
         line-height: var(--unit-height); 
@@ -124,7 +134,7 @@ html_code = f"""
                 
                 leaf.classList.add('flipping');
 
-                // 核心同步：旋轉至 90 度瞬間切換剩餘部分
+                // 核心同步點：90度垂直時切換
                 setTimeout(() => {{
                     u.querySelector('.leaf-f .text').innerText = nextChars[i];
                     u.querySelector('.base-b .text').innerText = nextChars[i];

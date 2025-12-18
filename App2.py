@@ -8,7 +8,6 @@ st.markdown("""
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
     .block-container {padding: 0 !important; background-color: transparent !important;}
     .stApp {background: transparent !important;}
-    /* 讓 iframe 貼近頂部 */
     iframe {border: none; width: 100%; height: 100vh; overflow: hidden; margin-top: -50px;}
     </style>
     """, unsafe_allow_html=True)
@@ -28,14 +27,20 @@ html_code = """
     }
     body { 
         background: transparent; display: flex; flex-direction: column; 
-        justify-content: flex-start; /* 改為靠頂部排列 */
-        align-items: center; height: 100vh; margin: 0; padding-top: 40px; /* 頂部預留適度空間 */
+        justify-content: flex-start; align-items: center; 
+        height: 100vh; margin: 0; padding-top: 40px; 
         overflow: hidden; gap: 12px;
         user-select: none; -webkit-user-select: none;
     }
     .row { display: flex; gap: 6px; align-items: center; justify-content: center; width: 100%; }
     .time-group { display: flex; gap: 4px; }
-    .separator { font-family: var(--font-family); font-size: 20px; color: rgba(255,255,255,0.15); font-weight: 900; }
+    
+    /* 分隔符樣式 (月/日中間的斜槓) */
+    .date-separator { 
+        font-family: var(--font-family); font-size: 32px; color: rgba(255,255,255,0.4); 
+        font-weight: 900; padding: 0 2px;
+    }
+    .colon-separator { font-family: var(--font-family); font-size: 20px; color: rgba(255,255,255,0.15); font-weight: 900; }
     
     /* 翻板基礎單位 */
     .flap-unit { 
@@ -61,15 +66,18 @@ html_code = """
     .flipping { transform: rotateX(-180deg); }
     .flap-unit::before { content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0,0,0,0.95); transform: translateY(-50%); z-index: 60; }
 
-    /* 輔助列小翻板 */
+    /* 小翻板尺寸 */
     .small-row .flap-unit { width: 32px; height: 48px; font-size: 26px; }
     .small-row .text { height: 48px; line-height: 48px; }
 
-    /* 天氣列觸碰效果 */
     .weather-box { cursor: pointer; border-radius: 12px; transition: background 0.2s; padding: 5px; }
-    .weather-box:active { background: rgba(255,255,255,0.08); }
-
     .footer-note { margin-top: 20px; font-family: var(--font-family); font-size: 11px; color: rgba(255, 255, 255, 0.1); letter-spacing: 2px; }
+
+    @media (max-width: 480px) {
+        .flap-unit { width: 38px; height: 56px; font-size: 38px; }
+        .text { height: 56px; line-height: 56px; }
+        .date-separator { font-size: 26px; }
+    }
 </style>
 </head>
 <body>
@@ -78,12 +86,14 @@ html_code = """
     </div>
     
     <div class="row">
-        <div class="time-group" id="date"></div>
+        <div class="time-group" id="month"></div>
+        <div class="date-separator">/</div>
+        <div class="time-group" id="day"></div>
     </div>
     
     <div class="row small-row">
         <div class="time-group" id="lunar"></div>
-        <div class="separator">·</div>
+        <div class="colon-separator">·</div>
         <div class="time-group" id="solar-term"></div>
     </div>
 
@@ -97,9 +107,9 @@ html_code = """
 
     <div class="row">
         <div class="time-group" id="hours"></div>
-        <div class="separator">:</div>
+        <div class="colon-separator">:</div>
         <div class="time-group" id="minutes"></div>
-        <div class="separator">:</div>
+        <div class="colon-separator">:</div>
         <div class="time-group" id="seconds"></div>
     </div>
 
@@ -122,8 +132,9 @@ html_code = """
         </div>`;
     }
 
-    function updateGroup(id, value) {
+    function updateGroup(id, value, pad=0) {
         let str = value.toString();
+        if(pad > 0) str = str.padStart(pad, '0');
         const group = document.getElementById(id);
         let units = group.querySelectorAll('.flap-unit');
         if (units.length !== str.length) {
@@ -166,12 +177,14 @@ html_code = """
         const lunar = Lunar.fromDate(now);
         
         updateGroup('year', now.getFullYear());
-        updateGroup('date', (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0'));
+        updateGroup('month', (now.getMonth() + 1), 2);
+        updateGroup('day', now.getDate(), 2);
+        
         updateGroup('lunar', lunar.getMonthInChinese() + "月" + lunar.getDayInChinese());
         updateGroup('solar-term', lunar.getJieQi() || lunar.getPrevJieQi().getName());
-        updateGroup('hours', now.getHours().toString().padStart(2, '0'));
-        updateGroup('minutes', now.getMinutes().toString().padStart(2, '0'));
-        updateGroup('seconds', now.getSeconds().toString().padStart(2, '0'));
+        updateGroup('hours', now.getHours(), 2);
+        updateGroup('minutes', now.getMinutes(), 2);
+        updateGroup('seconds', now.getSeconds(), 2);
     }
 
     window.onload = () => {

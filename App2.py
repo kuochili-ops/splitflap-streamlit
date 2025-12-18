@@ -12,7 +12,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 核心 HTML (包含日期與時間的翻板邏輯) ---
+# --- 2. 核心 HTML ---
 html_code = """
 <!DOCTYPE html>
 <html>
@@ -27,11 +27,11 @@ html_code = """
     }
     body { 
         background: transparent; display: flex; flex-direction: column; justify-content: center; 
-        align-items: center; height: 100vh; margin: 0; overflow: hidden; gap: 20px;
+        align-items: center; height: 100vh; margin: 0; overflow: hidden; gap: 15px;
     }
-    .row { display: flex; gap: 15px; align-items: center; }
+    .row { display: flex; gap: 12px; align-items: center; }
     .time-group { display: flex; gap: 5px; }
-    .separator { font-family: var(--font-family); font-size: 30px; color: rgba(255,255,255,0.2); font-weight: 900; }
+    .separator { font-family: var(--font-family); font-size: 24px; color: rgba(255,255,255,0.2); font-weight: 900; }
     
     .flap-unit { 
         position: relative; width: 50px; height: 75px; 
@@ -54,22 +54,26 @@ html_code = """
     .leaf-front { z-index: 16; background: var(--card-bg); border-radius: 6px 6px 0 0; } 
     .leaf-back { transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 6px 6px; }
     .flipping { transform: rotateX(-180deg); }
-    .flap-unit::before { content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0,0,0,0.9); transform: translateY(-50%); z-index: 60; }
+    .flap-unit::before { content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0,0,0,0.95); transform: translateY(-50%); z-index: 60; }
 
     .footer-note { margin-top: 10px; font-family: var(--font-family); font-size: 14px; color: rgba(255, 255, 255, 0.3); letter-spacing: 2px; }
 
     @media (max-width: 480px) {
-        .flap-unit { width: 32px; height: 48px; font-size: 30px; border-radius: 4px; }
-        .text { height: 48px; line-height: 48px; }
+        body { gap: 10px; }
+        .flap-unit { width: 42px; height: 62px; font-size: 40px; }
+        .text { height: 62px; line-height: 62px; }
         .row { gap: 8px; }
-        .separator { font-size: 20px; }
+        .separator { font-size: 18px; }
     }
 </style>
 </head>
 <body>
     <div class="row">
         <div class="time-group" id="year"></div>
-        <div style="width: 10px;"></div> <div class="time-group" id="date"></div>
+    </div>
+    
+    <div class="row">
+        <div class="time-group" id="date"></div>
     </div>
     
     <div class="row">
@@ -133,13 +137,10 @@ html_code = """
 
     function updateClock() {
         const now = new Date();
-        // 更新年份 (4位)
         updateGroup('year', now.getFullYear(), 4);
-        // 更新月日 (4位)
         const mmdd = (now.getMonth() + 1).toString().padStart(2, '0') + 
                      now.getDate().toString().padStart(2, '0');
         updateGroup('date', mmdd, 4);
-        // 更新時間 (各2位)
         updateGroup('hours', now.getHours(), 2);
         updateGroup('minutes', now.getMinutes(), 2);
         updateGroup('seconds', now.getSeconds(), 2);
@@ -159,4 +160,4 @@ html_code = """
 </html>
 """
 
-components.html(html_code, height=600)
+components.html(html_code, height=700)

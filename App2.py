@@ -12,7 +12,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 核心 HTML ---
+# --- 2. 核心 HTML (包含三種字體風格切換) ---
 html_code = """
 <!DOCTYPE html>
 <html>
@@ -26,9 +26,9 @@ html_code = """
         --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
     }
     /* 字體風格定義 */
-    body.font-style-0 { --font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; } /* 預設黑體 */
-    body.font-style-1 { --font-family: "Noto Serif TC", "PMingLiU", serif; } /* 復古明體 */
-    body.font-style-2 { --font-family: "STKaiti", "BiauKai", "DFKai-SB", cursive; } /* 楷體風格 */
+    body.font-style-0 { --font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
+    body.font-style-1 { --font-family: "Noto Serif TC", "PMingLiU", "Apple LiSung", serif; }
+    body.font-style-2 { --font-family: "STKaiti", "BiauKai", "DFKai-SB", cursive; }
 
     body { 
         background: transparent; display: flex; flex-direction: column; 
@@ -74,7 +74,6 @@ html_code = """
 
     .weather-box { cursor: pointer; border-radius: 12px; padding: 5px; }
 
-    /* 風格切換鍵 */
     #style-switcher {
         position: fixed; left: 20px; bottom: 20px; width: 40px; height: 40px;
         background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
@@ -132,7 +131,6 @@ html_code = """
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
 <script>
     const cities = ["台北", "新北", "桃園", "新竹", "台中", "彰化", "嘉義", "台南", "高雄", "宜蘭", "花蓮", "台東"];
-    // 確保預報描述固定為兩個字
     const forecasts = ["晴天", "多雲", "陰天", "小雨", "雷雨", "大雨", "霧天"];
     let cityIdx = 0;
     let fontIdx = 0;
@@ -206,13 +204,11 @@ html_code = """
         refreshWeather();
         setInterval(tick, 1000);
 
-        // 天氣點擊切換
         const wArea = document.getElementById('weather-trigger');
         const change = () => { cityIdx = (cityIdx + 1) % cities.length; refreshWeather(); };
         wArea.addEventListener('click', change);
         wArea.addEventListener('touchstart', (e) => { e.preventDefault(); change(); }, {passive: false});
 
-        // 左下角字體風格切換
         const styleBtn = document.getElementById('style-switcher');
         styleBtn.addEventListener('click', () => {
             document.body.classList.remove(`font-style-${fontIdx}`);
@@ -223,3 +219,7 @@ html_code = """
 </script>
 </body>
 </html>
+"""
+
+# --- 3. 渲染組件 ---
+components.html(html_code, height=900)

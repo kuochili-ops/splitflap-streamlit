@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-# --- 1. 頁面透明化與手機適配設定 ---
+# --- 1. 頁面設定 ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
@@ -13,43 +13,36 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 參數獲取 ---
+# --- 2. 獲取參數 ---
 input_text_raw = st.query_params.get("text", "載入中...")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 核心 HTML ---
+# --- 3. 核心 HTML (新增 GIF 生成庫) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
 <style>
     :root {{
-        --font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
-        --flip-speed: 0.6s;
+        --font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
         --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
     }}
     body {{ 
         background: transparent; display: flex; flex-direction: column; justify-content: center; 
-        align-items: center; height: 100vh; margin: 0; padding: 10px;
-        box-sizing: border-box; overflow: hidden; 
+        align-items: center; height: 100vh; margin: 0; padding: 10px; box-sizing: border-box; 
     }}
-    /* 看板主容器 */
     #board-container {{ 
-        display: grid; 
-        grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 40px)); 
-        gap: 6px;
-        perspective: 1500px; 
+        display: grid; grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 40px)); 
+        gap: 6px; perspective: 1500px; padding: 20px; border-radius: 12px;
     }}
     .flap-unit {{ 
-        position: relative; 
-        width: var(--unit-width, 40px); 
-        height: calc(var(--unit-width, 40px) * 1.4); 
-        background: #000; border-radius: 4px; 
-        font-family: var(--font-family); 
-        font-size: calc(var(--unit-width, 40px) * 1.0); 
-        font-weight: 900; color: #fff; 
+        position: relative; width: var(--unit-width, 40px); height: calc(var(--unit-width, 40px) * 1.4); 
+        background: #000; border-radius: 4px; font-family: var(--font-family); 
+        font-size: calc(var(--unit-width, 40px) * 1.0); font-weight: 900; color: #fff; 
         box-shadow: 0 8px 20px rgba(0,0,0,0.7);
     }}
     .half {{ 
@@ -57,56 +50,33 @@ html_code = f"""
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    .top {{ 
-        top: 0; height: calc(50% + 0.5px); align-items: flex-start; 
-        border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8);
-        box-shadow: inset 0 1px 2px rgba(255,255,255,0.1);
-    }}
-    .bottom {{ 
-        bottom: 0; height: 50%; align-items: flex-end; 
-        border-radius: 0 0 4px 4px; 
-        background: linear-gradient(180deg, #151515 0%, #000 100%);
-    }}
-    .text {{ 
-        height: calc(var(--unit-width, 40px) * 1.4); width: 100%; 
-        text-align: center; position: absolute; left: 0; 
-        line-height: calc(var(--unit-width, 40px) * 1.4);
-    }}
-    .top .text {{ top: 0; }}
-    .bottom .text {{ bottom: 0; }}
-    .leaf {{ 
-        position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
-        z-index: 15; transform-origin: bottom; 
-        transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); 
-        transform-style: preserve-3d; 
-    }}
+    .top {{ top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
+    .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; background: linear-gradient(180deg, #151515 0%, #000 100%); }}
+    .text {{ height: calc(var(--unit-width, 40px) * 1.4); width: 100%; text-align: center; position: absolute; left: 0; line-height: calc(var(--unit-width, 40px) * 1.4); }}
+    .top .text {{ top: 0; }} .bottom .text {{ bottom: 0; }}
+    .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
     .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
-    .leaf-back {{ 
-        transform: rotateX(-180deg); z-index: 15; background: #111; 
-        display: flex; justify-content: center; align-items: flex-end; 
-        overflow: hidden; border-radius: 0 0 4px 4px; 
-    }}
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
-    .flap-unit::before {{ 
-        content: ""; position: absolute; top: 50%; left: 0; 
-        width: 100%; height: 1.5px; background: rgba(0,0,0,0.9); 
-        transform: translateY(-50%); z-index: 60; 
-    }}
+    .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.9); transform: translateY(-50%); z-index: 60; }}
+    
+    .footer-note {{ margin-top: 15px; font-family: var(--font-family); font-size: 14px; color: rgba(255, 255, 255, 0.4); }}
 
-    /* 下方註明文字樣式 */
-    .footer-note {{
-        margin-top: 25px;
-        font-family: var(--font-family);
-        font-size: 14px;
-        color: rgba(255, 255, 255, 0.4);
-        letter-spacing: 2px;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    /* 下載按鈕樣式 */
+    #download-btn {{
+        margin-top: 20px; padding: 8px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+        color: #fff; border-radius: 20px; cursor: pointer; font-size: 12px; transition: 0.3s;
     }}
+    #download-btn:hover {{ background: rgba(255,255,255,0.2); }}
+    #download-btn:disabled {{ opacity: 0.5; cursor: wait; }}
 </style>
 </head>
 <body>
-    <div id="board-container"></div>
+    <div id="board-wrap" style="padding:10px; background: #000;">
+        <div id="board-container"></div>
+    </div>
     <div class="footer-note">𓃥白六訊息告示牌</div>
+    <button id="download-btn">生成 GIF 下載</button>
 
 <script>
     function ultimateDecode(str) {{
@@ -115,8 +85,7 @@ html_code = f"""
         const textarea = document.createElement('textarea');
         textarea.innerHTML = d;
         d = textarea.value;
-        textarea.innerHTML = d;
-        return textarea.value;
+        return d;
     }}
 
     const cleanText = ultimateDecode("{input_text_raw}");
@@ -135,14 +104,12 @@ html_code = f"""
     }}
 
     function adjustSize() {{
-        const winW = window.innerWidth - 40;
+        const winW = window.innerWidth - 60;
         const calculatedW = Math.floor((winW - (6 * (maxCols - 1))) / maxCols);
         const finalUnitW = Math.max(25, Math.min(80, calculatedW));
         document.documentElement.style.setProperty('--cols', maxCols);
         document.documentElement.style.setProperty('--unit-width', finalUnitW + 'px');
     }}
-
-    let currentRow = 0, isAnimating = false;
 
     function createRow(chars) {{
         return chars.map(c => `
@@ -156,13 +123,43 @@ html_code = f"""
             </div>`).join('');
     }}
 
+    let currentRow = 0;
+    const container = document.getElementById('board-container');
+
+    // GIF 生成功能
+    document.getElementById('download-btn').onclick = async function() {{
+        const btn = this;
+        btn.disabled = true;
+        btn.innerText = "錄製中 (請勿切換視窗)...";
+
+        const gif = new GIF({{ workers: 2, quality: 10, width: document.getElementById('board-wrap').offsetWidth, height: document.getElementById('board-wrap').offsetHeight }});
+        
+        // 錄製一個完整的翻轉循環
+        for(let i=0; i < 20; i++) {{
+            const canvas = await html2canvas(document.getElementById('board-wrap'));
+            gif.addFrame(canvas, {{delay: 100}});
+            if(i === 5) flip(); // 在錄製途中觸發一次翻轉
+            await new Promise(r => setTimeout(r, 100));
+        }}
+
+        gif.on('finished', function(blob) {{
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '白六告示牌.gif';
+            a.click();
+            btn.disabled = false;
+            btn.innerText = "生成 GIF 下載";
+        }});
+
+        gif.render();
+    }};
+
     function flip() {{
-        if (rowsData.length <= 1 || isAnimating) return;
-        isAnimating = true;
+        if (rowsData.length <= 1) return;
         const nextIdx = (currentRow + 1) % rowsData.length;
         const nextChars = rowsData[nextIdx];
         const units = document.querySelectorAll('.flap-unit');
-
         units.forEach((u, i) => {{
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
@@ -178,7 +175,6 @@ html_code = f"""
                     leaf.classList.remove('flipping');
                     leaf.offsetHeight; 
                     leaf.style.transition = '';
-                    if (i === units.length - 1) isAnimating = false;
                 }}, {{once: true}});
             }}, i * 40);
         }});
@@ -187,7 +183,7 @@ html_code = f"""
 
     window.onload = () => {{
         adjustSize();
-        document.getElementById('board-container').innerHTML = createRow(rowsData[0]);
+        container.innerHTML = createRow(rowsData[0]);
         if (rowsData.length > 1) setInterval(flip, {stay_sec} * 1000);
     }};
     window.onresize = adjustSize;
@@ -195,5 +191,4 @@ html_code = f"""
 </body>
 </html>
 """
-
 components.html(html_code, height=600)

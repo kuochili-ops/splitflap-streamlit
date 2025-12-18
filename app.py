@@ -4,29 +4,27 @@ import math
 import urllib.parse
 import html
 
-# --- 1. 頁面佈局與全隱藏設定 ---
+# --- 1. 頁面佈局與透明化樣式 ---
 st.set_page_config(layout="centered")
 st.markdown("""
     <style>
-    /* 隱藏所有 Streamlit 預設元件 */
+    /* 隱藏所有 Streamlit 預設元件並強制背景透明 */
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding: 0; background-color: #0e1117;}
-    body {background-color: #0e1117; margin: 0; padding: 0;}
+    .block-container {padding: 0; background-color: transparent !important;}
+    .stApp {background-color: transparent !important;}
+    body {background-color: transparent !important; margin: 0; padding: 0;}
     iframe {border: none;}
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. 參數獲取與亂碼修正 ---
 query_params = st.query_params
-raw_text = query_params.get("text", "預設顯示文字，點擊即可更換")
-stay_seconds = float(query_params.get("stay", 2.5)) # 預設 2.5 秒
+raw_text = query_params.get("text", "筆畫精準銜接，完全背景透明")
+stay_seconds = float(query_params.get("stay", 2.5))
 
 def decode_text(text):
-    # 處理網址常見的編碼問題與 HTML 實體亂碼 (&#...;)
     try:
-        # 先進行網址解碼
         unquoted = urllib.parse.unquote(text)
-        # 修正 HTML 實體編碼 (如影片中的 &#...;)
         decoded = html.unescape(unquoted)
         return decoded
     except:
@@ -41,7 +39,7 @@ rows_data = [list(final_text[i:i+cols]) for i in range(0, len(final_text), cols)
 for row in rows_data:
     while len(row) < cols: row.append(" ")
 
-# --- 4. 核心看板 HTML ---
+# --- 4. 看板 HTML (移除 Body 底色) ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -54,10 +52,12 @@ html_code = f"""
         --unit-height: calc(var(--unit-width) * 1.5);
         --font-size: calc(var(--unit-width) * 1.05);
         --flip-speed: 0.6s;
+        /* 卡片本身保持深色背景以利閱讀，但外部環境設為透明 */
         --card-bg: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
     }}
     body {{ 
-        background: #0e1117; display: flex; justify-content: center; align-items: center; 
+        background: transparent !important; 
+        display: flex; justify-content: center; align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer; user-select: none; 
     }}
     .board-row {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 8px; perspective: 2000px; }}
@@ -140,5 +140,5 @@ html_code = f"""
 </html>
 """
 
-# 將看板呈現在頁面上，高度設為 400 確保在大螢幕也能完整顯示
+# 使用透明容器呈現
 components.html(html_code, height=400)

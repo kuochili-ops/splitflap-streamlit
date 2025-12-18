@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import math
 import urllib.parse
 
-# --- 1. 頁面佈局設定 ---
+# --- 1. 頁面隱藏與佈局優化 ---
 st.set_page_config(layout="centered")
 st.markdown("""
     <style>
@@ -20,7 +20,7 @@ is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
 
 def get_safe_text(raw):
-    # 使用筆畫較多的字作為預設，最能測試殘缺問題
+    # 預設測試文字
     if not raw: return "筆畫絕對對齊，翻轉毫無殘損"
     try:
         decoded = urllib.parse.unquote(raw)
@@ -35,18 +35,18 @@ if not is_embedded:
     with col1:
         input_text = st.text_input("輸入測試文字", input_text)
     with col2:
-        stay_seconds = st.slider("停留秒數", 1.0, 10.0, 2.5, 0.5)
+        stay_seconds = st.slider("停留秒數", 1.0, 10.0, 2.0, 0.5)
 else:
-    stay_seconds = float(query_params.get("stay", 2.5))
+    stay_seconds = float(query_params.get("stay", 2.0))
 
-# --- 3. 計算行列 ---
+# --- 3. 計算行列寬度 ---
 N = len(input_text)
 cols = min(math.ceil(N / 2), 10) if N > 1 else 1
 rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)]
 for row in rows_data:
     while len(row) < cols: row.append(" ")
 
-# --- 4. 核心 HTML 與 CSS ---
+# --- 4. 生成 HTML (核心對齊技術) ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -66,32 +66,29 @@ html_code = f"""
     
     .flap {{ position: relative; width: var(--unit-width); height: var(--unit-height); background: #000; border-radius: 4px; font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); font-weight: 900; color: #fff; }}
     
+    /* 核心修復：使用絕對中心對齊，解決筆劃殘缺 */
     .half {{ 
-        position: absolute; left: 0; width: 100%; overflow: hidden; 
+        position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    
-    /* 修正點：頂部稍微加高 0.5px 補償縫隙，並鎖定座標 */
     .top {{ 
-        top: 0; height: calc(50% + 0.5px); 
-        border-radius: 4px 4px 0 0; 
-        border-bottom: 0.5px solid rgba(0,0,0,0.5); 
+        top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; 
+        border-bottom: 0.5px solid rgba(0,0,0,0.6); 
     }}
     .bottom {{ 
-        bottom: 0; height: 50%; 
-        border-radius: 0 0 4px 4px; 
+        bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; 
     }}
     
-    /* 文字絕對對位 */
+    /* 使用 clip-path 精確切分文字上下半部，防止筆畫偏移 */
     .text {{ 
         height: var(--unit-height); 
         line-height: var(--unit-height); 
         text-align: center; width: 100%; 
         position: absolute; left: 0;
     }}
-    .top .text {{ top: 0; }}
-    .bottom .text {{ bottom: 0; }}
+    .top .text {{ top: 0; clip-path: inset(0 0 50% 0); }}
+    .bottom .text {{ bottom: 0; clip-path: inset(50% 0 0 0); }}
 
     .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 20; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1.15); transform-style: preserve-3d; }}
     .leaf-front {{ z-index: 21; background: var(--card-bg); }} 
@@ -134,7 +131,7 @@ html_code = f"""
                 
                 leaf.classList.add('flipping');
 
-                // 核心同步點：90度垂直時切換
+                // 核心同步：在旋轉 90 度瞬間切換底層文字
                 setTimeout(() => {{
                     u.querySelector('.leaf-f .text').innerText = nextChars[i];
                     u.querySelector('.base-b .text').innerText = nextChars[i];

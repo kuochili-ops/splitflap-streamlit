@@ -1,82 +1,93 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import math
 
-# --- 1. 強制隱藏所有 Streamlit UI 元件 ---
-st.set_page_config(layout="centered")
+# --- 1. 設定頁面 (讓內容填滿) ---
+st.set_page_config(layout="wide") # 改為 wide 模式避免左右被切
+
+# 強制消除 Streamlit 預設的所有間距與捲軸
 st.markdown("""
     <style>
-    header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding: 0 !important; background-color: transparent !important;}
-    .stApp {background: transparent !important;}
-    /* 移除捲軸，確保嵌入時不會出現邊條 */
-    html, body {overflow: hidden !important;}
+    [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
+    .block-container {padding: 0 !important; margin: 0 !important;}
+    iframe {display: block; width: 100%; border: none;}
+    body {overflow: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-input_text_raw = st.query_params.get("text", "質感看板")
-stay_sec = float(st.query_params.get("stay", 2.5))
+# 獲取參數
+input_text = st.query_params.get("text", "質感看板")
+unit_w = int(st.query_params.get("w", 80)) # 可選參數調整大小
 
-# --- 2. 核心 HTML (立體光影版) ---
+# --- 2. 修正後的 HTML ---
 html_code = f"""
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
-    :root {{
-        --font-family: "Noto Sans TC", sans-serif;
-        --flip-speed: 0.65s;
-        /* 💡 核心質感：模擬受光的金屬/塑料材質 */
-        --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 49%, #000 50%, #1a1a1a 100%);
-    }}
+    
     body {{ 
-        background: transparent; display: flex; justify-content: center; 
-        align-items: center; height: 100vh; margin: 0; 
+        margin: 0; padding: 0; background: transparent;
+        display: flex; justify-content: center; align-items: center;
+        height: 100vh; overflow: hidden;
+        font-family: 'Noto Sans TC', sans-serif;
     }}
-    #board-container {{ 
-        display: grid; 
-        grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 70px)); 
-        gap: 12px; perspective: 2500px; 
+
+    #container {{
+        display: grid;
+        grid-template-columns: repeat({len(input_text)}, {unit_w}px);
+        gap: 12px;
+        perspective: 2000px;
     }}
-    .flap-unit {{ 
-        position: relative; 
-        width: var(--unit-width, 70px); 
-        height: calc(var(--unit-width, 70px) * 1.4); 
-        background: #000; border-radius: 8px; 
-        font-family: var(--font-family); 
-        font-size: calc(var(--unit-width, 70px) * 0.85); 
-        font-weight: 900; color: #fff; 
-        /* 💡 雙重陰影：一個深色環境遮擋，一個擴散的投影 */
-        box-shadow: 0 15px 35px rgba(0,0,0,0.8), 0 5px 15px rgba(0,0,0,0.5);
+
+    .flap-unit {{
+        position: relative; width: {unit_w}px; height: {unit_w * 1.4}px;
+        border-radius: 8px; font-size: {unit_w * 0.85}px;
+        color: #fff; font-weight: 900;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
     }}
-    .half {{ 
-        position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
-        background: var(--card-bg); display: flex; justify-content: center; 
-        backface-visibility: hidden; 
+
+    /* 💡 修正：使用更穩定的文字定位法 */
+    .half {{
+        position: absolute; left: 0; width: 100%; height: 50%;
+        overflow: hidden; background: #1a1a1a;
+        backface-visibility: hidden;
     }}
-    .top {{ 
-        top: 0; height: calc(50% + 1px); align-items: flex-start; 
-        border-radius: 8px 8px 0 0; border-bottom: 1.5px solid rgba(0,0,0,0.9);
-        /* 💡 頂部邊緣高光，模擬物理反光線 */
-        box-shadow: inset 0 2px 4px rgba(255,255,255,0.15);
+
+    .top {{
+        top: 0; border-radius: 8px 8px 0 0;
+        background: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 100%);
+        border-bottom: 1px solid #000;
+        display: flex; align-items: flex-start; justify-content: center;
     }}
-    .bottom {{ 
-        bottom: 0; height: 50%; align-items: flex-end; 
-        border-radius: 0 0 8px 8px; 
+
+    .bottom {{
+        bottom: 0; border-radius: 0 0 8px 8px;
         background: linear-gradient(180deg, #151515 0%, #000 100%);
+        display: flex; align-items: flex-end; justify-content: center;
     }}
-    .text {{ 
-        height: calc(var(--unit-width, 70px) * 1.4); width: 100%; 
-        text-align: center; position: absolute; left: 0; 
-        line-height: calc(var(--unit-width, 70px) * 1.4);
-        text-shadow: 0 0 8px rgba(255,255,255,0.2);
+
+    .text {{
+        height: 200%; line-height: {unit_w * 2.8}px;
+        text-align: center; width: 100%;
     }}
-    .top .text {{ top: 0; }}
-    .bottom .text {{ bottom: 0; }}
-    /* ... 翻轉邏輯保持不變 ... */
+
+    .bottom .text {{ transform: translateY(-50%); }}
 </style>
 </head>
+<body>
+    <div id="container">
+        {"".join([f'''
+        <div class="flap-unit">
+            <div class="half top"><div class="text">{char}</div></div>
+            <div class="half bottom"><div class="text">{char}</div></div>
+        </div>
+        ''' for char in input_text])}
+    </div>
+</body>
 </html>
 """
+
+# --- 3. 渲染組件 (高度設為組件高度的 1.5 倍確保不被切掉) ---
+components.html(html_code, height=unit_w * 2)

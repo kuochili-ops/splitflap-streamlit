@@ -29,7 +29,7 @@ html_code = f"""
     body {{ background: transparent; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; }}
     #board-wrap {{ padding: 20px; background: #000; border-radius: 12px; }}
     #board-container {{ display: grid; grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 40px)); gap: 6px; }}
-    .flap-unit {{ position: relative; width: var(--unit-width, 40px); height: calc(var(--unit-width, 40px) * 1.4); background: #000; border-radius: 4px; font-family: var(--font-family); font-size: calc(var(--unit-width, 40px) * 1.0); font-weight: 900; color: #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.7); }}
+    .flap-unit {{ position: relative; width: var(--unit-width, 40px); height: calc(var(--unit-width, 40px) * 1.4); background: #000; border-radius: 4px; font-family: var(--font-family); font-size: calc(var(--unit-width, 40px) * 1.1); font-weight: 900; color: #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.7); }}
     .half {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--card-bg); display: flex; justify-content: center; backface-visibility: hidden; }}
     .top {{ top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
     .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; background: linear-gradient(180deg, #151515 0%, #000 100%); }}
@@ -40,18 +40,14 @@ html_code = f"""
     .flipping {{ transform: rotateX(-180deg); }}
     
     .footer-note {{ margin-top: 15px; font-family: var(--font-family); font-size: 14px; color: rgba(255, 255, 255, 0.4); }}
-
-    /* 下載按鈕與進度條 */
     #download-btn {{ margin-top: 20px; padding: 10px 25px; background: #222; border: 1px solid #444; color: #fff; border-radius: 20px; cursor: pointer; }}
     #progress-container {{ display: none; margin-top: 15px; width: 200px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; }}
     #progress-bar {{ width: 0%; height: 100%; background: #00ffcc; transition: width 0.3s; }}
-    #status-text {{ margin-top: 5px; font-size: 12px; color: #aaa; font-family: sans-serif; }}
+    #status-text {{ margin-top: 8px; font-size: 12px; color: #00ffcc; font-family: sans-serif; }}
 </style>
 </head>
 <body>
-    <div id="board-wrap">
-        <div id="board-container"></div>
-    </div>
+    <div id="board-wrap"><div id="board-container"></div></div>
     <div class="footer-note">𓃥白六訊息告示牌</div>
     <button id="download-btn">🎬 生成 GIF 影片</button>
     <div id="progress-container"><div id="progress-bar"></div></div>
@@ -70,9 +66,9 @@ html_code = f"""
     let rowsData = [];
     let maxCols = 1;
 
-    // 解析文字... (略，同前版邏輯)
-    if (cleanText.includes('，') || cleanText.includes(',')) {{
-        const parts = cleanText.replace(/，/g, ',').split(',');
+    // 解析文字邏輯
+    const parts = cleanText.includes('，') || cleanText.includes(',') ? cleanText.replace(/，/g, ',').split(',') : [cleanText];
+    if(parts.length > 1) {{
         maxCols = Math.max(...parts.map(p => p.trim().length));
         rowsData = parts.map(p => p.trim().padEnd(maxCols, ' ').split(''));
     }} else {{
@@ -84,8 +80,7 @@ html_code = f"""
 
     function adjustSize() {{
         const winW = window.innerWidth - 60;
-        const calculatedW = Math.floor((winW - (6 * (maxCols - 1))) / maxCols);
-        const finalUnitW = Math.max(25, Math.min(80, calculatedW));
+        const finalUnitW = Math.max(25, Math.min(80, Math.floor((winW - (6 * (maxCols - 1))) / maxCols)));
         document.documentElement.style.setProperty('--cols', maxCols);
         document.documentElement.style.setProperty('--unit-width', finalUnitW + 'px');
     }}
@@ -98,41 +93,42 @@ html_code = f"""
     btn.onclick = async function() {{
         btn.disabled = true;
         pCont.style.display = 'block';
-        sText.innerText = "正在錄影中...";
-        
+        pBar.style.width = "5%";
+        sText.innerText = "準備中...";
+
+        // 🚀 關鍵修復：不使用外部 Worker 避免跨網域靜止問題
         const gif = new GIF({{
-            workers: 2,
-            quality: 10,
+            workers: 0, // 設為 0 使用主線程，雖然慢一點但絕對不會卡住
+            quality: 20, // 降低一點品質以提升速度
             width: document.getElementById('board-wrap').offsetWidth,
-            height: document.getElementById('board-wrap').offsetHeight,
-            workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+            height: document.getElementById('board-wrap').offsetHeight
         }});
 
-        // 1. 錄製階段 (錄影 15 幀)
-        for(let i=1; i <= 15; i++) {{
-            const canvas = await html2canvas(document.getElementById('board-wrap'), {{ backgroundColor: '#000' }});
-            gif.addFrame(canvas, {{delay: 100, copy: true}});
-            pBar.style.width = (i / 15 * 50) + "%"; // 錄製佔 50% 進度
-            sText.innerText = "錄製畫面: " + i + "/15";
-            if(i === 5) flip(); // 錄製中觸發翻轉動畫
-            await new Promise(r => setTimeout(r, 150));
+        // 1. 錄製階段
+        for(let i=1; i <= 12; i++) {{
+            try {{
+                const canvas = await html2canvas(document.getElementById('board-wrap'), {{ 
+                    backgroundColor: '#000',
+                    scale: 1 // 降低倍率減少運算負擔
+                }});
+                gif.addFrame(canvas, {{delay: 150, copy: true}});
+                pBar.style.width = (i / 12 * 60) + "%"; 
+                sText.innerText = "錄製畫面: " + i + "/12";
+                if(i === 4) flip(); // 翻轉觸發
+                await new Promise(r => setTimeout(r, 100));
+            }} catch(err) {{
+                console.error("截圖失敗", err);
+            }}
         }}
 
-        // 2. 渲染階段 (GIF 合成)
-        sText.innerText = "正在合成 GIF 檔案...";
-        gif.on('progress', function(p) {{
-            pBar.style.width = (50 + p * 50) + "%"; // 合成佔後 50%
-            sText.innerText = "合成進度: " + Math.round(p * 100) + "%";
-        }});
-
-        // 3. 完成判定
+        // 2. 渲染階段
+        sText.innerText = "合成中，請稍候...";
         gif.on('finished', function(blob) {{
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = '白六告示牌.gif';
             a.click();
-            
             sText.innerText = "✅ 下載完成！";
             btn.disabled = false;
             setTimeout(() => {{ pCont.style.display = 'none'; sText.innerText = ""; }}, 3000);
@@ -141,7 +137,6 @@ html_code = f"""
         gif.render();
     }};
 
-    // 翻轉邏輯... (略，同前版)
     let currentRow = 0;
     function flip() {{
         if (rowsData.length <= 1) return;
@@ -164,24 +159,24 @@ html_code = f"""
                     leaf.offsetHeight; 
                     leaf.style.transition = '';
                 }}, {{once: true}});
-            }}, i * 40);
+            }}, i * 30);
         }});
         currentRow = nextIdx;
     }}
 
     window.onload = () => {{
         adjustSize();
-        document.getElementById('board-container').innerHTML = createRow(rowsData[0]);
+        document.getElementById('board-container').innerHTML = rowsData[0].map(c => `
+            <div class="flap-unit">
+                <div class="half top base-top"><div class="text">${{c}}</div></div>
+                <div class="half bottom base-bottom"><div class="text">${{c}}</div></div>
+                <div class="leaf">
+                    <div class="half top leaf-front"><div class="text">${{c}}</div></div>
+                    <div class="half bottom leaf-back"><div class="text">${{c}}</div></div>
+                </div>
+            </div>`).join('');
         if (rowsData.length > 1) setInterval(flip, {stay_sec} * 1000);
     }};
-    
-    function createRow(chars) {{
-        return chars.map(c => `<div class="flap-unit">
-            <div class="half top base-top"><div class="text">${{c}}</div></div>
-            <div class="half bottom base-bottom"><div class="text">${{c}}</div></div>
-            <div class="leaf"><div class="half top leaf-front"><div class="text">${{c}}</div></div>
-            <div class="half bottom leaf-back"><div class="text">${{c}}</div></div></div></div>`).join('');
-    }}
 </script>
 </body>
 </html>

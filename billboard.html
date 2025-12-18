@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
+        body { 
+            background: transparent; margin: 0; display: flex; 
+            justify-content: center; align-items: center; 
+            height: 100vh; overflow: hidden;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        #board {
+            display: grid;
+            /* 💡 自動根據字數排列 */
+            grid-template-columns: repeat(var(--cols), var(--unit-w));
+            gap: 10px;
+        }
+        .flap {
+            position: relative;
+            width: var(--unit-w);
+            height: calc(var(--unit-w) * 1.4);
+            background: #000;
+            border-radius: 6px;
+            /* 💡 動態字體大小，確保不溢出 */
+            font-size: calc(var(--unit-w) * 0.8);
+            font-weight: 900; color: #fff;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+        }
+        .half {
+            position: absolute; width: 100%; height: 50%;
+            overflow: hidden; display: flex; justify-content: center;
+            /* 💡 質感漸層光影 */
+            background: linear-gradient(180deg, #333 0%, #111 49%, #000 50%, #111 100%);
+        }
+        .top { 
+            top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; 
+            border-bottom: 1px solid #000;
+            box-shadow: inset 0 1px 3px rgba(255,255,255,0.2);
+        }
+        .bottom { 
+            bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; 
+            background: linear-gradient(180deg, #111 0%, #000 100%);
+        }
+        .text { 
+            height: 200%; line-height: calc(var(--unit-w) * 2.8);
+            text-align: center;
+        }
+        .bottom .text { transform: translateY(-50%); }
+    </style>
+</head>
+<body>
+    <div id="board"></div>
+    <script>
+        // 🔧 只要在這裡修改文字即可
+        const text = "質感顯示"; 
+        
+        const board = document.getElementById('board');
+        const chars = text.split('');
+        
+        // 🔧 計算適合的寬度 (自動縮放)
+        const unitW = Math.min(80, Math.floor((window.innerWidth * 0.9) / chars.length));
+        
+        board.style.setProperty('--cols', chars.length);
+        board.style.setProperty('--unit-w', unitW + 'px');
+
+        board.innerHTML = chars.map(c => `
+            <div class="flap">
+                <div class="half top"><div class="text">${c}</div></div>
+                <div class="half bottom"><div class="text">${c}</div></div>
+            </div>
+        `).join('');
+    </script>
+</body>
+</html>

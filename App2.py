@@ -14,31 +14,52 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. Python 端獲取天氣數據 ---
-CWA_API_KEY = "CWA-A6F3874E-27F3-4AA3-AF5A-96B365798F79"
+# --- 2. OpenWeatherMap 數據處理 ---
+OWM_API_KEY = "Dcd113bba5675965ccf9e60a7e6d06e5"
 
-def get_taiwan_weather():
-    url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization={CWA_API_KEY}"
-    try:
-        response = requests.get(url, timeout=5)
-        data = response.json()
-        locations = data['records']['location']
-        weather_dict = {}
-        for loc in locations:
-            city = loc['locationName'].replace('臺', '台')
-            desc = loc['weatherElement'][0]['time'][0]['parameter']['parameterName']
-            temp = loc['weatherElement'][4]['time'][0]['parameter']['parameterName']
-            # 強制縮減或補齊為兩個字
-            short_desc = desc[:2] if len(desc) >= 2 else desc.ljust(2, '天')
-            weather_dict[city] = {"desc": short_desc, "temp": temp + "°"}
-        return weather_dict
-    except:
-        return {}
+# 定義台灣主要城市的經緯度
+CITY_LIST = {
+    "台北": {"lat": 25.03, "lon": 121.56},
+    "台中": {"lat": 24.14, "lon": 120.67},
+    "高雄": {"lat": 22.61, "lon": 120.30},
+    "台南": {"lat": 22.99, "lon": 120.21},
+    "桃園": {"lat": 24.99, "lon": 121.31},
+    "新竹": {"lat": 24.81, "lon": 120.96},
+    "宜蘭": {"lat": 24.70, "lon": 121.76},
+    "花蓮": {"lat": 23.97, "lon": 121.60}
+}
 
-real_weather_data = get_taiwan_weather()
-weather_json = json.dumps(real_weather_data)
+def get_real_weather():
+    weather_results = {}
+    for city, pos in CITY_LIST.items():
+        # 使用 units=metric 取得攝氏溫度，lang=zh_tw 取得中文描述
+        url = f"https://api.openweathermap.org/data/2.5/weather?lat={pos['lat']}&lon={pos['lon']}&appid={OWM_API_KEY}&units=metric&lang=zh_tw"
+        try:
+            res = requests.get(url, timeout=3)
+            data = res.json()
+            # 取得描述並修剪為兩個字
+            raw_desc = data['weather'][0]['description']
+            if "晴" in raw_desc: short_desc = "晴天"
+            elif "雲" in raw_desc: short_desc = "多雲"
+            elif "雨" in raw_desc: short_desc = "雨天"
+            elif "陰" in raw_desc: short_desc = "陰天"
+            else: short_desc = raw_desc[:2]
+            
+            temp = f"{round(data['main']['temp'])}°"
+            weather_results[city] = {"desc": short_desc, "temp": temp}
+        except:
+            continue
+    return weather_results
 
-# --- 3. 核心 HTML (使用 f-string 需小心處理大括號) ---
+# 預先抓取資料
+current_weather = get_real_weather()
+# 若 API 尚未啟用或失敗，提供保險數據
+if not current_weather:
+    current_weather = {"台北": {"desc": "連線", "temp": "中"}}
+
+weather_json = json.dumps(current_weather)
+
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -60,7 +81,7 @@ html_code = f"""
         justify-content: flex-start; align-items: center; 
         height: 100vh; margin: 0; padding-top: 40px; 
         overflow: hidden; gap: 12px;
-        user-select: none; -webkit-user-select: none;
+        user-select: none;
     }}
     .row {{ display: flex; gap: 6px; align-items: center; justify-content: center; width: 100%; }}
     .time-group {{ display: flex; gap: 4px; }}
@@ -77,7 +98,7 @@ html_code = f"""
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
         background: var(--card-bg); display: flex; justify-content: center; 
-        backface-visibility: hidden; -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
     }}
     .top {{ top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 5px 5px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
     .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 5px 5px; background: linear-gradient(180deg, #151515 0%, #000 100%); }}
@@ -101,8 +122,6 @@ html_code = f"""
         border-radius: 50%; display: flex; align-items: center; justify-content: center;
         color: rgba(255,255,255,0.3); font-size: 18px; cursor: pointer; z-index: 100;
     }}
-
-    .footer-note {{ margin-top: 20px; font-family: var(--font-family); font-size: 11px; color: rgba(255, 255, 255, 0.1); letter-spacing: 2px; }}
 
     @media (max-width: 480px) {{
         .flap-unit {{ width: 38px; height: 56px; font-size: 38px; }}
@@ -138,12 +157,11 @@ html_code = f"""
         <div class="colon-separator">:</div>
         <div class="time-group" id="seconds"></div>
     </div>
-    <div class="footer-note">𓃥白六萬年曆</div>
 
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
 <script>
     const weatherData = {weather_json};
-    const cities = Object.keys(weatherData).length > 0 ? Object.keys(weatherData) : ["台北", "新北", "桃園", "新竹", "台中", "彰化", "嘉義", "台南", "高雄", "宜蘭", "花蓮", "台東"];
+    const cities = Object.keys(weatherData).length > 0 ? Object.keys(weatherData) : ["台北"];
     let cityIdx = 0;
     let fontIdx = 0;
 
@@ -191,7 +209,7 @@ html_code = f"""
 
     function refreshWeather() {{
         const cityName = cities[cityIdx];
-        const data = weatherData[cityName] || {{desc: "未知", temp: "--°"}};
+        const data = weatherData[cityName] || {{desc: "--", temp: "--°"}};
         updateGroup('weather-city', cityName);
         updateGroup('weather-desc', data.desc);
         updateGroup('weather-temp', data.temp);

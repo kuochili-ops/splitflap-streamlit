@@ -63,12 +63,7 @@ html_code = f"""
     body {{ background: transparent; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; cursor: pointer; }}
     .board {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 10px; perspective: 2000px; }}
     
-    .flap {{ 
-        position: relative; width: var(--unit-width); height: var(--unit-height); 
-        background: #000; border-radius: 4px; 
-        font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); 
-        font-weight: 900; color: #fff; line-height: 1;
-    }}
+    .flap {{ position: relative; width: var(--unit-width); height: var(--unit-height); background: #000; border-radius: 4px; font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); font-weight: 900; color: #fff; }}
     
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
@@ -76,7 +71,7 @@ html_code = f"""
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
     
-    /* 上半部：強制多給 1px 並將文字微調向上 0.5px 鎖定基準線 */
+    /* 核心修正：讓上半部稍微「深」一點，確保蓋過底座 */
     .top {{ 
         top: 0; height: calc(50% + 1px); align-items: flex-start; 
         border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); 
@@ -84,13 +79,10 @@ html_code = f"""
     .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     
     .text {{ 
-        height: var(--unit-height); 
-        line-height: var(--unit-height); 
+        height: var(--unit-height); line-height: var(--unit-height); 
         text-align: center; width: 100%; position: absolute; left: 0;
     }}
-    
-    /* 核心對齊補償：針對首幀上半部進行微小的物理位移 */
-    .top .text {{ top: -0.5px; }} 
+    .top .text {{ top: 0; }}
     .bottom .text {{ bottom: 0; }}
 
     .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 20; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
@@ -109,6 +101,8 @@ html_code = f"""
     let curr = 0, busy = false, timer;
 
     function build(chars) {{
+        // 【核心修正】初始載入時，base-t(底座上半)與 base-b(底座下半)都先裝填目前的字
+        // 但我們靠 leaf 層完全覆蓋它們，消除首幀因層級重疊產生的 1px 位移
         document.getElementById('board').innerHTML = chars.map(c => `
             <div class="flap">
                 <div class="half top base-t"><div class="text">${{c}}</div></div>
@@ -130,6 +124,7 @@ html_code = f"""
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
                 
+                // 1. 瞬間重置狀態，並將目前的字塞入 leaf 正面
                 leaf.style.transition = 'none';
                 leaf.classList.remove('flipping');
                 
@@ -137,12 +132,13 @@ html_code = f"""
                 u.querySelector('.leaf-f .text').innerText = currentTxt;
                 u.querySelector('.leaf-b .text').innerText = nextChars[i];
                 
-                leaf.offsetHeight; 
+                leaf.offsetHeight; // 強制重繪
 
+                // 2. 啟動翻轉
                 leaf.style.transition = '';
                 leaf.classList.add('flipping');
 
-                // 中途更換底座文字，消除殘影
+                // 3. 在翻轉到一半時更新底層文字，消除殘影
                 setTimeout(() => {{
                     u.querySelector('.base-t .text').innerText = nextChars[i];
                     u.querySelector('.base-b .text').innerText = nextChars[i];

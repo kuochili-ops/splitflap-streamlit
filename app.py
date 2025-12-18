@@ -70,8 +70,8 @@ html_code = f"""
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    /* 強制補足 1% 高度確保覆蓋中線軸心 */
-    .top {{ top: 0; height: 51%; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
+    /* 修復第一個畫面：上半部補足像素，確保初始渲染不殘缺 */
+    .top {{ top: 0; height: calc(50% + 1px); align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
     .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     
     .text {{ 
@@ -96,7 +96,6 @@ html_code = f"""
     const stayTime = {stay_seconds} * 1000;
     let curr = 0, busy = false, timer;
 
-    // 初始化時即確保與動畫狀態結構完全一致
     function build(chars) {{
         document.getElementById('board').innerHTML = chars.map(c => `
             <div class="flap">
@@ -119,27 +118,27 @@ html_code = f"""
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
                 
-                // 1. 閃電重置：將板片歸位至 0 度
+                // 1. 瞬間歸位
                 leaf.style.transition = 'none';
                 leaf.classList.remove('flipping');
                 
-                // 2. 同步目前顯示的文字到 leaf 正面
+                // 2. 更新當前正面與背面字體
                 const currentTxt = u.querySelector('.base-t .text').innerText;
                 u.querySelector('.leaf-f .text').innerText = currentTxt;
                 u.querySelector('.leaf-b .text').innerText = nextChars[i];
                 
-                leaf.offsetHeight; // 觸發 reflow
+                leaf.offsetHeight; // 觸發重繪
 
-                // 3. 啟動動畫
+                // 3. 執行翻轉
                 leaf.style.transition = '';
                 leaf.classList.add('flipping');
 
-                // 4. 90度時切換底層上半部
+                // 4. 旋轉 90 度時切換底層上半部文字
                 setTimeout(() => {{
                     u.querySelector('.base-t .text').innerText = nextChars[i];
                 }}, 280);
 
-                // 5. 結束時僅切換底層下半部，維持 flipping 狀態
+                // 5. 翻轉結束，僅切換底層下半部文字，絕不重置 flipping
                 leaf.addEventListener('transitionend', function end() {{
                     leaf.removeEventListener('transitionend', end);
                     u.querySelector('.base-b .text').innerText = nextChars[i];
@@ -156,7 +155,10 @@ html_code = f"""
 
     function startTimer() {{ clearTimeout(timer); timer = setTimeout(flip, stayTime); }}
     document.body.onclick = () => {{ if(!busy) flip(); }};
-    build(allData[0]); startTimer();
+    
+    // 初始載入
+    build(allData[0]); 
+    startTimer();
 </script>
 </body>
 </html>

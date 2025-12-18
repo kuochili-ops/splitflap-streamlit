@@ -13,18 +13,18 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 獲取天氣 (穩定版) ---
+# --- 2. 天氣數據 ---
 OWM_API_KEY = "Dcd113bba5675965ccf9e60a7e6d06e5"
-CITIES = ["台北", "台中", "高雄", "台南", "花蓮"]
-def get_weather_json():
-    data = {}
-    for c in CITIES:
-        data[c] = {"desc": "多雲", "temp": "21°"} # 預設值
-    return json.dumps(data)
+def get_weather():
+    try:
+        url = f"https://api.openweathermap.org/data/2.5/weather?q=Taipei&appid={OWM_API_KEY}&units=metric&lang=zh_tw"
+        r = requests.get(url, timeout=2).json()
+        return {"city": "台北", "desc": r['weather'][0]['description'][:2], "temp": f"{round(r['main']['temp'])}°"}
+    except: return {"city": "台北", "desc": "多雲", "temp": "21°"}
 
-weather_json = get_weather_json()
+w = get_weather()
 
-# --- 3. 核心 HTML (清水模鎖定版) ---
+# --- 3. 核心 HTML (解決背景與按鈕問題) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -32,115 +32,108 @@ html_code = f"""
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-    :root {{
-        /* 鎖定清水模背景圖源 */
-        --concrete-url: url('https://images.unsplash.com/photo-1516550893923-42d28e5677af?q=80&w=2072&auto=format&fit=crop');
-        --flip-speed: 0.6s;
+    /* 穩定版背景：使用重複紋理生成清水模感，不依賴風景圖連結 */
+    body {{
+        margin: 0; padding-top: 40px;
+        display: flex; flex-direction: column; align-items: center;
+        min-height: 100vh; overflow: hidden; gap: 15px;
+        background-color: #8e8e8e;
+        background-image: 
+            linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px),
+            url('https://www.transparenttextures.com/patterns/concrete-wall.png');
+        background-attachment: fixed;
+        transition: 0.3s;
     }}
 
-    body {{ 
-        margin: 0; padding-top: 50px;
-        display: flex; flex-direction: column; align-items: center; 
-        min-height: 100vh; overflow: hidden; gap: 18px;
-        /* 背景設定：鎖定水泥牆 */
-        background: var(--concrete-url) no-repeat center center fixed;
-        background-size: cover;
-        background-color: #888; /* 備用灰色 */
-        transition: 0.5s;
-    }}
+    /* 字體樣式定義 */
+    .f-tc {{ font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }}
+    .f-serif {{ font-family: "Noto Serif TC", serif; }}
+    .f-mono {{ font-family: "Courier New", monospace; }}
 
-    /* 物理投影：讓板塊看起來像掛在牆上 */
+    /* 物理投影與翻板 */
     .row {{ 
         display: flex; gap: 8px; align-items: center; 
-        filter: drop-shadow(15px 15px 25px rgba(0,0,0,0.6)); 
+        filter: drop-shadow(12px 12px 20px rgba(0,0,0,0.5)); 
     }}
-    
     .flap-unit {{ 
-        position: relative; width: 46px; height: 70px; background: #000; border-radius: 4px;
-        font-family: "PingFang TC", sans-serif; font-size: 48px; font-weight: 900; color: #fff;
+        position: relative; width: 44px; height: 68px; background: #000; border-radius: 4px;
+        color: #fff; font-size: 46px; font-weight: 900;
     }}
-    
     .half {{ 
         position: absolute; width: 100%; height: 50%; overflow: hidden; 
-        background: rgba(40, 40, 40, 0.6); /* 半透明 */
-        backdrop-filter: blur(6px); /* 磨砂玻璃 */
-        display: flex; justify-content: center;
-        backface-visibility: hidden;
+        background: rgba(30, 30, 30, 0.7); backdrop-filter: blur(5px);
+        display: flex; justify-content: center; backface-visibility: hidden;
     }}
-    
-    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.5); }}
+    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 1px solid rgba(0,0,0,0.4); }}
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
-    .text {{ height: 70px; line-height: 70px; }}
+    .text {{ height: 68px; line-height: 68px; }}
 
-    .leaf {{ position: absolute; top: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
-    .leaf-front {{ background: rgba(40, 40, 40, 0.65); z-index: 12; border-radius: 4px 4px 0 0; }}
-    .leaf-back {{ background: #111; transform: rotateX(-180deg); z-index: 11; border-radius: 0 0 4px 4px; display: flex; align-items: flex-end; justify-content: center; }}
-    .flipping {{ transform: rotateX(-180deg); }}
-
-    .small .flap-unit {{ width: 34px; height: 52px; font-size: 28px; }}
-    .small .text {{ height: 52px; line-height: 52px; }}
-
-    /* 控制按鈕：半透明圓形 */
-    .controls {{ position: fixed; left: 20px; bottom: 20px; display: flex; gap: 10px; }}
+    /* 控制面板 */
+    .controls {{ position: fixed; left: 20px; bottom: 20px; display: flex; gap: 10px; z-index: 100; }}
     .btn {{
-        width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.3);
-        border: 1px solid #fff; color: white; display: flex; align-items: center; justify-content: center;
-        cursor: pointer; font-size: 14px; font-weight: bold;
+        width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.5);
+        border: 2px solid #fff; color: #fff; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; font-weight: bold;
+    }}
+
+    /* Spotify 嵌入區域 */
+    .spotify-box {{
+        margin-top: 20px; width: 300px; height: 80px;
+        filter: drop-shadow(5px 5px 15px rgba(0,0,0,0.3));
     }}
 </style>
 </head>
-<body>
+<body id="main-body" class="f-tc">
     <div class="controls">
-        <div id="btn-f" class="btn">A</div>
-        <div id="btn-s" class="btn">S</div>
+        <div onclick="changeFont()" class="btn">A</div>
+        <div onclick="toggleBg()" class="btn">S</div>
     </div>
 
     <div class="row" id="year"></div>
-    <div class="row"><div id="month" class="row"></div><div style="color:rgba(255,255,255,0.3); font-size:30px">/</div><div id="day" class="row"></div></div>
-    <div class="row small" id="lunar"></div>
-    <div class="row small" style="cursor:pointer" id="w-btn">
-        <div id="w-city" class="row"></div>
-        <div id="w-desc" class="row" style="margin:0 5px"></div>
-        <div id="w-temp" class="row"></div>
+    <div class="row"><div id="month" class="row"></div><div style="color:white;opacity:0.3;font-size:30px">/</div><div id="day" class="row"></div></div>
+    <div class="row small" id="lunar" style="transform:scale(0.8)"></div>
+    <div class="row small" style="transform:scale(0.9)">
+        <div id="w-city">台北</div><div id="w-desc" style="margin:0 10px">{w['desc']}</div><div id="w-temp">{w['temp']}</div>
     </div>
     <div class="row" id="time"></div>
 
+    <div class="spotify-box">
+        <iframe src="https://open.spotify.com/embed/playlist/37i9dQZF1DX4sWSp46o6C1?utm_source=generator&theme=0" width="100%" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    </div>
+
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
 <script>
-    let fontIdx = 0, styleMode = "concrete";
+    let fontState = 0;
+    const fonts = ["f-tc", "f-serif", "f-mono"];
+
+    function changeFont() {{
+        const body = document.getElementById("main-body");
+        body.classList.remove(fonts[fontState]);
+        fontState = (fontState + 1) % fonts.length;
+        body.classList.add(fonts[fontState]);
+    }}
+
+    function toggleBg() {{
+        const body = document.getElementById("main-body");
+        if(body.style.backgroundColor === "rgb(17, 17, 17)") {{
+            body.style.backgroundColor = "#8e8e8e";
+            body.style.backgroundImage = "url('https://www.transparenttextures.com/patterns/concrete-wall.png')";
+        }} else {{
+            body.style.backgroundColor = "#111";
+            body.style.backgroundImage = "none";
+        }}
+    }}
 
     function update(id, val, pad=0) {{
         let s = val.toString(); if(pad) s = s.padStart(pad,'0');
         const box = document.getElementById(id);
-        if(box.children.length !== s.length) {{
-            box.innerHTML = [...s].map(c => `<div class="flap-unit">
-                <div class="half top base-top"><div class="text">${{c}}</div></div>
-                <div class="half bottom base-bottom"><div class="text">${{c}}</div></div>
-                <div class="leaf">
-                    <div class="half top leaf-front"><div class="text">${{c}}</div></div>
-                    <div class="half bottom leaf-back"><div class="text">${{c}}</div></div>
-                </div>
-            </div>`).join('');
+        if(box.innerHTML.length < 10) {{
+            box.innerHTML = [...s].map(c => `<div class="flap-unit"><div class="half top"><div class="text">${{c}}</div></div><div class="half bottom"><div class="text">${{c}}</div></div></div>`).join('');
         }}
         [...s].forEach((n, i) => {{
-            const unit = box.children[i];
-            const old = unit.querySelector('.base-top .text').innerText;
-            if(n !== old) {{
-                const leaf = unit.querySelector('.leaf');
-                unit.querySelector('.leaf-back .text').innerText = n;
-                leaf.classList.add('flipping');
-                setTimeout(() => {{
-                    unit.querySelector('.base-top .text').innerText = n;
-                    unit.querySelector('.base-bottom .text').innerText = n;
-                }}, 300);
-                leaf.addEventListener('transitionend', () => {{
-                    unit.querySelector('.leaf-front .text').innerText = n;
-                    leaf.style.transition = 'none';
-                    leaf.classList.remove('flipping');
-                    leaf.offsetHeight; 
-                    leaf.style.transition = '';
-                }}, {{once: true}});
-            }}
+            const units = box.getElementsByClassName('text');
+            units[i*2].innerText = n; units[i*2+1].innerText = n;
         }});
     }}
 
@@ -151,25 +144,7 @@ html_code = f"""
         update('day', d.getDate(), 2);
         update('lunar', l.getMonthInChinese()+'月'+l.getDayInChinese()+'·'+(l.getJieQi()||l.getPrevJieQi().getName()));
         update('time', d.getHours().toString().padStart(2,'0')+d.getMinutes().toString().padStart(2,'0')+d.getSeconds().toString().padStart(2,'0'));
-        update('w-city', '台北'); update('w-desc', '多雲'); update('w-temp', '21°');
     }}
-
-    document.getElementById('btn-f').onclick = () => {{
-        document.body.classList.remove('font-'+fontIdx);
-        fontIdx = (fontIdx + 1) % 3;
-        document.body.classList.add('font-'+fontIdx);
-    }};
-    
-    document.getElementById('btn-s').onclick = () => {{
-        if(styleMode === "concrete") {{
-            document.body.style.background = "#111";
-            styleMode = "black";
-        }} else {{
-            document.body.style.background = "var(--concrete-url) no-repeat center center fixed";
-            document.body.style.backgroundSize = "cover";
-            styleMode = "concrete";
-        }}
-    }};
 
     setInterval(tick, 1000); tick();
 </script>

@@ -11,67 +11,96 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 核心 HTML (包含翻轉動畫) ---
-html_code = f"""
+# --- 2. 核心 HTML (整合 3D 動態翻板與清水模背景) ---
+html_code = """
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
-    body {{
-        margin: 0; padding-top: 40px;
+    :root {
+        --font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+        --flip-speed: 0.6s;
+        /* 高質感黑色翻板背景 */
+        --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
+    }
+
+    body {
+        margin: 0; padding-top: 30px;
         display: flex; flex-direction: column; align-items: center;
         min-height: 100vh; overflow: hidden;
+        /* 模擬上傳圖片的清水模背景顏色與質感 */
         background: #bbb url('https://images.unsplash.com/photo-1590274853856-f22d5ee3d228?q=80&w=2072&auto=format&fit=crop') no-repeat center center fixed;
         background-size: cover;
-    }}
+    }
 
-    .glass-panel {{
-        display: flex; flex-direction: column; align-items: center; gap: 15px;
+    /* 透明玻璃背板：寬度不超過手機螢幕 */
+    .glass-panel {
+        display: flex; flex-direction: column; align-items: center; gap: 12px;
         width: 92vw; max-width: 380px; 
-        padding: 40px 10px;
+        padding: 30px 10px;
         background: rgba(255, 255, 255, 0.05); 
-        backdrop-filter: blur(12px);
+        backdrop-filter: blur(15px);
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 20px;
-        box-shadow: 20px 30px 50px rgba(0, 0, 0, 0.4);
-    }}
+        box-shadow: 25px 35px 50px rgba(0, 0, 0, 0.45);
+        transform: perspective(1000px) rotateX(1deg);
+    }
 
-    .row {{ display: flex; gap: 4px; align-items: center; justify-content: center; width: 100%; filter: drop-shadow(15px 20px 15px rgba(0, 0, 0, 0.6)); }}
+    /* 翻板行與光影投射 */
+    .row { 
+        display: flex; gap: 4px; align-items: center; justify-content: center;
+        width: 100%;
+        filter: drop-shadow(15px 22px 18px rgba(0, 0, 0, 0.65));
+    }
 
-    /* 翻板基礎結構 */
-    .flap-unit {{ 
-        position: relative; width: 38px; height: 56px; 
-        background: #000; border-radius: 4px;
-        perspective: 300px;
-    }}
+    /* 3D 翻板結構 */
+    .flap-unit { 
+        position: relative; width: 34px; height: 50px; 
+        background: #000; border-radius: 3px; perspective: 1000px;
+    }
 
-    .half {{
-        position: absolute; width: 100%; height: 50%; overflow: hidden;
-        background: #1a1a1a; color: #fff; font-size: 36px; font-weight: 900;
-        display: flex; justify-content: center; left: 0;
-        font-family: "PingFang TC", sans-serif;
-    }}
+    .half {
+        position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden;
+        background: var(--card-bg); display: flex; justify-content: center;
+        backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    }
 
-    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000; z-index: 2; }}
-    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; z-index: 1; }}
-    
-    /* 動畫核心：翻轉片 */
-    .leaf {{
-        position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-        background: #1a1a1a; color: #fff; font-size: 36px; font-weight: 900;
-        display: flex; justify-content: center; align-items: flex-start;
-        border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000;
-        transform-origin: bottom; z-index: 3; transition: transform 0.4s ease-in;
-        backface-visibility: hidden;
-    }}
+    .top { top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 3px 3px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }
+    .bottom { bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 3px 3px; background: linear-gradient(180deg, #151515 0%, #000 100%); }
 
-    .flipping .leaf {{ transform: rotateX(-180deg); }}
-    .text {{ height: 56px; line-height: 56px; }}
+    .text { 
+        height: 50px; width: 100%; text-align: center; position: absolute; left: 0; 
+        line-height: 50px; color: #fff; font-size: 32px; font-weight: 900; font-family: var(--font-family);
+    }
+    .top .text { top: 0; }
+    .bottom .text { bottom: 0; }
 
-    #weather-row {{ cursor: pointer; }}
-    .separator {{ color: white; opacity: 0.3; font-size: 24px; margin: 0 5px; }}
+    /* 翻轉葉片 */
+    .leaf { 
+        position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
+        z-index: 15; transform-origin: bottom; 
+        transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); 
+        transform-style: preserve-3d; 
+    }
+    .leaf-front { z-index: 16; background: var(--card-bg); border-radius: 3px 3px 0 0; }
+    .leaf-back { 
+        transform: rotateX(-180deg); z-index: 15; background: #111; 
+        display: flex; justify-content: center; align-items: flex-end; 
+        overflow: hidden; border-radius: 0 0 3px 3px; 
+    }
+    .flipping { transform: rotateX(-180deg); }
+
+    /* 翻板中心縫隙線 */
+    .flap-unit::before { 
+        content: ""; position: absolute; top: 50%; left: 0; 
+        width: 100%; height: 1.2px; background: rgba(0,0,0,0.9); 
+        transform: translateY(-50%); z-index: 60; 
+    }
+
+    #weather-row { cursor: pointer; transition: 0.2s; }
+    .separator { color: white; opacity: 0.3; font-size: 20px; margin: 0 4px; }
 </style>
 </head>
 <body>
@@ -83,12 +112,15 @@ html_code = f"""
             <div class="separator">/</div>
             <div id="day" class="row" style="width:auto"></div>
         </div>
+        
         <div class="row" id="lunar-row" style="transform: scale(0.8);"></div>
+
         <div id="weather-row">
             <div class="row" id="w-city"></div>
-            <div class="row" id="w-desc" style="margin: 10px 0;"></div>
+            <div class="row" id="w-desc" style="margin: 8px 0;"></div>
             <div class="row" id="w-temp"></div>
         </div>
+
         <div class="row" id="time"></div>
     </div>
 
@@ -96,73 +128,84 @@ html_code = f"""
 <script>
     let cityIdx = 0;
     const weatherData = [
-        {{ city: "台北市", desc: "多雲時晴", temp: "21°" }},
-        {{ city: "台中市", desc: "晴朗無雲", temp: "24°" }},
-        {{ city: "高雄市", desc: "暖和晴天", temp: "27°" }},
-        {{ city: "宜蘭縣", desc: "陰短暫雨", temp: "19°" }}
+        { city: "台北市", desc: "多雲時晴", temp: "21°" },
+        { city: "台中市", desc: "局部晴朗", temp: "24°" },
+        { city: "高雄市", desc: "暖和晴天", temp: "27°" },
+        { city: "花蓮縣", desc: "陰短暫雨", temp: "22°" }
     ];
 
-    function createFlap(char) {{
+    function createFlapUnit(c) {
         return `
             <div class="flap-unit">
-                <div class="half top"><div class="text">${{char}}</div></div>
-                <div class="leaf"><div class="text">${{char}}</div></div>
-                <div class="half bottom"><div class="text">${{char}}</div></div>
+                <div class="half top base-top"><div class="text">${c}</div></div>
+                <div class="half bottom base-bottom"><div class="text">${c}</div></div>
+                <div class="leaf">
+                    <div class="half top leaf-front"><div class="text">${c}</div></div>
+                    <div class="half bottom leaf-back"><div class="text">${c}</div></div>
+                </div>
             </div>`;
-    }}
+    }
 
-    function updateFlaps(id, val) {{
+    function updateFlaps(id, val) {
         const box = document.getElementById(id);
         const s = val.toString();
         
-        // 如果長度不同，重新初始化結構
-        if (box.childElementCount !== s.length) {{
-            box.innerHTML = [...s].map(c => createFlap(c)).join('');
+        if (box.childElementCount !== s.length) {
+            box.innerHTML = [...s].map(c => createFlapUnit(c)).join('');
             return;
-        }}
+        }
 
         const units = box.querySelectorAll('.flap-unit');
-        [...s].forEach((char, i) => {{
-            const unit = units[i];
-            const current = unit.querySelector('.top .text').innerText;
-            if (current !== char) {{
-                // 觸發動畫
-                unit.classList.remove('flipping');
-                void unit.offsetWidth; // 強制重繪
-                
-                // 下半部預先換成新字
-                unit.querySelector('.bottom .text').innerText = char;
-                unit.classList.add('flipping');
+        [...s].forEach((char, i) => {
+            const u = units[i];
+            const current = u.querySelector('.base-top .text').innerText;
+            if (current !== char) {
+                setTimeout(() => {
+                    const leaf = u.querySelector('.leaf');
+                    u.querySelector('.leaf-back .text').innerText = char;
+                    leaf.classList.add('flipping');
+                    
+                    setTimeout(() => {
+                        u.querySelector('.base-top .text').innerText = char;
+                        u.querySelector('.base-bottom .text').innerText = char;
+                    }, 300);
 
-                // 動畫結束後同步所有文字
-                setTimeout(() => {{
-                    unit.querySelector('.top .text').innerText = char;
-                    unit.querySelector('.leaf .text').innerText = char;
-                    unit.classList.remove('flipping');
-                }}, 400);
-            }}
-        }});
-    }}
+                    leaf.addEventListener('transitionend', () => {
+                        u.querySelector('.leaf-front .text').innerText = char;
+                        leaf.style.transition = 'none';
+                        leaf.classList.remove('flipping');
+                        leaf.offsetHeight; 
+                        leaf.style.transition = '';
+                    }, {once: true});
+                }, i * 45); // 加入連續翻轉的延遲感
+            }
+        });
+    }
 
-    function switchCity() {{
+    function switchCity() {
         const data = weatherData[cityIdx];
         updateFlaps('w-city', data.city);
         updateFlaps('w-desc', data.desc);
         updateFlaps('w-temp', data.temp);
         cityIdx = (cityIdx + 1) % weatherData.length;
-    }}
+    }
 
     document.getElementById('weather-row').addEventListener('click', switchCity);
 
-    function tick() {{
+    function tick() {
         const d = new Date(), l = Lunar.fromDate(d);
         updateFlaps('year', d.getFullYear());
         updateFlaps('month', (d.getMonth()+1).toString().padStart(2,'0'));
         updateFlaps('day', d.getDate().toString().padStart(2,'0'));
+        
         const lunarStr = l.getMonthInChinese() + '月' + l.getDayInChinese() + ' ' + (l.getJieQi() || "");
         updateFlaps('lunar-row', lunarStr.trim());
-        updateFlaps('time', d.getHours().toString().padStart(2,'0')+d.getMinutes().toString().padStart(2,'0')+d.getSeconds().toString().padStart(2,'0'));
-    }}
+        
+        const timeStr = d.getHours().toString().padStart(2,'0') + 
+                        d.getMinutes().toString().padStart(2,'0') + 
+                        d.getSeconds().toString().padStart(2,'0');
+        updateFlaps('time', timeStr);
+    }
 
     setInterval(tick, 1000); 
     tick();
@@ -171,4 +214,5 @@ html_code = f"""
 </body>
 </html>
 """
+
 components.html(html_code, height=900)

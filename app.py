@@ -6,64 +6,60 @@ import html
 
 # --- 1. 頁面佈局與透明化樣式 ---
 st.set_page_config(layout="centered")
-
-# 獲取嵌入狀態
-query_params = st.query_params
-is_embedded = query_params.get("embed", "false").lower() == "true"
-
-# 強制透明化背景的 CSS
 st.markdown("""
     <style>
+    /* 隱藏所有 Streamlit 預設元件並強制背景透明 */
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding-top: 1rem; background-color: transparent !important;}
+    .block-container {padding: 0; background-color: transparent !important;}
     .stApp {background-color: transparent !important;}
-    body {background-color: transparent !important;}
-    /* 讓 Slider 和輸入框在深色模式下更易讀 */
-    .stTextInput label, .stSlider label {color: #eee !important; font-weight: bold;}
+    body {background-color: transparent !important; margin: 0; padding: 0;}
+    iframe {border: none;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 參數獲取與亂碼修正 ---
-def decode_text(text):
+# --- 2. 核心解碼邏輯：徹底解決亂碼 ---
+def get_clean_text():
+    # 取得網址參數中的 text 欄位
+    query_params = st.query_params
+    raw_query = query_params.get("text", "筆畫精準銜接，徹底解決亂碼")
+    
     try:
-        unquoted = urllib.parse.unquote(text)
-        decoded = html.unescape(unquoted)
-        return decoded
+        # 第一步：解碼 URL Percent Encoding (例如 %E6...)
+        step1 = urllib.parse.unquote(raw_query)
+        # 第二步：解碼 HTML 實體編碼 (例如 &#24171;)，這是解決您影片亂碼的關鍵
+        step2 = html.unescape(step1)
+        # 第三步：處理可能的雙重編碼錯誤 (latin-1 轉 utf-8)
+        return step2.encode('latin-1').decode('utf-8')
     except:
-        return text
+        # 如果第三步出錯，代表文字已經是正確的 utf-8 或格式特殊，直接回傳第二步結果
+        return html.unescape(urllib.parse.unquote(raw_query))
 
-# 預設文字
-default_text = decode_text(query_params.get("text", "筆畫精準銜接，點擊或輸入即可更換"))
-default_stay = float(query_params.get("stay", 2.5))
+# 取得乾淨的文字與停留秒數
+final_text = get_clean_text()
+stay_seconds = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 互動介面 (僅在非嵌入模式顯示) ---
-if not is_embedded:
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        input_content = st.text_input("輸入顯示訊息 (多行請用逗號隔開)", default_text)
-    with col2:
-        stay_seconds = st.slider("停留秒數", 1.0, 10.0, default_stay, 0.5)
-else:
-    input_content = default_text
-    stay_seconds = default_stay
-
-# --- 4. 計算行列 ---
-N = len(input_content)
-cols = min(math.ceil(N / 2), 10) if N > 1 else 1
-# 支援逗號換行，或自動切分
-if "，" in input_content or "," in input_content:
-    raw_rows = input_content.replace("，", ",").split(",")
+# --- 3. 計算行列 ---
+# 支援逗號換行邏輯
+if "，" in final_text or "," in final_text:
+    raw_rows = final_text.replace("，", ",").split(",")
+    # 找出最長的一行來決定看板寬度
+    max_w = max(len(r.strip()) for r in raw_rows)
+    cols = min(max_w, 10) if max_w > 0 else 1
+    
     rows_data = []
     for r in raw_rows:
         row_chars = list(r.strip())
         while len(row_chars) < cols: row_chars.append(" ")
-        rows_data.append(row_chars[:cols]) # 限制寬度
+        rows_data.append(row_chars[:cols])
 else:
-    rows_data = [list(input_content[i:i+cols]) for i in range(0, len(input_content), cols)]
+    # 自動切分邏輯
+    N = len(final_text)
+    cols = min(math.ceil(N / 2), 10) if N > 1 else 1
+    rows_data = [list(final_text[i:i+cols]) for i in range(0, len(final_text), cols)]
     for row in rows_data:
         while len(row) < cols: row.append(" ")
 
-# --- 5. 核心看板 HTML ---
+# --- 4. 看板 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -78,7 +74,11 @@ html_code = f"""
         --flip-speed: 0.6s;
         --card-bg: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
     }}
-    body {{ background: transparent !important; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; cursor: pointer; user-select: none; }}
+    body {{ 
+        background: transparent !important; display: flex; justify-content: center; 
+        align-items: center; height: 100vh; margin: 0; overflow: hidden; 
+        cursor: pointer; user-select: none; 
+    }}
     .board-row {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 8px; perspective: 2000px; }}
     .flap-unit {{ position: relative; width: var(--unit-width); height: var(--unit-height); background: #000; border-radius: 6px; font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); font-weight: 900; color: #f0f0f0; }}
     .half {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--card-bg); display: flex; justify-content: center; backface-visibility: hidden; -webkit-backface-visibility: hidden; }}
@@ -148,9 +148,13 @@ html_code = f"""
     }}
 
     function init() {{
-        document.getElementById('board-container').innerHTML = createRow(allRows[0]);
-        resetTimer();
+        const container = document.getElementById('board-container');
+        if(allRows.length > 0) {{
+            container.innerHTML = createRow(allRows[0]);
+            resetTimer();
+        }}
     }}
+
     document.body.addEventListener('click', () => {{ if (!isAnimating) performFlip(); }});
     window.onload = init;
 </script>
@@ -158,4 +162,5 @@ html_code = f"""
 </html>
 """
 
+# 將看板呈現在頁面上
 components.html(html_code, height=400)

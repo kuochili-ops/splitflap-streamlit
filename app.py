@@ -1,160 +1,190 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import math
-import base64
 import urllib.parse
 
-# --- 1. 頁面佈局與隱藏設定 ---
+# --- 1. 頁面隱藏與樣式設定 ---
 st.set_page_config(layout="centered")
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding: 0px; margin: 0px;}
-    body {background-color: #0e1117; overflow: hidden;}
-    .stSlider label {color: #fff; font-size: 0.9rem;}
+    .block-container {padding-top: 1rem;}
+    body {background-color: transparent;}
+    .stSlider label {color: #555; font-weight: bold;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 編碼修正邏輯 ---
+# --- 2. 獲取文字與控制參數 (防亂碼版) ---
 query_params = st.query_params
 is_embedded = query_params.get("embed", "false").lower() == "true"
-raw_text = query_params.get("text", "")
+raw_url_text = query_params.get("text", "")
 
-def get_clean_text(text):
-    if not text: return "女神降臨"
-    # 先處理 URL 解碼，再解決 Streamlit 可能的 Latin-1 誤判
+def get_safe_text(raw):
+    if not raw: return "女神降臨，自動輪播中"
     try:
-        decoded = urllib.parse.unquote(text)
+        # 解決常見的 Streamlit 網址編碼誤判問題
+        decoded = urllib.parse.unquote(raw)
         return decoded.encode('latin-1').decode('utf-8')
     except:
-        return urllib.parse.unquote(text)
+        return urllib.parse.unquote(raw)
 
-input_text = get_clean_text(raw_text)
+input_text = get_safe_text(raw_url_text)
 
 if not is_embedded:
     col1, col2 = st.columns([3, 1])
     with col1:
-        input_text = st.text_input("輸入內容", input_text)
+        input_text = st.text_input("輸入句子", input_text)
     with col2:
-        stay_seconds = st.slider("停留秒數", 0.5, 5.0, 2.0, 0.5)
+        stay_seconds = st.slider("停留秒數", 1.0, 10.0, 2.0, 0.5)
 else:
     stay_seconds = float(query_params.get("stay", 2.0))
 
-# --- 3. 動態寬度邏輯 ---
+# --- 3. 動態計算每行字元數 (Your Original Logic) ---
 N = len(input_text)
 if N <= 1:
     cols = 1
 else:
     quotient = math.ceil(N / 2)
-    cols = min(quotient, 10)
+    cols = quotient if quotient < 10 else 10
 
 rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)]
 for row in rows_data:
     while len(row) < cols:
         row.append(" ")
 
-# --- 4. 生成 HTML (核心對齊修正) ---
+# --- 4. 生成 HTML (沿用您最愛的滑順邏輯 + 修復殘缺) ---
 html_code = f"""
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
     :root {{
-        --unit-width: calc(min(72px, 98vw / {cols} - 6px));
+        --unit-width: calc(min(75px, 94vw / {cols} - 6px));
         --unit-height: calc(var(--unit-width) * 1.5);
-        --font-size: calc(var(--unit-width) * 1.0);
+        --font-size: calc(var(--unit-width) * 0.9); /* 稍微調大字體更飽滿 */
+        --card-bg: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
     }}
     body {{ 
         background: transparent; display: flex; justify-content: center; align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer; user-select: none;
     }}
-    .board-row {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 6px; perspective: 2000px; }}
+    .board-row {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 8px; perspective: 2000px; }}
     .flap-unit {{ 
         position: relative; width: var(--unit-width); height: var(--unit-height); 
-        background: #000; border-radius: 4px; font-family: 'Noto Sans TC', sans-serif; 
-        font-size: var(--font-size); font-weight: 900; color: #fff;
+        background: #000; border-radius: 6px; font-family: 'Noto Sans TC', sans-serif; 
+        font-size: var(--font-size); font-weight: 900; color: #f0f0f0;
     }}
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
-        background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%); 
-        display: flex; justify-content: center; backface-visibility: hidden;
+        background: var(--card-bg); display: flex; justify-content: center; 
+        backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    /* 精確裁切技術：修正文字殘缺 */
-    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 1px solid #000; }}
-    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
+    /* 【核心修正】強迫文字在上下半部絕對對齊，不偏移 */
+    .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 1px solid #000; }}
+    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
     
     .text {{ 
-        height: var(--unit-height); 
-        display: flex; align-items: center; justify-content: center; 
-        position: absolute; width: 100%; left: 0;
+        height: var(--unit-height); line-height: var(--unit-height); 
+        text-align: center; width: 100%; display: block;
     }}
-    .top .text {{ top: 0; }}
-    .bottom .text {{ bottom: 0; }}
 
     .leaf {{ 
         position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
-        z-index: 20; transform-origin: bottom; 
-        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d;
+        z-index: 15; transform-origin: bottom; 
+        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1.2); 
+        transform-style: preserve-3d;
     }}
-    .leaf-front {{ z-index: 21; background: #2a2a2a; }} 
-    .leaf-back {{ transform: rotateX(-180deg); z-index: 20; background: #1a1a1a; }}
+    .leaf-front {{ z-index: 16; background: var(--card-bg); }} 
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #1a1a1a; }}
     .flipping {{ transform: rotateX(-180deg); }}
-    .flap-unit::after {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 50; transform: translateY(-50%); }}
+
+    .flap-unit::before {{
+        content: ""; position: absolute; top: 50%; left: -1px; width: calc(100% + 2px); height: 2px;
+        background: #000; transform: translateY(-50%); z-index: 60;
+    }}
 </style>
 </head>
 <body>
-<div id="board" class="board-row"></div>
-<script>
-    const allData = {rows_data};
-    const stayTime = {stay_seconds} * 1000;
-    let curr = 0; let busy = false; let timer;
+<div id="board-container" class="board-row"></div>
 
-    function build(chars) {{
-        document.getElementById('board').innerHTML = chars.map(c => `
+<script>
+    const allRows = {rows_data};
+    const stayTime = {stay_seconds} * 1000;
+    let currentRowIndex = 0;
+    let isAnimating = false;
+    let autoTimer = null;
+
+    function createRow(contentArray) {{
+        return contentArray.map(char => `
             <div class="flap-unit">
-                <div class="half top bt"><div class="text">${{c}}</div></div>
-                <div class="half bottom bb"><div class="text">${{c}}</div></div>
+                <div class="half top base-top"><div class="text">${{char}}</div></div>
+                <div class="half bottom base-bottom"><div class="text">${{char}}</div></div>
                 <div class="leaf">
-                    <div class="half top lf"><div class="text">${{c}}</div></div>
-                    <div class="half bottom lb"><div class="text">${{c}}</div></div>
+                    <div class="half top leaf-front"><div class="text">${{char}}</div></div>
+                    <div class="half bottom leaf-back"><div class="text">${{char}}</div></div>
                 </div>
-            </div>`).join('');
+            </div>
+        `).join('');
     }}
 
-    function flip() {{
-        if (allData.length <= 1 || busy) return;
-        busy = true;
-        const next = (curr + 1) % allData.length;
-        const chars = allData[next];
+    function init() {{
+        document.getElementById('board-container').innerHTML = createRow(allRows[0]);
+        resetTimer();
+    }}
+
+    function performFlip() {{
+        if (allRows.length <= 1 || isAnimating) return;
+        isAnimating = true;
+
+        const nextRowIndex = (currentRowIndex + 1) % allRows.length;
+        const nextChars = allRows[nextRowIndex];
         const units = document.querySelectorAll('.flap-unit');
+
         units.forEach((u, i) => {{
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
-                u.querySelector('.bt .text').innerText = chars[i];
-                u.querySelector('.lb .text').innerText = chars[i];
+                u.querySelector('.base-top .text').innerText = nextChars[i];
+                u.querySelector('.leaf-back .text').innerText = nextChars[i];
+                
                 leaf.classList.add('flipping');
-                leaf.addEventListener('transitionend', function end() {{
-                    leaf.removeEventListener('transitionend', end);
-                    u.querySelector('.bb .text').innerText = chars[i];
-                    u.querySelector('.lf .text').innerText = chars[i];
+
+                leaf.addEventListener('transitionend', function onEnd() {{
+                    leaf.removeEventListener('transitionend', onEnd);
+                    u.querySelector('.base-bottom .text').innerText = nextChars[i];
+                    u.querySelector('.leaf-front .text').innerText = nextChars[i];
+                    
                     leaf.style.transition = 'none';
                     leaf.classList.remove('flipping');
-                    leaf.offsetHeight;
+                    leaf.offsetHeight; 
                     leaf.style.transition = '';
-                    if (i === units.length - 1) {{ busy = false; startTimer(); }}
+                    
+                    if (i === units.length - 1) {{
+                        isAnimating = false;
+                        resetTimer();
+                    }}
                 }}, {{once: true}});
             }}, i * 40);
         }});
-        curr = next;
+        currentRowIndex = nextRowIndex;
     }}
-    function startTimer() {{ clearTimeout(timer); timer = setTimeout(flip, stayTime); }}
-    document.body.onclick = () => {{ if(!busy) {{ clearTimeout(timer); flip(); }} }};
-    build(allData[0]); startTimer();
+
+    function resetTimer() {{
+        if (autoTimer) clearInterval(autoTimer);
+        autoTimer = setInterval(performFlip, stayTime);
+    }}
+
+    document.body.addEventListener('click', () => {{
+        if (!isAnimating) {{
+            performFlip();
+        }}
+    }});
+
+    init();
 </script>
 </body>
 </html>
 """
 
-components.html(html_code, height=250 if is_embedded else 350)
+components.html(html_code, height=300)

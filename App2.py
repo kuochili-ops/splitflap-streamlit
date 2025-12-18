@@ -8,20 +8,14 @@ st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding: 0 !important; background-color: #111 !important;}
+    .block-container {padding: 0 !important; background-color: #222 !important;}
     iframe {border: none; width: 100%; height: 100vh; overflow: hidden; margin-top: -50px;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 天氣數據 (多縣市輪播準備) ---
+# --- 2. 天氣數據 ---
 OWM_API_KEY = "Dcd113bba5675965ccf9e60a7e6d06e5"
-CITY_LIST = {
-    "台北": {"lat": 25.03, "lon": 121.56},
-    "台中": {"lat": 24.14, "lon": 120.67},
-    "高雄": {"lat": 22.61, "lon": 120.30},
-    "台南": {"lat": 22.99, "lon": 120.21},
-    "花蓮": {"lat": 23.97, "lon": 121.60}
-}
+CITY_LIST = {"台北": {"lat": 25.03, "lon": 121.56}, "台中": {"lat": 24.14, "lon": 120.67}, "高雄": {"lat": 22.61, "lon": 120.30}}
 
 def get_all_weather():
     results = {}
@@ -29,13 +23,11 @@ def get_all_weather():
         url = f"https://api.openweathermap.org/data/2.5/weather?lat={pos['lat']}&lon={pos['lon']}&appid={OWM_API_KEY}&units=metric&lang=zh_tw"
         try:
             res = requests.get(url, timeout=2).json()
-            desc = res['weather'][0]['description']
-            short_desc = "晴天" if "晴" in desc else "多雲" if "雲" in desc else "雨天" if "雨" in desc else desc[:2]
-            results[city] = {"desc": short_desc, "temp": f"{round(res['main']['temp'])}°"}
+            results[city] = {"desc": res['weather'][0]['description'][:2], "temp": f"{round(res['main']['temp'])}°"}
         except: continue
     return results
 
-weather_data_json = json.dumps(get_all_weather() or {"台北": {"desc": "多雲", "temp": "21°"}})
+weather_json = json.dumps(get_all_weather() or {"台北": {"desc": "多雲", "temp": "21°"}})
 
 # --- 3. 核心 HTML ---
 html_code = f"""
@@ -44,86 +36,77 @@ html_code = f"""
 <head>
 <meta charset="UTF-8">
 <style>
-    :root {{
-        --flip-speed: 0.6s;
+    :root {{ --flip-speed: 0.6s; }}
+    
+    /* Style 1: 強制清水模背景 (Concrete Wall) */
+    body.style-1 {{
+        background: url('https://www.transparenttextures.com/patterns/concrete-wall.png'), #999; 
+        background-color: #888;
+        background-image: url('https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?q=80&w=2070&auto=format&fit=crop'); /* 真實水泥牆圖 */
+        background-size: cover;
+        --card-bg: rgba(40, 40, 40, 0.6);
+        --shadow: 20px 20px 40px rgba(0,0,0,0.5), 5px 5px 15px rgba(0,0,0,0.2);
     }}
     
     /* Style 0: 純黑模式 */
     body.style-0 {{
-        background: #151515;
-        --card-bg: linear-gradient(180deg, #333 0%, #111 50%, #000 51%, #222 100%);
-        --box-shadow: 0 10px 20px rgba(0,0,0,0.8);
-        --blur: 0px;
-    }}
-    
-    /* Style 1: 清水模模式 */
-    body.style-1 {{
-        background: url('https://images.unsplash.com/photo-1590333746437-12826767598c?q=80&w=2071&auto=format&fit=crop') no-repeat center center fixed;
-        background-size: cover;
-        --card-bg: rgba(30, 30, 30, 0.6);
-        --box-shadow: 22px 22px 45px rgba(0,0,0,0.6), 5px 5px 15px rgba(0,0,0,0.3);
-        --blur: 6px;
+        background: #111;
+        --card-bg: #222;
+        --shadow: 0 10px 20px rgba(0,0,0,0.8);
     }}
 
-    /* 字體切換 */
-    body.font-0 {{ --font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }}
+    body.font-0 {{ --font-family: sans-serif; }}
     body.font-1 {{ --font-family: serif; }}
     body.font-2 {{ --font-family: cursive; }}
 
     body {{ 
-        display: flex; flex-direction: column; align-items: center; height: 100vh; margin: 0; padding-top: 50px; gap: 18px; 
-        transition: background 0.5s ease; overflow: hidden;
+        display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+        height: 100vh; margin: 0; padding-top: 60px; gap: 20px; transition: 0.5s; overflow: hidden;
     }}
 
-    .row {{ display: flex; gap: 8px; align-items: center; justify-content: center; }}
-    
+    .row {{ display: flex; gap: 8px; align-items: center; }}
     .flap-unit {{ 
-        position: relative; width: 46px; height: 70px; background: rgba(0,0,0,0.5); border-radius: 5px;
+        position: relative; width: 46px; height: 70px; background: #111; border-radius: 6px;
         font-family: var(--font-family); font-size: 48px; font-weight: 900; color: #fff;
-        box-shadow: var(--box-shadow); transition: box-shadow 0.5s ease;
+        box-shadow: var(--shadow);
     }}
     
     .half {{ 
         position: absolute; width: 100%; height: 50%; overflow: hidden; 
-        background: var(--card-bg); backdrop-filter: blur(var(--blur));
+        background: var(--card-bg); backdrop-filter: blur(5px);
         display: flex; justify-content: center; backface-visibility: hidden;
     }}
     
-    .top {{ top: 0; align-items: flex-start; border-radius: 5px 5px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.5); }}
-    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 5px 5px; }}
+    .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.5); }}
+    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
     .text {{ height: 70px; line-height: 70px; }}
 
     .leaf {{ position: absolute; top: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
-    .leaf-front {{ background: var(--card-bg); z-index: 12; border-radius: 5px 5px 0 0; }}
-    .leaf-back {{ background: rgba(20,20,20,0.8); transform: rotateX(-180deg); z-index: 11; border-radius: 0 0 5px 5px; display: flex; align-items: flex-end; justify-content: center; }}
+    .leaf-front {{ background: var(--card-bg); z-index: 12; border-radius: 6px 6px 0 0; }}
+    .leaf-back {{ background: #111; transform: rotateX(-180deg); z-index: 11; border-radius: 0 0 6px 6px; display: flex; align-items: flex-end; justify-content: center; }}
     .flipping {{ transform: rotateX(-180deg); }}
 
     .small .flap-unit {{ width: 34px; height: 52px; font-size: 28px; }}
     .small .text {{ height: 52px; line-height: 52px; }}
 
-    /* 控制按鈕 */
+    /* 控制鈕設計 */
+    .controls {{ position: fixed; left: 20px; bottom: 20px; display: flex; gap: 10px; }}
     .btn {{
-        position: fixed; width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.2); color: white; display: flex; align-items: center; justify-content: center;
-        cursor: pointer; z-index: 100; font-family: sans-serif; transition: 0.3s;
+        width: 45px; height: 45px; border-radius: 50%; background: rgba(0,0,0,0.5);
+        border: 2px solid #fff; color: white; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; font-weight: bold; font-family: sans-serif;
     }}
-    .btn:hover {{ background: rgba(255,255,255,0.2); }}
-    #btn-font {{ left: 20px; bottom: 20px; }}
-    #btn-style {{ left: 75px; bottom: 20px; }}
-    .weather-trigger {{ cursor: pointer; padding: 5px; border-radius: 10px; transition: 0.3s; }}
-    .weather-trigger:hover {{ background: rgba(255,255,255,0.05); }}
+    .weather-trigger {{ cursor: pointer; }}
 </style>
 </head>
 <body class="style-1 font-0">
-    <div id="btn-font" class="btn">A</div>
-    <div id="btn-style" class="btn">S</div>
+    <div class="controls">
+        <div id="btn-font" class="btn">A</div>
+        <div id="btn-style" class="btn">S</div>
+    </div>
 
     <div class="row" id="year"></div>
-    <div class="row">
-        <div id="month" class="row"></div>
-        <div style="color:rgba(255,255,255,0.3); font-size:30px; font-weight:900">/</div>
-        <div id="day" class="row"></div>
-    </div>
+    <div class="row"><div id="month" class="row"></div><div style="color:white;opacity:0.3;font-size:30px">/</div><div id="day" class="row"></div></div>
     <div class="row small" id="lunar"></div>
     <div class="row small weather-trigger" id="weather-go">
         <div id="w-city" class="row"></div>
@@ -134,7 +117,7 @@ html_code = f"""
 
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
 <script>
-    const weatherData = {weather_data_json};
+    const weatherData = {weather_json};
     const cities = Object.keys(weatherData);
     let cityIdx = 0, fontIdx = 0, styleIdx = 1;
 
@@ -175,14 +158,6 @@ html_code = f"""
         }});
     }}
 
-    function refreshWeather() {{
-        const name = cities[cityIdx];
-        const data = weatherData[name];
-        update('w-city', name);
-        update('w-desc', data.desc);
-        update('w-temp', data.temp);
-    }}
-
     function tick() {{
         const d = new Date(), l = Lunar.fromDate(d);
         update('year', d.getFullYear());
@@ -190,10 +165,10 @@ html_code = f"""
         update('day', d.getDate(), 2);
         update('lunar', l.getMonthInChinese()+'月'+l.getDayInChinese()+'·'+(l.getJieQi()||l.getPrevJieQi().getName()));
         update('time', d.getHours().toString().padStart(2,'0')+d.getMinutes().toString().padStart(2,'0')+d.getSeconds().toString().padStart(2,'0'));
-        refreshWeather();
+        const city = cities[cityIdx];
+        update('w-city', city); update('w-desc', weatherData[city].desc); update('w-temp', weatherData[city].temp);
     }}
 
-    // 按鈕邏輯
     document.getElementById('btn-font').onclick = () => {{
         document.body.classList.remove('font-'+fontIdx);
         fontIdx = (fontIdx + 1) % 3;
@@ -206,7 +181,7 @@ html_code = f"""
     }};
     document.getElementById('weather-go').onclick = () => {{
         cityIdx = (cityIdx + 1) % cities.length;
-        refreshWeather();
+        tick();
     }};
 
     setInterval(tick, 1000); tick();

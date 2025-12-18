@@ -8,8 +8,8 @@ st.set_page_config(layout="centered")
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding-top: 1.5rem;}
-    body {background-color: transparent;}
+    .block-container {padding-top: 1.5rem; background-color: #0e1117;}
+    body {background-color: #0e1117;}
     .stSlider label {color: #eee; font-weight: bold;}
     </style>
     """, unsafe_allow_html=True)
@@ -20,7 +20,7 @@ is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
 
 def get_safe_text(raw):
-    if not raw: return "筆畫精準銜接，翻轉無感切換"
+    if not raw: return "翻板顯示正常，筆畫銜接精準"
     try:
         decoded = urllib.parse.unquote(raw)
         return decoded.encode('latin-1').decode('utf-8')
@@ -71,35 +71,23 @@ html_code = f"""
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
     
-    /* 針對首幀對齊：增加 1px 高度重疊 */
     .top {{ top: 0; height: calc(50% + 1px); align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.5); }}
     .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 6px 6px; }}
     
-    .text {{ 
-        height: var(--unit-height); width: 100%; text-align: center; 
-        position: absolute; left: 0; line-height: var(--unit-height);
-    }}
+    .text {{ height: var(--unit-height); width: 100%; text-align: center; position: absolute; left: 0; line-height: var(--unit-height); }}
     .top .text {{ top: 0; }}
     .bottom .text {{ bottom: 0; }}
 
-    .leaf {{ 
-        position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
-        z-index: 15; transform-origin: bottom; 
-        transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); 
-        transform-style: preserve-3d;
-    }}
+    .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
     .leaf-front {{ z-index: 16; background: var(--card-bg); }} 
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #1a1a1a; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; }}
     .flipping {{ transform: rotateX(-180deg); }}
 
-    .flap-unit::before {{
-        content: ""; position: absolute; top: 50%; left: -1px; width: calc(100% + 2px); height: 2px;
-        background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60;
-    }}
+    .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: -1px; width: calc(100% + 2px); height: 2px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
 </style>
 </head>
 <body>
-<div id="board-container" class="board-row"></div>
+<div id="board-container" class="board-row">載入中...</div>
 
 <script>
     const allRows = {rows_data};
@@ -132,15 +120,9 @@ html_code = f"""
         units.forEach((u, i) => {{
             setTimeout(() => {{
                 const leaf = u.querySelector('.leaf');
-                
-                // 動畫啟動：更換葉片背面文字
                 u.querySelector('.leaf-back .text').innerText = nextChars[i];
-                
                 leaf.classList.add('flipping');
 
-                // 【關鍵加速修正】
-                // 在翻轉到一半時(約300ms)，底座上下半部同時換字
-                // 這時 leaf 板片正好遮住底座文字的變換，視覺上最流暢
                 setTimeout(() => {{
                     u.querySelector('.base-top .text').innerText = nextChars[i];
                     u.querySelector('.base-bottom .text').innerText = nextChars[i];
@@ -148,23 +130,15 @@ html_code = f"""
 
                 leaf.addEventListener('transitionend', function onEnd() {{
                     leaf.removeEventListener('transitionend', onEnd);
-                    
-                    // 動畫結束：悄悄重置葉片正面內容，準備下一輪
                     u.querySelector('.leaf-front .text').innerText = nextChars[i];
-                    
                     leaf.style.transition = 'none';
                     leaf.classList.remove('flipping');
                     leaf.offsetHeight; 
                     leaf.style.transition = '';
-                    
-                    if (i === units.length - 1) {{
-                        isAnimating = false;
-                        resetTimer();
-                    }}
+                    if (i === units.length - 1) {{ isAnimating = false; resetTimer(); }}
                 }}, {{once: true}});
             }}, i * 40);
         }});
-
         currentRowIndex = nextRowIndex;
     }}
 
@@ -173,15 +147,18 @@ html_code = f"""
         autoTimer = setInterval(performFlip, stayTime);
     }}
 
-    document.body.addEventListener('click', () => {{
-        if (!isAnimating) performFlip();
-    }});
+    function init() {{
+        document.getElementById('board-container').innerHTML = createRow(allRows[0]);
+        resetTimer();
+    }}
 
-    document.addEventListener('DOMContentLoaded', init);
-    init();
+    document.body.addEventListener('click', () => {{ if (!isAnimating) performFlip(); }});
+    
+    // 強制在加載完成後執行
+    window.onload = init;
 </script>
 </body>
 </html>
 """
 
-components.html(html_code, height=300)
+components.html(html_code, height=350)

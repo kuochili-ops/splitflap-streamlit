@@ -3,13 +3,12 @@ import streamlit.components.v1 as components
 import math
 
 # --- 1. 頁面透明化與手機適配設定 ---
-st.set_page_config(layout="wide") # 使用 wide 模式提供更多空間
+st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
     .block-container {padding: 0 !important; background-color: transparent !important;}
     .stApp {background: transparent !important;}
-    /* 確保 iframe 容器不會產生捲軸 */
     iframe {border: none; width: 100%; height: 100vh; overflow: hidden;}
     </style>
     """, unsafe_allow_html=True)
@@ -18,7 +17,7 @@ st.markdown("""
 input_text_raw = st.query_params.get("text", "載入中...")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 核心 HTML (加入 RWD 動態縮放) ---
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -32,14 +31,15 @@ html_code = f"""
         --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
     }}
     body {{ 
-        background: transparent; display: flex; justify-content: center; 
+        background: transparent; display: flex; flex-direction: column; justify-content: center; 
         align-items: center; height: 100vh; margin: 0; padding: 10px;
         box-sizing: border-box; overflow: hidden; 
     }}
+    /* 看板主容器 */
     #board-container {{ 
         display: grid; 
         grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 40px)); 
-        gap: 6px; /* 手機端縮小間距 */
+        gap: 6px;
         perspective: 1500px; 
     }}
     .flap-unit {{ 
@@ -92,10 +92,22 @@ html_code = f"""
         width: 100%; height: 1.5px; background: rgba(0,0,0,0.9); 
         transform: translateY(-50%); z-index: 60; 
     }}
+
+    /* 下方註明文字樣式 */
+    .footer-note {{
+        margin-top: 25px;
+        font-family: var(--font-family);
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.4);
+        letter-spacing: 2px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }}
 </style>
 </head>
 <body>
-<div id="board-container"></div>
+    <div id="board-container"></div>
+    <div class="footer-note">𓃥白六訊息告示牌</div>
+
 <script>
     function ultimateDecode(str) {{
         let d = str;
@@ -111,7 +123,6 @@ html_code = f"""
     let rowsData = [];
     let maxCols = 1;
 
-    // 解析文字
     if (cleanText.includes('，') || cleanText.includes(',')) {{
         const parts = cleanText.replace(/，/g, ',').split(',');
         maxCols = Math.max(...parts.map(p => p.trim().length));
@@ -123,14 +134,10 @@ html_code = f"""
         }}
     }}
 
-    // 🚀 手機螢幕自適應縮放邏輯
     function adjustSize() {{
-        const winW = window.innerWidth - 40; // 扣除邊距
-        // 計算每個單元的寬度：(螢幕寬 - (間距 * (總列數-1))) / 總列數
+        const winW = window.innerWidth - 40;
         const calculatedW = Math.floor((winW - (6 * (maxCols - 1))) / maxCols);
-        // 設定上限 80px，下限 25px
         const finalUnitW = Math.max(25, Math.min(80, calculatedW));
-        
         document.documentElement.style.setProperty('--cols', maxCols);
         document.documentElement.style.setProperty('--unit-width', finalUnitW + 'px');
     }}

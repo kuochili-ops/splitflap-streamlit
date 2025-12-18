@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import math
 import urllib.parse
 
-# --- 1. 基本設定 ---
+# --- 1. 頁面佈局設定 ---
 st.set_page_config(layout="centered")
 st.markdown("""
     <style>
@@ -14,13 +14,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 文字獲取 ---
+# --- 2. 獲取文字與控制參數 ---
 query_params = st.query_params
 is_embedded = query_params.get("embed", "false").lower() == "true"
 raw_url_text = query_params.get("text", "")
 
 def get_safe_text(raw):
-    if not raw: return "筆畫精準銜接，全時段無殘損"
+    if not raw: return "筆畫精準銜接，首幀完美對齊"
     try:
         decoded = urllib.parse.unquote(raw)
         return decoded.encode('latin-1').decode('utf-8')
@@ -38,7 +38,7 @@ if not is_embedded:
 else:
     stay_seconds = float(query_params.get("stay", 2.5))
 
-# --- 3. 計算行列 ---
+# --- 3. 計算行列寬度 ---
 N = len(input_text)
 cols = min(math.ceil(N / 2), 10) if N > 1 else 1
 rows_data = [list(input_text[i:i+cols]) for i in range(0, len(input_text), cols)]
@@ -66,16 +66,16 @@ html_code = f"""
     .flap {{ position: relative; width: var(--unit-width); height: var(--unit-height); background: #000; border-radius: 4px; font-family: 'Noto Sans TC', sans-serif; font-size: var(--font-size); font-weight: 900; color: #fff; }}
     
     .half {{ 
-        position: absolute; left: 0; width: 100%; overflow: hidden; 
+        position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
     
-    /* 修正第一個畫面：上半部給予 52% 的高度並透過 clip-path 強制保留 0-50% 區域 */
+    /* 核心修正：上半部高度稍微超出中線(52%)，並用裁剪框鎖定視覺 0-50% 區域 */
     .top {{ 
         top: 0; height: 52%; align-items: flex-start; 
-        border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); 
-        clip-path: inset(0 0 4% 0); /* 裁掉多餘的 2%，避免溢出到中線下方 */
+        border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8);
+        clip-path: inset(0 0 4% 0); 
     }}
     .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     
@@ -155,9 +155,7 @@ html_code = f"""
 
     function startTimer() {{ clearTimeout(timer); timer = setTimeout(flip, stayTime); }}
     document.body.onclick = () => {{ if(!busy) flip(); }};
-    
-    build(allData[0]); 
-    startTimer();
+    build(allData[0]); startTimer();
 </script>
 </body>
 </html>

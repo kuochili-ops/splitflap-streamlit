@@ -25,6 +25,11 @@ html_code = """
         --flip-speed: 0.6s;
         --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
     }
+    /* 字體風格定義 */
+    body.font-style-0 { --font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; } /* 預設黑體 */
+    body.font-style-1 { --font-family: "Noto Serif TC", "PMingLiU", serif; } /* 復古明體 */
+    body.font-style-2 { --font-family: "STKaiti", "BiauKai", "DFKai-SB", cursive; } /* 楷體風格 */
+
     body { 
         background: transparent; display: flex; flex-direction: column; 
         justify-content: flex-start; align-items: center; 
@@ -35,14 +40,12 @@ html_code = """
     .row { display: flex; gap: 6px; align-items: center; justify-content: center; width: 100%; }
     .time-group { display: flex; gap: 4px; }
     
-    /* 分隔符樣式 (月/日中間的斜槓) */
     .date-separator { 
         font-family: var(--font-family); font-size: 32px; color: rgba(255,255,255,0.4); 
         font-weight: 900; padding: 0 2px;
     }
     .colon-separator { font-family: var(--font-family); font-size: 20px; color: rgba(255,255,255,0.15); font-weight: 900; }
     
-    /* 翻板基礎單位 */
     .flap-unit { 
         position: relative; width: 42px; height: 62px; 
         background: #000; border-radius: 5px; 
@@ -66,21 +69,32 @@ html_code = """
     .flipping { transform: rotateX(-180deg); }
     .flap-unit::before { content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0,0,0,0.95); transform: translateY(-50%); z-index: 60; }
 
-    /* 小翻板尺寸 */
     .small-row .flap-unit { width: 32px; height: 48px; font-size: 26px; }
     .small-row .text { height: 48px; line-height: 48px; }
 
-    .weather-box { cursor: pointer; border-radius: 12px; transition: background 0.2s; padding: 5px; }
+    .weather-box { cursor: pointer; border-radius: 12px; padding: 5px; }
+
+    /* 風格切換鍵 */
+    #style-switcher {
+        position: fixed; left: 20px; bottom: 20px; width: 40px; height: 40px;
+        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        color: rgba(255,255,255,0.3); font-size: 18px; cursor: pointer; z-index: 100;
+        transition: 0.3s;
+    }
+    #style-switcher:active { transform: scale(0.9); background: rgba(255,255,255,0.15); }
+
     .footer-note { margin-top: 20px; font-family: var(--font-family); font-size: 11px; color: rgba(255, 255, 255, 0.1); letter-spacing: 2px; }
 
     @media (max-width: 480px) {
         .flap-unit { width: 38px; height: 56px; font-size: 38px; }
         .text { height: 56px; line-height: 56px; }
-        .date-separator { font-size: 26px; }
     }
 </style>
 </head>
-<body>
+<body class="font-style-0">
+    <div id="style-switcher">A</div>
+
     <div class="row">
         <div class="time-group" id="year"></div>
     </div>
@@ -118,8 +132,10 @@ html_code = """
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
 <script>
     const cities = ["台北", "新北", "桃園", "新竹", "台中", "彰化", "嘉義", "台南", "高雄", "宜蘭", "花蓮", "台東"];
-    const forecasts = ["晴", "多雲", "陰天", "小雨", "雷雨"];
+    // 確保預報描述固定為兩個字
+    const forecasts = ["晴天", "多雲", "陰天", "小雨", "雷雨", "大雨", "霧天"];
     let cityIdx = 0;
+    let fontIdx = 0;
 
     function createFlap(val) {
         return `<div class="flap-unit">
@@ -175,11 +191,9 @@ html_code = """
     function tick() {
         const now = new Date();
         const lunar = Lunar.fromDate(now);
-        
         updateGroup('year', now.getFullYear());
         updateGroup('month', (now.getMonth() + 1), 2);
         updateGroup('day', now.getDate(), 2);
-        
         updateGroup('lunar', lunar.getMonthInChinese() + "月" + lunar.getDayInChinese());
         updateGroup('solar-term', lunar.getJieQi() || lunar.getPrevJieQi().getName());
         updateGroup('hours', now.getHours(), 2);
@@ -192,14 +206,20 @@ html_code = """
         refreshWeather();
         setInterval(tick, 1000);
 
+        // 天氣點擊切換
         const wArea = document.getElementById('weather-trigger');
         const change = () => { cityIdx = (cityIdx + 1) % cities.length; refreshWeather(); };
         wArea.addEventListener('click', change);
         wArea.addEventListener('touchstart', (e) => { e.preventDefault(); change(); }, {passive: false});
+
+        // 左下角字體風格切換
+        const styleBtn = document.getElementById('style-switcher');
+        styleBtn.addEventListener('click', () => {
+            document.body.classList.remove(`font-style-${fontIdx}`);
+            fontIdx = (fontIdx + 1) % 3;
+            document.body.classList.add(`font-style-${fontIdx}`);
+        });
     };
 </script>
 </body>
 </html>
-"""
-
-components.html(html_code, height=900)

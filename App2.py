@@ -11,7 +11,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 核心 HTML ---
+# --- 2. 核心 HTML (包含翻轉動畫) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -23,12 +23,10 @@ html_code = f"""
         margin: 0; padding-top: 40px;
         display: flex; flex-direction: column; align-items: center;
         min-height: 100vh; overflow: hidden;
-        /* 模擬您圖片中的清水模背景 */
-        background: #bbb url('https://images.unsplash.com/photo-1590274853856-f22d5ee3d228?q=80&w=2070&auto=format&fit=crop') no-repeat center center fixed;
+        background: #bbb url('https://images.unsplash.com/photo-1590274853856-f22d5ee3d228?q=80&w=2072&auto=format&fit=crop') no-repeat center center fixed;
         background-size: cover;
     }}
 
-    /* 透明玻璃背板：寬度限制在手機比例 */
     .glass-panel {{
         display: flex; flex-direction: column; align-items: center; gap: 15px;
         width: 92vw; max-width: 380px; 
@@ -37,37 +35,42 @@ html_code = f"""
         backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 20px;
-        /* 玻璃板對牆面的整體陰影 */
         box-shadow: 20px 30px 50px rgba(0, 0, 0, 0.4);
-        transform: perspective(1000px) rotateX(2deg);
     }}
 
-    /* 翻板行樣式 */
-    .row {{ 
-        display: flex; gap: 4px; align-items: center; justify-content: center;
-        width: 100%;
-        /* 翻板光影投射到牆面上的陰影 */
-        filter: drop-shadow(15px 20px 15px rgba(0, 0, 0, 0.6));
-    }}
+    .row {{ display: flex; gap: 4px; align-items: center; justify-content: center; width: 100%; filter: drop-shadow(15px 20px 15px rgba(0, 0, 0, 0.6)); }}
 
-    /* 翻板元件：針對中文寬度微調 */
+    /* 翻板基礎結構 */
     .flap-unit {{ 
-        position: relative; width: 38px; height: 56px; background: #000; border-radius: 4px;
-        color: #fff; font-size: 36px; font-weight: 900;
-        font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+        position: relative; width: 38px; height: 56px; 
+        background: #000; border-radius: 4px;
+        perspective: 300px;
     }}
 
-    .half {{ 
-        position: absolute; width: 100%; height: 50%; overflow: hidden; 
-        background: linear-gradient(180deg, #2a2a2a 0%, #000 100%);
-        display: flex; justify-content: center;
+    .half {{
+        position: absolute; width: 100%; height: 50%; overflow: hidden;
+        background: #1a1a1a; color: #fff; font-size: 36px; font-weight: 900;
+        display: flex; justify-content: center; left: 0;
+        font-family: "PingFang TC", sans-serif;
     }}
 
-    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 1px solid rgba(0,0,0,0.8); }}
-    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
-    .text {{ height: 56px; line-height: 56px; text-align: center; }}
+    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000; z-index: 2; }}
+    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; z-index: 1; }}
+    
+    /* 動畫核心：翻轉片 */
+    .leaf {{
+        position: absolute; top: 0; left: 0; width: 100%; height: 50%;
+        background: #1a1a1a; color: #fff; font-size: 36px; font-weight: 900;
+        display: flex; justify-content: center; align-items: flex-start;
+        border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000;
+        transform-origin: bottom; z-index: 3; transition: transform 0.4s ease-in;
+        backface-visibility: hidden;
+    }}
 
-    #weather-row {{ cursor: pointer; transition: 0.2s; }}
+    .flipping .leaf {{ transform: rotateX(-180deg); }}
+    .text {{ height: 56px; line-height: 56px; }}
+
+    #weather-row {{ cursor: pointer; }}
     .separator {{ color: white; opacity: 0.3; font-size: 24px; margin: 0 5px; }}
 </style>
 </head>
@@ -80,22 +83,18 @@ html_code = f"""
             <div class="separator">/</div>
             <div id="day" class="row" style="width:auto"></div>
         </div>
-        
-        <div class="row" id="lunar-row" style="transform: scale(0.85);"></div>
-
+        <div class="row" id="lunar-row" style="transform: scale(0.8);"></div>
         <div id="weather-row">
             <div class="row" id="w-city"></div>
             <div class="row" id="w-desc" style="margin: 10px 0;"></div>
             <div class="row" id="w-temp"></div>
         </div>
-
-        <div class="row" id="time" style="margin-top:5px"></div>
+        <div class="row" id="time"></div>
     </div>
 
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
 <script>
     let cityIdx = 0;
-    // 中文縣市與天氣數據
     const weatherData = [
         {{ city: "台北市", desc: "多雲時晴", temp: "21°" }},
         {{ city: "台中市", desc: "晴朗無雲", temp: "24°" }},
@@ -103,20 +102,45 @@ html_code = f"""
         {{ city: "宜蘭縣", desc: "陰短暫雨", temp: "19°" }}
     ];
 
+    function createFlap(char) {{
+        return `
+            <div class="flap-unit">
+                <div class="half top"><div class="text">${{char}}</div></div>
+                <div class="leaf"><div class="text">${{char}}</div></div>
+                <div class="half bottom"><div class="text">${{char}}</div></div>
+            </div>`;
+    }}
+
     function updateFlaps(id, val) {{
         const box = document.getElementById(id);
         const s = val.toString();
-        // 確保寬度自適應
-        if (box.innerHTML === "" || box.childElementCount !== s.length) {{
-            box.innerHTML = [...s].map(c => `
-                <div class="flap-unit">
-                    <div class="half top"><div class="text">${{c}}</div></div>
-                    <div class="half bottom"><div class="text">${{c}}</div></div>
-                </div>`).join('');
+        
+        // 如果長度不同，重新初始化結構
+        if (box.childElementCount !== s.length) {{
+            box.innerHTML = [...s].map(c => createFlap(c)).join('');
+            return;
         }}
-        const texts = box.querySelectorAll('.text');
-        [...s].forEach((n, i) => {{
-            texts[i*2].innerText = n; texts[i*2+1].innerText = n;
+
+        const units = box.querySelectorAll('.flap-unit');
+        [...s].forEach((char, i) => {{
+            const unit = units[i];
+            const current = unit.querySelector('.top .text').innerText;
+            if (current !== char) {{
+                // 觸發動畫
+                unit.classList.remove('flipping');
+                void unit.offsetWidth; // 強制重繪
+                
+                // 下半部預先換成新字
+                unit.querySelector('.bottom .text').innerText = char;
+                unit.classList.add('flipping');
+
+                // 動畫結束後同步所有文字
+                setTimeout(() => {{
+                    unit.querySelector('.top .text').innerText = char;
+                    unit.querySelector('.leaf .text').innerText = char;
+                    unit.classList.remove('flipping');
+                }}, 400);
+            }}
         }});
     }}
 
@@ -132,16 +156,11 @@ html_code = f"""
 
     function tick() {{
         const d = new Date(), l = Lunar.fromDate(d);
-        // 更新日期
         updateFlaps('year', d.getFullYear());
         updateFlaps('month', (d.getMonth()+1).toString().padStart(2,'0'));
         updateFlaps('day', d.getDate().toString().padStart(2,'0'));
-        
-        // 更新農曆與節氣 (格式: 十一月廿九 冬至)
         const lunarStr = l.getMonthInChinese() + '月' + l.getDayInChinese() + ' ' + (l.getJieQi() || "");
         updateFlaps('lunar-row', lunarStr.trim());
-        
-        // 更新時間
         updateFlaps('time', d.getHours().toString().padStart(2,'0')+d.getMinutes().toString().padStart(2,'0')+d.getSeconds().toString().padStart(2,'0'));
     }}
 

@@ -1,9 +1,6 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import math
-import urllib.parse
-import html
-import re
 
 # --- 1. 頁面透明化樣式 ---
 st.set_page_config(layout="centered")
@@ -16,32 +13,15 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. Python 端初步清理 ---
-def get_raw_param():
-    raw = st.query_params.get("text", "訊息載入中...")
-    # 將原始字串直接傳入 HTML，由 JS 做最終處理以防萬一
-    return raw
-
-input_text_raw = get_raw_param()
+# --- 2. 取得原始參數（完全不處理編碼，交給 JS） ---
+input_text_raw = st.query_params.get("text", "訊息載入中...")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 為了計算行列，Python 仍需初步解碼 ---
-# 這裡使用最寬鬆的解碼方式
-def simple_decode(t):
-    try:
-        return html.unescape(urllib.parse.unquote(t))
-    except:
-        return t
+# --- 3. 預估行列（避免 JS 執行前畫面塌陷） ---
+# 這裡先假設寬度為 8，後續由 JS 動態調整
+cols = 8
 
-decoded_for_layout = simple_decode(input_text_raw)
-if "，" in decoded_for_layout or "," in decoded_for_layout:
-    parts = decoded_for_layout.replace("，", ",").split(",")
-    cols = min(max(len(p.strip()) for p in parts), 10)
-else:
-    N = len(decoded_for_layout)
-    cols = min(math.ceil(N / 2), 10) if N > 0 else 1
-
-# --- 4. 核心 HTML (加入 JS 端自動校正) ---
+# --- 4. 核心 HTML（包含三次強化解碼 JS） ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -50,14 +30,14 @@ html_code = f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap');
     :root {{
-        --unit-width: calc(min(80px, 95vw / {cols} - 6px));
+        --unit-width: calc(min(80px, 95vw / 8 - 6px));
         --unit-height: calc(var(--unit-width) * 1.5);
         --font-size: calc(var(--unit-width) * 1.05);
         --flip-speed: 0.6s;
         --card-bg: linear-gradient(180deg, #333 0%, #111 50%, #000 51%, #222 100%);
     }}
     body {{ background: transparent; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }}
-    #board-container {{ display: grid; grid-template-columns: repeat({cols}, var(--unit-width)); gap: 10px; perspective: 2000px; }}
+    #board-container {{ display: grid; grid-template-columns: repeat(var(--cols, 8), var(--unit-width)); gap: 10px; perspective: 2000px; }}
     .flap-unit {{ 
         position: relative; width: var(--unit-width); height: var(--unit-height); 
         background: #000; border-radius: 6px; 
@@ -80,34 +60,45 @@ html_code = f"""
 <body>
 <div id="board-container"></div>
 <script>
-    // JS 端極限解碼函數
-    function superDecode(t) {{
+    // 🚀 三次強化解碼：解決影片中的 &#24171; 亂碼問題
+    function deepDecode(t) {{
+        let result = t;
         try {{
-            let decoded = decodeURIComponent(t.replace(/\\+/g, ' '));
-            const txt = document.createElement('textarea');
-            txt.innerHTML = decoded;
-            return txt.value; // 這會自動修正 &#24171; 這種 HTML Entity
-        }} catch (e) {{
-            return t;
-        }}
+            // 1. URL 解碼
+            result = decodeURIComponent(result.replace(/\\+/g, ' '));
+        }} catch(e) {{}}
+        
+        const txt = document.createElement('textarea');
+        // 2. HTML Entity 第一遍還原
+        txt.innerHTML = result;
+        result = txt.value;
+        // 3. HTML Entity 第二遍還原（預防雙重轉義）
+        txt.innerHTML = result;
+        result = txt.value;
+        
+        return result;
     }}
 
-    const rawText = "{input_text_raw}";
-    const cleanText = superDecode(rawText);
-    const cols = {cols};
-    const stayTime = {stay_sec} * 1000;
-
-    // 處理行列
+    const cleanText = deepDecode("{input_text_raw}");
     let rowsData = [];
+    let maxCols = 1;
+
+    // 解析文字行列
     if (cleanText.includes('，') || cleanText.includes(',')) {{
         const parts = cleanText.replace(/，/g, ',').split(',');
-        rowsData = parts.map(p => p.trim().padEnd(cols, ' ').substring(0, cols).split(''));
+        maxCols = Math.min(Math.max(...parts.map(p => p.trim().length)), 10);
+        rowsData = parts.map(p => p.trim().padEnd(maxCols, ' ').substring(0, maxCols).split(''));
     }} else {{
-        for (let i = 0; i < cleanText.length; i += cols) {{
-            rowsData.push(cleanText.substring(i, i + cols).padEnd(cols, ' ').split(''));
+        maxCols = Math.min(Math.ceil(cleanText.length / 2) || 1, 10);
+        if (cleanText.length <= maxCols) maxCols = cleanText.length || 1;
+        for (let i = 0; i < cleanText.length; i += maxCols) {{
+            rowsData.push(cleanText.substring(i, i + maxCols).padEnd(maxCols, ' ').split(''));
         }}
     }}
-    if (rowsData.length === 0) rowsData = [Array(cols).fill(' ')];
+
+    // 動態調整 CSS 變數以符合列數
+    document.documentElement.style.setProperty('--cols', maxCols);
+    document.documentElement.style.setProperty('--unit-width', `calc(min(80px, 95vw / ${{maxCols}} - 6px))`);
 
     let currentRowIndex = 0;
     let isAnimating = false;
@@ -156,8 +147,10 @@ html_code = f"""
 
     window.onload = () => {{
         const container = document.getElementById('board-container');
-        container.innerHTML = createRow(rowsData[0]);
-        if (rowsData.length > 1) setInterval(performFlip, stayTime);
+        if (rowsData.length > 0) {{
+            container.innerHTML = createRow(rowsData[0]);
+            if (rowsData.length > 1) setInterval(performFlip, {stay_sec} * 1000);
+        }}
     }};
 </script>
 </body>

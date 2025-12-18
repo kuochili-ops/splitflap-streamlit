@@ -19,96 +19,95 @@
             gap: 12px;
         }
 
-        /* 💡 翻牌單元 */
         .flap {
             position: relative;
             width: var(--unit-w);
             height: calc(var(--unit-w) * 1.4);
-            background: #000;
-            border-radius: 8px;
-            font-size: calc(var(--unit-w) * 0.8);
-            font-weight: 900;
-            color: #fff;
             perspective: 1000px;
         }
 
-        /* 💡 上下半部 */
         .half {
             position: absolute; width: 100%; height: 50%;
             overflow: hidden; display: flex; justify-content: center;
-            background: linear-gradient(180deg, #333 0%, #1a1a1a 49%, #000 50%, #1a1a1a 100%);
+            background: #1a1a1a; /* 基礎深色 */
             backface-visibility: hidden;
-            transition: transform 0.6s ease-in;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        /* 💡 修正：上半部定位與漸層 */
         .top { 
-            top: 0; align-items: flex-start; border-radius: 8px 8px 0 0; 
+            top: 0; 
+            align-items: flex-start; /* 文字對齊頂部 */
+            border-radius: 6px 6px 0 0; 
+            background: linear-gradient(180deg, #333 0%, #1a1a1a 100%);
             border-bottom: 1px solid #000;
-            z-index: 2;
             transform-origin: bottom;
+            z-index: 2;
         }
 
+        /* 💡 修正：下半部定位與漸層 */
         .bottom { 
-            bottom: 0; align-items: flex-end; border-radius: 0 0 8px 8px; 
+            bottom: 0; 
+            align-items: flex-end; /* 文字對齊底部 */
+            border-radius: 0 0 6px 6px; 
+            background: linear-gradient(180deg, #111 0%, #000 100%);
             z-index: 1;
         }
 
-        /* 💡 文字位置修正 (解決被切掉的問題) */
+        /* 💡 修正：文字垂直位置計算 */
         .text { 
-            height: 200%; line-height: calc(var(--unit-w) * 2.8);
+            width: 100%;
+            height: 200%; /* 讓文字容器是翻牌的兩倍高 */
+            line-height: calc(var(--unit-w) * 2.8); /* 精確計算行高 */
             text-align: center;
+            font-size: calc(var(--unit-w) * 0.85);
+            font-weight: 900;
+            color: #fff;
         }
+
+        /* 上半部顯示文字的上半段，下半部顯示下半段 */
         .bottom .text { transform: translateY(-50%); }
 
-        /* 💡 翻轉動畫狀態 */
+        /* 動畫觸發 */
         .flipping .top { transform: rotateX(-180deg); }
 
-        /* 中間轉軸線 */
+        /* 裝飾線 */
         .flap::after {
             content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-            background: rgba(0,0,0,0.6); z-index: 5; transform: translateY(-50%);
+            background: rgba(0,0,0,0.7); z-index: 10; transform: translateY(-50%);
         }
     </style>
 </head>
 <body>
-
-<div id="board"></div>
-
-<script>
-    // 1. 獲取網址參數
-    const params = new URLSearchParams(window.location.search);
-    const text = params.get('text') || "質感顯示"; 
-    
-    const board = document.getElementById('board');
-    const chars = text.split('');
-    
-    // 2. 自動計算大小
-    const unitW = Math.min(80, Math.floor((window.innerWidth * 0.95) / chars.length) - 10);
-    board.style.setProperty('--cols', chars.length);
-    board.style.setProperty('--unit-w', unitW + 'px');
-
-    // 3. 生成結構
-    board.innerHTML = chars.map(c => `
-        <div class="flap">
-            <div class="half top"><div class="text">${c}</div></div>
-            <div class="half bottom"><div class="text">${c}</div></div>
-        </div>
-    `).join('');
-
-    // 4. 動畫邏輯：進場時依序翻轉
-    document.querySelectorAll('.flap').forEach((el, i) => {
-        el.style.opacity = "0";
-        el.style.transform = "translateY(20px)";
-        el.style.transition = "all 0.5s ease-out";
+    <div id="board"></div>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const text = params.get('text') || "質感顯示"; 
+        const board = document.getElementById('board');
+        const chars = text.split('');
         
-        setTimeout(() => {
-            el.style.opacity = "1";
-            el.style.transform = "translateY(0)";
-            // 執行一次翻轉效果
-            el.classList.add('flipping');
-            setTimeout(() => el.classList.remove('flipping'), 600);
-        }, i * 150);
-    });
-</script>
+        // 自動適應寬度
+        const unitW = Math.min(80, Math.floor((window.innerWidth * 0.95) / chars.length) - 10);
+        board.style.setProperty('--cols', chars.length);
+        board.style.setProperty('--unit-w', unitW + 'px');
+
+        board.innerHTML = chars.map(c => `
+            <div class="flap">
+                <div class="half top"><div class="text">${c}</div></div>
+                <div class="half bottom"><div class="text">${c}</div></div>
+            </div>
+        `).join('');
+
+        // 啟動動畫
+        window.onload = () => {
+            document.querySelectorAll('.flap').forEach((el, i) => {
+                setTimeout(() => {
+                    el.classList.add('flipping');
+                    // 為了美觀，翻完後可以停留在翻開狀態，或移除以回到初始狀態
+                    // 如果要維持翻轉後的樣子，就不要移除 class
+                }, i * 100);
+            });
+        };
+    </script>
 </body>
 </html>

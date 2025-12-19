@@ -74,7 +74,7 @@ html_code = f"""
         overflow: hidden; background: #1a1a1a;
     }}
     
-    /* 關鍵：top 在翻轉中盤前必須遮蓋新字或顯示舊字 */
+    /* 初始 Z-index 確保層級正確 */
     .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; z-index: 1; }}
     .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
@@ -124,7 +124,12 @@ html_code = f"""
     function updateCard(el, nv, ov) {{
         if (nv === ov && el.innerHTML !== "") return;
         
-        // 初始化結構：Top 暫時放「舊字」以防穿透，或者透過 CSS 控制
+        // 解決穿透的關鍵邏輯：
+        // 1. 初始化時，底板上半部(.top) 必須顯示【舊字 ov】
+        // 2. 葉片正面(.leaf-front) 顯示【舊字 ov】
+        // 3. 葉片背面(.leaf-back) 顯示【新字 nv】
+        // 4. 底板下半部(.bottom) 顯示【舊字 ov】
+        
         el.innerHTML = `
             <div class="top">${{ov}}</div>
             <div class="bottom">${{ov}}</div>
@@ -139,15 +144,14 @@ html_code = f"""
         void el.offsetWidth;
         el.classList.add('flipping');
 
-        // 【關鍵優化】
-        // 1. 在翻轉到一半 (約 600ms) 時，將背景的 top 悄悄換成新字
-        // 這時候 leaf 已經翻到 90 度，遮住了 top 的變化
+        // 在翻轉到一半 (90度，對應 1.2s 動畫約 0.6s 處) 時
+        // 此時葉片垂直，擋住了上半部，我們才悄悄把 .top 換成新字
         setTimeout(() => {{
             const t = el.querySelector('.top');
             if(t) t.innerText = nv;
         }}, 600); 
 
-        // 2. 在完全翻轉完後，將 bottom 換成新字
+        // 動畫完全結束後，把底部也更新為新字
         setTimeout(() => {{
             const b = el.querySelector('.bottom');
             if(b) b.innerText = nv;

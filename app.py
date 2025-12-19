@@ -51,7 +51,7 @@ html_code = f"""
     .wall-0 {{ background: #1a1a1a; background-image: radial-gradient(circle, #2c2c2c 0%, #1a1a1a 100%); }}
     .wall-1 {{ background: #444; background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png"); }}
     
-    /* 修正：塗鴉位置再往上移 (bottom 40%) */
+    /* 修正：塗鴉位置再往上移 (bottom 60%) */
     .wall-2 {{ 
         background-color: #dcdcdc; 
         background-image: url("{img_data}");

@@ -66,7 +66,7 @@ html_code = f"""
     .banksy-art {{
         position: absolute;
         bottom: -200px; 
-        right: -30px;
+        right: -60px;
         width: 200px; 
         height: 250px;
         background-size: contain;

@@ -37,8 +37,11 @@ html_code = f"""
         transition: background-color 0.8s ease;
         background-color: {bg_param};
         background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png");
-        display: flex; flex-direction: column; justify-content: center; align-items: center; 
+        display: flex; flex-direction: column; 
+        justify-content: flex-start; /* 改為頂部對齊 */
+        align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
+        padding-top: 50px; /* 控制離頂部的距離 */
     }}
 
     .board-case {{
@@ -65,13 +68,11 @@ html_code = f"""
     
     .flap-unit {{ position: relative; background: #000; border-radius: 4px; color: #fff; font-weight: 900; }}
 
-    /* 第一排：大尺寸訊息 */
     .msg-unit {{ 
         --unit-w: var(--msg-w, 60px); --unit-h: calc(var(--unit-w) * 1.4); 
         width: var(--unit-w); height: var(--unit-h); font-size: calc(var(--unit-w) * 0.9); 
     }}
 
-    /* 第二、三排：小尺寸翻板 */
     .small-unit {{ 
         --unit-w: 22px; --unit-h: 32px; 
         width: var(--unit-w); height: var(--unit-h); font-size: 16px; 
@@ -139,86 +140,4 @@ html_code = f"""
         return `
             <div class="flap-unit ${{type}}">
                 <div class="half top base-top"><div class="text">${{char}}</div></div>
-                <div class="half bottom base-bottom"><div class="text">${{char}}</div></div>
-                <div class="leaf">
-                    <div class="half top leaf-front"><div class="text">${{char}}</div></div>
-                    <div class="half bottom leaf-back"><div class="text">${{char}}</div></div>
-                </div>
-            </div>`;
-    }}
-
-    function updateFlap(unit, newChar) {{
-        if (unit.querySelector('.base-top .text').innerText === newChar) return;
-        const leaf = unit.querySelector('.leaf');
-        unit.querySelector('.leaf-back .text').innerText = newChar;
-        leaf.classList.add('flipping');
-        setTimeout(() => {{
-            unit.querySelectorAll('.base-top .text, .base-bottom .text').forEach(t => t.innerText = newChar);
-        }}, 300);
-        leaf.addEventListener('transitionend', () => {{
-            unit.querySelector('.leaf-front .text').innerText = newChar;
-            leaf.style.transition = 'none'; leaf.classList.remove('flipping');
-            leaf.offsetHeight; leaf.style.transition = '';
-        }}, {{once: true}});
-    }}
-
-    const cleanText = (str => {{
-        let d = str; try {{ d = decodeURIComponent(d.replace(/\\+/g, ' ')); }} catch(e) {{}}
-        const t = document.createElement('textarea'); t.innerHTML = d; return t.value;
-    }})("{input_text_raw}");
-    
-    // 關鍵修正：翻板數 = 字數 / 2 (最多 10 個)
-    const flapCount = Math.min(10, Math.max(1, Math.floor(cleanText.length / 2)));
-    let msgPages = [];
-    for (let i = 0; i < cleanText.length; i += flapCount) {{
-        msgPages.push(cleanText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
-    }}
-
-    function init() {{
-        const msgRow = document.getElementById('row-msg');
-        const dateRow = document.getElementById('row-date');
-        const clockRow = document.getElementById('row-clock');
-        
-        msgRow.innerHTML = msgPages[0].map(c => createFlap(c, 'msg-unit')).join('');
-        const w = Math.min(65, Math.max(35, Math.floor((window.innerWidth - 120) / flapCount)));
-        document.documentElement.style.setProperty('--msg-w', w + 'px');
-
-        dateRow.innerHTML = getDateString().split('').map(c => createFlap(c, 'small-unit')).join('');
-        clockRow.innerHTML = getTimeString().split('').map(c => createFlap(c, 'small-unit')).join('');
-    }}
-
-    function getDateString() {{
-        const n = new Date();
-        const m = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()];
-        const d = String(n.getDate()).padStart(2,'0');
-        const w = ["日","一","二","三","四","五","六"][n.getDay()];
-        return `${{m}}${{d}} ${{w}}`;
-    }}
-
-    function getTimeString() {{
-        const n = new Date();
-        // 移除秒數，僅顯示 HH:mm
-        return `${{String(n.getHours()).padStart(2,'0')}}:${{String(n.getMinutes()).padStart(2,'0')}}`;
-    }}
-
-    let pIdx = 0;
-    window.onload = () => {{
-        init();
-        if (msgPages.length > 1) setInterval(() => {{
-            pIdx = (pIdx + 1) % msgPages.length;
-            document.querySelectorAll('#row-msg .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, msgPages[pIdx][i]), i*50));
-        }}, {stay_sec} * 1000);
-        
-        setInterval(() => {{
-            const dStr = getDateString();
-            const tStr = getTimeString();
-            document.querySelectorAll('#row-date .flap-unit').forEach((u, i) => updateFlap(u, dStr[i]));
-            document.querySelectorAll('#row-clock .flap-unit').forEach((u, i) => updateFlap(u, tStr[i]));
-        }}, 1000);
-    }};
-</script>
-</body>
-</html>
-"""
-
-components.html(html_code, height=900, scrolling=False)
+                <div class="half bottom base-bottom"><div class="text">${{char}}</div>

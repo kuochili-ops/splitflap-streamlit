@@ -34,7 +34,7 @@ html_code = f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     :root {{
-        --flip-speed: 0.85s; /* 慢速且有重量感的翻轉 */
+        --flip-speed: 0.85s; 
     }}
     body {{ 
         background-color: #f0f0f0;
@@ -45,28 +45,50 @@ html_code = f"""
     }}
 
     .board-case {{
-        position: relative; padding: 25px 35px;
+        position: relative; padding: 30px 40px;
         background: rgba(25, 25, 25, 0.98); 
         border-radius: 12px; box-shadow: 0 40px 80px rgba(0,0,0,0.6);
         display: inline-flex; flex-direction: column; align-items: center;
         gap: 15px; z-index: 10; max-width: 95vw;
     }}
 
-    .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1500px; }}
+    .row-container {{ display: flex; flex-direction: row; gap: 6px; perspective: 1500px; }}
 
+    /* 翻板基礎樣式 */
     .flip-card {{
         position: relative; background-color: #222; border-radius: 6px;
         color: #f0f0f0; text-align: center; font-weight: bold;
-        transition: transform 0.2s;
     }}
 
-    .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 1.0); }}
-    .small-unit {{ width: var(--small-w); height: calc(var(--small-w) * 1.4); font-size: calc(var(--small-w) * 0.8); }}
+    /* 訊息列尺寸 - 大 */
+    .msg-unit {{ 
+        width: var(--msg-w); height: calc(var(--msg-w) * 1.5); 
+        font-size: calc(var(--msg-w) * 1.0); 
+    }}
+    /* 日期時間列尺寸 - 小 */
+    .small-unit {{ 
+        width: var(--small-w); height: calc(var(--small-w) * 1.4); 
+        font-size: calc(var(--small-w) * 0.8); 
+    }}
 
-    /* 結構與動畫 */
+    /* 物理層級設定 (繼承父級 line-height 以修正位置) */
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #222; }}
-    .top {{ top: 0; border-radius: 6px 6px 0 0; line-height: var(--line-h); border-bottom: 0.5px solid #000; z-index: 1; }}
-    .bottom {{ bottom: 0; border-radius: 0 0 6px 6px; line-height: 0px; z-index: 0; }}
+    
+    .msg-unit .top, .msg-unit .leaf-front {{ 
+        top: 0; border-radius: 6px 6px 0 0; 
+        line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; z-index: 1; 
+    }}
+    .msg-unit .bottom, .msg-unit .leaf-back {{ 
+        bottom: 0; border-radius: 0 0 6px 6px; line-height: 0px; z-index: 0; 
+    }}
+
+    .small-unit .top, .small-unit .leaf-front {{ 
+        top: 0; border-radius: 4px 4px 0 0; 
+        line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; 
+    }}
+    .small-unit .bottom, .small-unit .leaf-back {{ 
+        bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; 
+    }}
 
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
@@ -74,8 +96,7 @@ html_code = f"""
         transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1);
     }}
     .leaf-front, .leaf-back {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; backface-visibility: hidden; background: #222; overflow: hidden; }}
-    .leaf-front {{ border-radius: 6px 6px 0 0; line-height: var(--line-h); border-bottom: 0.5px solid #000; }}
-    .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 6px 6px; line-height: 0px; background: linear-gradient(to top, #222 50%, #151515 100%); }}
+    .leaf-back {{ transform: rotateX(-180deg); background: linear-gradient(to top, #222 50%, #151515 100%); }}
 
     .flipping .leaf {{ transform: rotateX(-180deg); }}
     .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 15; transform: translateY(-50%); }}
@@ -100,7 +121,7 @@ html_code = f"""
     const flapCount = Math.min(10, fullText.length <= 20 ? Math.floor(fullText.length / 2) : 10);
     let prevMsg = "".padEnd(flapCount, ' ').split('');
     let prevDate = "        ".split('');
-    let prevTimeStr = "     ".split('');
+    let prevTime = "     ".split('');
     
     let msgPages = [];
     for (let i = 0; i < fullText.length; i += flapCount) {{
@@ -112,7 +133,7 @@ html_code = f"""
         const el = document.getElementById(elId);
         if (!el) return;
 
-        // 完全依照您的 clock1219.py 邏輯：重新寫入整個 HTML 並觸發 reflow
+        // 重新寫入 HTML 以確保動力學穩定性
         el.innerHTML = `
             <div class="top">${{newVal}}</div>
             <div class="bottom">${{oldVal}}</div>
@@ -124,7 +145,7 @@ html_code = f"""
         `;
 
         el.classList.remove('flipping');
-        void el.offsetWidth; // 強制重繪
+        void el.offsetWidth; 
         el.classList.add('flipping');
     }}
 
@@ -132,24 +153,15 @@ html_code = f"""
         const vw = window.innerWidth;
         const msgW = Math.min(85, Math.floor((vw * 0.9) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
-        document.documentElement.style.setProperty('--line-h', (msgW * 1.5) + 'px');
-        const smallW = Math.floor(msgW * 0.55);
+        const smallW = Math.floor(msgW * 0.65); // 提高比例，避免縮太小
         document.documentElement.style.setProperty('--small-w', smallW + 'px');
     }}
 
     function init() {{
         adjustSize();
-        let msgHtml = '';
-        for (let i=0; i<flapCount; i++) msgHtml += `<div class="flip-card msg-unit" id="m${{i}}"></div>`;
-        document.getElementById('row-msg').innerHTML = msgHtml;
-
-        let dateHtml = '';
-        for (let i=0; i<8; i++) dateHtml += `<div class="flip-card small-unit" id="d${{i}}"></div>`;
-        document.getElementById('row-date').innerHTML = dateHtml;
-
-        let clockHtml = '';
-        for (let i=0; i<5; i++) clockHtml += `<div class="flip-card small-unit" id="t${{i}}"></div>`;
-        document.getElementById('row-clock').innerHTML = clockHtml;
+        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="flip-card msg-unit" id="m${{i}}"></div>`).join('');
+        document.getElementById('row-date').innerHTML = Array.from({{length: 8}}, (_, i) => `<div class="flip-card small-unit" id="d${{i}}"></div>`).join('');
+        document.getElementById('row-clock').innerHTML = Array.from({{length: 5}}, (_, i) => `<div class="flip-card small-unit" id="t${{i}}"></div>`).join('');
     }}
 
     function tick() {{
@@ -162,8 +174,8 @@ html_code = f"""
             prevDate[i] = dStr[i];
         }}
         for (let i=0; i<5; i++) {{
-            updateCard(`t${{i}}`, tStr[i], prevTimeStr[i]);
-            prevTimeStr[i] = tStr[i];
+            updateCard(`t${{i}}`, tStr[i], prevTime[i]);
+            prevTime[i] = tStr[i];
         }}
     }}
 
@@ -175,19 +187,18 @@ html_code = f"""
             setTimeout(() => {{
                 updateCard(`m${{i}}`, char, prevMsg[i]);
                 prevMsg[i] = char;
-            }}, i * 100);
+            }}, i * 110);
         }});
     }}
 
     window.onload = () => {{
         init();
         tick();
-        // 初始訊息顯示
+        // 初始第一頁訊息
         msgPages[0].forEach((char, i) => {{
             updateCard(`m${{i}}`, char, " ");
             prevMsg[i] = char;
         }});
-
         setInterval(tick, 1000);
         if (msgPages.length > 1) setInterval(cycleMsg, {stay_sec} * 1000);
     }};

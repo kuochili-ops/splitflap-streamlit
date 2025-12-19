@@ -23,7 +23,7 @@ if os.path.exists(img_filename):
         img_b64 = base64.b64encode(f.read()).decode()
         img_data = f"data:image/png;base64,{img_b64}"
 else:
-    # 預留圖連結
+    # 備用圖連結
     img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
 
 # --- 3. 參數獲取 ---
@@ -45,19 +45,19 @@ html_code = f"""
         padding-top: 5vh; height: 100vh; margin: 0; overflow: hidden;
         font-family: 'Arial Black', "PingFang TC", sans-serif;
         cursor: pointer; transition: all 0.5s ease;
-        background-size: cover; background-position: center;
     }}
     
     .wall-0 {{ background: #1a1a1a; background-image: radial-gradient(circle, #2c2c2c 0%, #1a1a1a 100%); }}
     .wall-1 {{ background: #444; background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png"); }}
     
-    /* 修正：塗鴉位置再往上移 (bottom 80%) */
+    /* 修正：塗鴉位置提高到 top 42%，緊貼面板下方 */
     .wall-2 {{ 
-        background-color: #dcdcdc; 
+        background-color: #d0d0d0; 
         background-image: url("{img_data}");
         background-repeat: no-repeat;
-        background-position: right 10% bottom 40%; 
-        background-size: auto 25vh;
+        /* 橫向右 15%，縱向從頂部算起 42% */
+        background-position: right 15% top 42%; 
+        background-size: auto 22vh; /* 稍微再縮小一點點，顯得精緻 */
     }}
 
     .acrylic-board {{

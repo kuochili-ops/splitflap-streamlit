@@ -35,12 +35,16 @@ html_code = f"""
 <style>
     :root {{ --flip-speed: 0.85s; }}
     
-    /* 牆面風格定義 */
+    /* 牆面風格與佈局：讓內容靠頂部對齊 */
     body {{ 
-        display: flex; justify-content: center; align-items: center; 
+        display: flex; 
+        justify-content: center; 
+        align-items: flex-start; /* 面板上移至頂部 */
+        padding-top: 8vh; /* 頂部間距 */
         height: 100vh; margin: 0; overflow: hidden;
         font-family: 'Arial Black', "PingFang TC", sans-serif;
         cursor: pointer; transition: background 0.5s ease;
+        box-sizing: border-box;
     }}
     
     .wall-0 {{ background: #1a1a1a; background-image: radial-gradient(circle, #2c2c2c 0%, #1a1a1a 100%); }}
@@ -49,20 +53,22 @@ html_code = f"""
         background: #f0f0f0; 
         background-image: url("data:image/png;base64,{img_base64}");
         background-repeat: no-repeat;
-        background-position: bottom right;
-        background-size: 30vh;
+        background-position: bottom 5% right 5%; /* 塗鴉在右下角 */
+        background-size: 35vh; /* 調整塗鴉大小 */
     }}
 
+    /* 壓克力面板 */
     .acrylic-board {{
         position: relative; padding: 40px 30px; 
-        background: rgba(255, 255, 255, 0.03); 
+        background: rgba(255, 255, 255, 0.02); 
         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 15px; box-shadow: 0 40px 100px rgba(0,0,0,0.6);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 10px; z-index: 10;
+        gap: 6px; z-index: 10;
     }}
 
+    /* 螺絲 */
     .screw {{
         position: absolute; width: 14px; height: 14px;
         background: radial-gradient(circle at 35% 35%, #ddd, #555);
@@ -118,8 +124,8 @@ html_code = f"""
     }}
 
     let prevMsg = Array(flapCount).fill(' ');
-    let prevDate = Array(8).fill(' '); // 月份(3)+日期(2)+空格(1)+星期(1) = 7格，給8格安全
-    let prevTime = Array(8).fill(' '); // HH:MM:SS = 8格
+    let prevDate = Array(7).fill(' '); 
+    let prevTime = Array(8).fill(' '); 
 
     let msgPages = [];
     for (let i = 0; i < fullText.length; i += flapCount) {{
@@ -141,7 +147,7 @@ html_code = f"""
         const vw = window.innerWidth;
         const msgW = Math.min(65, Math.floor((vw * 0.85) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
-        document.documentElement.style.setProperty('--small-w', (msgW * 0.7) + 'px');
+        document.documentElement.style.setProperty('--small-w', (msgW * 0.72) + 'px');
     }}
 
     function init() {{
@@ -155,12 +161,8 @@ html_code = f"""
         const n = new Date();
         const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         const weeks = ["日","一","二","三","四","五","六"];
-        
-        // 格式精確化：JAN01 五 (長度 7)
         const dStr = months[n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + weeks[n.getDay()];
-        // 格式：HH:MM:SS (長度 8)
         const tStr = String(n.getHours()).padStart(2,'0') + ":" + String(n.getMinutes()).padStart(2,'0') + ":" + String(n.getSeconds()).padStart(2,'0');
-        
         for (let i=0; i<7; i++) {{ updateCard(`d${{i}}`, dStr[i] || ' ', prevDate[i]); prevDate[i] = dStr[i]; }}
         for (let i=0; i<8; i++) {{ updateCard(`t${{i}}`, tStr[i], prevTime[i]); prevTime[i] = tStr[i]; }}
     }}
@@ -181,4 +183,4 @@ html_code = f"""
 </html>
 """
 
-components.html(html_code, height=900, scrolling=False)
+components.html(html_code, height=1000, scrolling=False)

@@ -47,78 +47,82 @@ html_code = f"""
         box-sizing: border-box; overflow: hidden; cursor: pointer;
     }}
 
-    /* 告示牌外殼 - 最小寬度由時間翻板決定 */
     .board-case {{
         position: relative;
-        padding: 30px 40px;
-        background: rgba(0, 0, 0, 0.25);
-        border-radius: 15px;
+        padding: 40px 50px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-        backdrop-filter: blur(4px);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-width: 450px; /* 確保時間翻板有足夠空間 */
+        box-shadow: 0 30px 60px rgba(0,0,0,0.7);
+        backdrop-filter: blur(8px);
+        display: flex; flex-direction: column; align-items: center;
+        min-width: 480px;
     }}
 
-    /* 螺絲 */
-    .board-case::before, .board-case::after, 
-    .screw-bottom-left, .screw-bottom-right {{
-        content: ""; position: absolute; width: 10px; height: 10px;
-        background: radial-gradient(circle at 3px 3px, #999, #333);
-        border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    .screw {{
+        position: absolute; width: 12px; height: 12px;
+        background: radial-gradient(circle at 4px 4px, #aaa, #222);
+        border-radius: 50%; box-shadow: 1px 1px 3px rgba(0,0,0,0.6);
     }}
-    .board-case::before {{ top: 12px; left: 12px; }}
-    .board-case::after {{ top: 12px; right: 12px; }}
-    .screw-bottom-left {{ bottom: 12px; left: 12px; }}
-    .screw-bottom-right {{ bottom: 12px; right: 12px; }}
 
-    /* 主訊息容器 */
+    /* 主訊息 */
     #board-container {{ 
         display: grid; 
         grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 40px)); 
-        gap: 8px; perspective: 1500px; 
-        margin-bottom: 25px;
+        gap: 10px; perspective: 1500px; margin-bottom: 35px;
     }}
 
-    /* 時間容器 */
+    /* 時間訊息 */
     #clock-container {{
-        display: grid;
-        grid-template-columns: repeat(12, 28px); /* 固定 12 格小翻板 */
-        gap: 4px;
-        perspective: 1000px;
+        display: grid; grid-template-columns: repeat(12, 30px); 
+        gap: 5px; perspective: 1000px;
     }}
 
-    /* 翻板單位樣式 (通用) */
     .flap-unit {{ 
-        position: relative; 
-        background: #000; border-radius: 4px; font-family: var(--font-family); 
-        font-weight: 900; color: #fff; 
+        position: relative; background: #000; border-radius: 4px; 
+        font-family: var(--font-family); font-weight: 900; color: #fff; 
     }}
 
-    /* 主訊息翻板大小 */
+    /* 主訊息翻板尺寸 */
     #board-container .flap-unit {{
         width: var(--unit-width, 40px);
-        height: calc(var(--unit-width, 40px) * 1.4);
-        font-size: calc(var(--unit-width, 40px) * 1.0);
+        height: calc(var(--unit-width, 40px) * 1.5);
+        font-size: calc(var(--unit-width, 40px) * 1.1);
     }}
 
-    /* 時間小翻板大小 */
-    #clock-container .flap-unit {{
-        width: 28px;
-        height: 40px;
-        font-size: 20px;
-    }}
+    /* 時間翻板尺寸 */
+    #clock-container .flap-unit {{ width: 30px; height: 44px; font-size: 22px; }}
 
-    .half {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--card-bg); display: flex; justify-content: center; backface-visibility: hidden; }}
-    .top {{ top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
-    .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; background: linear-gradient(180deg, #151515 0%, #000 100%); }}
-    .text {{ height: 100%; width: 100%; text-align: center; position: absolute; }}
+    .half {{ 
+        position: absolute; left: 0; width: 100%; height: 50%; 
+        overflow: hidden; background: var(--card-bg); 
+        display: flex; justify-content: center; backface-visibility: hidden; 
+    }}
     
-    /* 修正文字垂直居中 */
-    #board-container .text {{ line-height: calc(var(--unit-width, 40px) * 1.4); }}
-    #clock-container .text {{ line-height: 40px; }}
+    .top {{ 
+        top: 0; height: 50%; align-items: flex-start; 
+        border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); 
+    }}
+    .bottom {{ 
+        bottom: 0; height: 50%; align-items: flex-end; 
+        border-radius: 0 0 4px 4px; 
+        background: linear-gradient(180deg, #151515 0%, #000 100%); 
+    }}
+
+    /* 【關鍵修正】使用相對定位與精確的高度計算來對齊文字 */
+    .text {{ 
+        position: absolute; left: 0; width: 100%; text-align: center;
+    }}
+
+    /* 主訊息文字位置 */
+    #board-container .text {{ height: calc(var(--unit-width, 40px) * 1.5); line-height: calc(var(--unit-width, 40px) * 1.5); }}
+    #board-container .top .text {{ top: 0; }}
+    #board-container .bottom .text {{ bottom: -50%; }}
+
+    /* 時間文字位置 */
+    #clock-container .text {{ height: 44px; line-height: 44px; }}
+    #clock-container .top .text {{ top: 0; }}
+    #clock-container .bottom .text {{ bottom: -50%; }}
 
     .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
     .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
@@ -131,23 +135,22 @@ html_code = f"""
 </head>
 <body onclick="changeStyle()">
     <div class="board-case">
+        <div class="screw" style="top:15px; left:15px;"></div>
+        <div class="screw" style="top:15px; right:15px;"></div>
         <div id="board-container"></div>
-        
         <div id="clock-container"></div>
-
-        <div class="screw-bottom-left"></div>
-        <div class="screw-bottom-right"></div>
+        <div class="screw" style="bottom:15px; left:15px;"></div>
+        <div class="screw" style="bottom:15px; right:15px;"></div>
     </div>
     <div class="footer-note">👋 點擊牆面切換風格 | 𓃥白六訊息告示牌</div>
 
 <script>
-    // --- 風格切換 ---
     const styles = [
-        {{ name: '工業灰', color: '#888888', tex: 'concrete-wall' }},
-        {{ name: '深夜黑', color: '#1a1a1a', tex: 'carbon-fibre' }},
-        {{ name: '普魯士藍', color: '#1a2a3a', tex: 'stardust' }},
-        {{ name: '復古紅磚', color: '#6d2e2e', tex: 'brick-wall' }},
-        {{ name: '全透明', color: 'transparent', tex: 'none' }}
+        {{ color: '#1a1a1a', tex: 'carbon-fibre' }},
+        {{ color: '#888888', tex: 'concrete-wall' }},
+        {{ color: '#1a2a3a', tex: 'stardust' }},
+        {{ color: '#6d2e2e', tex: 'brick-wall' }},
+        {{ color: 'transparent', tex: 'none' }}
     ];
     let currentStyleIdx = 0;
     function changeStyle() {{
@@ -157,7 +160,6 @@ html_code = f"""
         document.body.style.backgroundImage = s.tex === 'none' ? 'none' : `url("https://www.transparenttextures.com/patterns/${{s.tex}}.png")`;
     }}
 
-    // --- 核心翻牌組件 ---
     function createFlapHTML(char) {{
         return `
             <div class="flap-unit">
@@ -171,18 +173,15 @@ html_code = f"""
     }}
 
     function updateFlap(unit, newChar) {{
-        const currentText = unit.querySelector('.base-top .text').innerText;
-        if (currentText === newChar) return;
-
+        const baseText = unit.querySelector('.base-top .text');
+        if (baseText.innerText === newChar) return;
         const leaf = unit.querySelector('.leaf');
         unit.querySelector('.leaf-back .text').innerText = newChar;
         leaf.classList.add('flipping');
-
         setTimeout(() => {{
             unit.querySelector('.base-top .text').innerText = newChar;
             unit.querySelector('.base-bottom .text').innerText = newChar;
         }}, 300);
-
         leaf.addEventListener('transitionend', () => {{
             unit.querySelector('.leaf-front .text').innerText = newChar;
             leaf.style.transition = 'none';
@@ -192,7 +191,6 @@ html_code = f"""
         }}, {{once: true}});
     }}
 
-    // --- 主訊息邏輯 ---
     const cleanText = (str => {{
         let d = str; try {{ d = decodeURIComponent(d.replace(/\\+/g, ' ')); }} catch(e) {{}}
         const t = document.createElement('textarea'); t.innerHTML = d; return t.value;
@@ -215,52 +213,37 @@ html_code = f"""
         const container = document.getElementById('board-container');
         container.innerHTML = rowsData[0].map(c => createFlapHTML(c)).join('');
         document.documentElement.style.setProperty('--cols', maxCols);
-        const winW = window.innerWidth - 120;
-        const finalUnitW = Math.max(25, Math.min(80, Math.floor((winW - (8 * (maxCols - 1))) / maxCols)));
+        const winW = window.innerWidth - 150;
+        const finalUnitW = Math.max(25, Math.min(80, Math.floor((winW - (10 * (maxCols - 1))) / maxCols)));
         document.documentElement.style.setProperty('--unit-width', finalUnitW + 'px');
     }}
 
-    let currentRow = 0;
     function cycleMainBoard() {{
         if (rowsData.length <= 1) return;
         currentRow = (currentRow + 1) % rowsData.length;
         const nextChars = rowsData[currentRow];
-        const units = document.querySelectorAll('#board-container .flap-unit');
-        units.forEach((u, i) => setTimeout(() => updateFlap(u, nextChars[i] || ' '), i * 50));
+        document.querySelectorAll('#board-container .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, nextChars[i] || ' '), i * 50));
     }}
 
-    // --- 時間邏輯 ---
     function getTimeString() {{
         const now = new Date();
         const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-        const month = months[now.getMonth()];
-        const day = String(now.getDate()).padStart(2, '0');
-        const hh = String(now.getHours()).padStart(2, '0');
-        const mm = String(now.getMinutes()).padStart(2, '0');
-        return `${{month}}/${{day}} ${{hh}}:${{mm}}`; // 正好 12 個字元
+        return `${{months[now.getMonth()]}}/${{String(now.getDate()).padStart(2, '0')}} ${{String(now.getHours()).padStart(2, '0')}}:${{String(now.getMinutes()).padStart(2, '0')}}`;
     }}
 
-    function initClock() {{
-        const clockContainer = document.getElementById('clock-container');
-        const timeStr = getTimeString();
-        clockContainer.innerHTML = timeStr.split('').map(c => createFlapHTML(c)).join('');
-    }}
-
-    function updateClock() {{
-        const timeStr = getTimeString();
-        const units = document.querySelectorAll('#clock-container .flap-unit');
-        timeStr.split('').forEach((char, i) => updateFlap(units[i], char));
-    }}
-
+    let currentRow = 0;
     window.onload = () => {{
         initMainBoard();
-        initClock();
+        document.getElementById('clock-container').innerHTML = getTimeString().split('').map(c => createFlapHTML(c)).join('');
         if (rowsData.length > 1) setInterval(cycleMainBoard, {stay_sec} * 1000);
-        setInterval(updateClock, 1000);
+        setInterval(() => {{
+            const timeStr = getTimeString();
+            document.querySelectorAll('#clock-container .flap-unit').forEach((u, i) => updateFlap(u, timeStr[i]));
+        }}, 1000);
     }};
 </script>
 </body>
 </html>
 """
 
-components.html(html_code, height=800, scrolling=False)
+components.html(html_code, height=900, scrolling=False)

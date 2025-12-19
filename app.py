@@ -15,7 +15,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. 參數獲取 ---
-input_text = st.query_params.get("text", "HAPPY HOLIDAY").upper()
+input_text = st.query_params.get("text", "假日愉快，身體健康").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 3.0)))
 
 # --- 3. 核心 HTML ---
@@ -37,38 +37,35 @@ html_code = f"""
         font-family: 'Arial Black', "PingFang TC", sans-serif;
     }}
 
-    /* 壓克力面板：高透明、極窄行距 */
+    /* 壓克力面板：極高透明度、超緊湊行距 */
     .acrylic-board {{
         position: relative;
-        padding: 45px 35px; /* 增加內距確保螺絲不被遮擋 */
-        background: rgba(255, 255, 255, 0.03); /* 提高透明度 */
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 40px 30px; 
+        background: rgba(255, 255, 255, 0.02); 
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 12px;
         box-shadow: 0 40px 100px rgba(0,0,0,0.6);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 8px; /* 縮短行距 */
+        gap: 5px; /* 進一步縮短行距 */
         z-index: 10;
     }}
 
-    /* 螺絲：強化在手機上的可見度 */
+    /* 螺絲：確保在手機邊緣清晰可見 */
     .screw {{
         position: absolute; width: 14px; height: 14px;
-        background: radial-gradient(circle at 35% 35%, #eee, #666);
+        background: radial-gradient(circle at 35% 35%, #ddd, #555);
         border-radius: 50%; box-shadow: 1px 2px 4px rgba(0,0,0,0.8);
         z-index: 50;
     }}
-    .screw::after {{
+    .screw::after, .screw::before {{
         content: ''; position: absolute; top: 50%; left: 50%;
-        width: 8px; height: 2px; background: rgba(0,0,0,0.4);
-        transform: translate(-50%, -50%) rotate(45deg);
+        width: 8px; height: 1.5px; background: rgba(0,0,0,0.5);
     }}
-    .screw::before {{
-        content: ''; position: absolute; top: 50%; left: 50%;
-        width: 8px; height: 2px; background: rgba(0,0,0,0.4);
-        transform: translate(-50%, -50%) rotate(-45deg);
-    }}
+    .screw::after {{ transform: translate(-50%, -50%) rotate(45deg); }}
+    .screw::before {{ transform: translate(-50%, -50%) rotate(-45deg); }}
+    
     .tl {{ top: 12px; left: 12px; }}
     .tr {{ top: 12px; right: 12px; }}
     .bl {{ bottom: 12px; left: 12px; }}
@@ -88,19 +85,17 @@ html_code = f"""
     }}
     .small-unit {{ 
         width: var(--small-w); height: calc(var(--small-w) * 1.4); 
-        font-size: calc(var(--small-w) * 0.85); 
+        font-size: calc(var(--small-w) * 0.8); 
     }}
 
-    /* 翻轉物理結構 */
+    /* 翻轉物理結構 - 保留原始邏輯 */
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #151515; }}
-    
     .msg-unit .top, .msg-unit .leaf-front {{ 
         top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; z-index: 1; 
     }}
     .msg-unit .bottom, .msg-unit .leaf-back {{ 
         bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; 
     }}
-
     .small-unit .top, .small-unit .leaf-front {{ 
         top: 0; border-radius: 3px 3px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; 
     }}
@@ -117,7 +112,6 @@ html_code = f"""
     .leaf-back {{ transform: rotateX(-180deg); }}
     .flipping .leaf {{ transform: rotateX(-180deg); }}
     .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: #000; z-index: 15; transform: translateY(-50%); }}
-
 </style>
 </head>
 <body>
@@ -135,7 +129,7 @@ html_code = f"""
     const flapCount = Math.min(10, Math.max(1, Math.floor(fullText.length / 2)));
     
     let prevMsg = Array(flapCount).fill(' ');
-    let prevDate = Array(8).fill(' ');
+    let prevDate = Array(10).fill(' '); // 增加長度給星期
     let prevTime = Array(5).fill(' ');
     
     let msgPages = [];
@@ -160,23 +154,30 @@ html_code = f"""
 
     function adjustSize() {{
         const vw = window.innerWidth;
-        const msgW = Math.min(65, Math.floor((vw * 0.85) / flapCount));
+        // 第一排計算：文字長度/2
+        const msgW = Math.min(60, Math.floor((vw * 0.85) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
-        document.documentElement.style.setProperty('--small-w', (msgW * 0.72) + 'px');
+        // 第二三排縮小
+        document.documentElement.style.setProperty('--small-w', (msgW * 0.75) + 'px');
     }}
 
     function init() {{
         adjustSize();
         document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="flip-card msg-unit" id="m${{i}}"></div>`).join('');
-        document.getElementById('row-date').innerHTML = Array.from({{length: 8}}, (_, i) => `<div class="flip-card small-unit" id="d${{i}}"></div>`).join('');
+        document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="flip-card small-unit" id="d${{i}}"></div>`).join('');
         document.getElementById('row-clock').innerHTML = Array.from({{length: 5}}, (_, i) => `<div class="flip-card small-unit" id="t${{i}}"></div>`).join('');
     }}
 
     function tick() {{
         const n = new Date();
-        const dStr = (["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()] + String(n.getDate()).padStart(2,'0') + "  ").substring(0,8);
+        const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+        const weeks = ["日","一","二","三","四","五","六"];
+        
+        // 格式：MONDD 星期X (例如 DEC19 一 )
+        const dStr = (months[n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + weeks[n.getDay()]).padEnd(10, ' ');
         const tStr = String(n.getHours()).padStart(2,'0') + ":" + String(n.getMinutes()).padStart(2,'0');
-        for (let i=0; i<8; i++) {{ updateCard(`d${{i}}`, dStr[i], prevDate[i]); prevDate[i] = dStr[i]; }}
+        
+        for (let i=0; i<10; i++) {{ updateCard(`d${{i}}`, dStr[i], prevDate[i]); prevDate[i] = dStr[i]; }}
         for (let i=0; i<5; i++) {{ updateCard(`t${{i}}`, tStr[i], prevTime[i]); prevTime[i] = tStr[i]; }}
     }}
 

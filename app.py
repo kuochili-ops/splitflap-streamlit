@@ -14,7 +14,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 圖片處理 (班克西) ---
+# --- 2. 圖片處理 ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_data = ""
 if os.path.exists(img_filename):
@@ -27,7 +27,7 @@ else:
 input_text = st.query_params.get("text", "假日愉快，身體健康").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 3.0)))
 
-# --- 3. 核心 HTML (物理隔離邏輯版) ---
+# --- 3. 核心 HTML (物理遮蔽強化版) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -40,7 +40,10 @@ html_code = f"""
         padding-top: 5vh; height: 100vh; margin: 0; background-color: #1a1a1a;
         font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
     }}
-    .wall-2 {{ background-color: #d0d0d0; background-image: url("{img_data}"); background-repeat: no-repeat; background-position: right 15% top 42%; background-size: auto 22vh; }}
+    .wall-2 {{ 
+        background-color: #d0d0d0; background-image: url("{img_data}"); 
+        background-repeat: no-repeat; background-position: right 15% top 42%; background-size: auto 22vh; 
+    }}
 
     .acrylic-board {{
         position: relative; padding: 45px 35px; background: rgba(255, 255, 255, 0.05); 
@@ -53,7 +56,7 @@ html_code = f"""
         text-align: center; font-weight: 900; perspective: 1000px;
     }}
 
-    /* 結構層級 */
+    /* 結構設計：確保底板文字切換被隱藏 */
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; }}
     .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; z-index: 1; }}
     .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
@@ -71,7 +74,6 @@ html_code = f"""
     .leaf-front {{ z-index: 2; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; }}
     .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; z-index: 1; }}
 
-    /* 翻轉動作 */
     .flipping .leaf {{ transform: rotateX(-180deg); }}
 
     .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 20; transform: translateY(-50%); }}
@@ -96,7 +98,9 @@ html_code = f"""
     function updateCard(el, nv, ov) {{
         if (nv === ov && el.innerHTML !== "") return;
         
-        // 物理隔離：top 區塊在翻轉期間「只准顯示舊字 ov」
+        // --- 核心改進點 ---
+        // 1. 初始化時，.top 底板顯示【舊字 ov】，這保證了葉片向下落時，背景是不變的
+        // 2. .leaf-back 顯示【新字 nv】，這是新字唯一出現的地方
         el.innerHTML = `
             <div class="top">${{ov}}</div>
             <div class="bottom">${{nv}}</div>
@@ -111,11 +115,12 @@ html_code = f"""
         void el.offsetWidth;
         el.classList.add('flipping');
 
-        // 等 1.2s 動畫完全結束（葉片已經蓋死底部），才偷偷把上半部換成新字，完成狀態同步
+        // 3. 只有當動畫結束（葉片完全蓋住下方，且不再遮擋上方）時
+        // 我們才把上半部的內容偷偷更新，為下一次翻轉做準備。
         setTimeout(() => {{
             const t = el.querySelector('.top');
             if(t) t.innerText = nv;
-        }}, 1200);
+        }}, 1200); 
     }}
 
     function init() {{
@@ -139,7 +144,9 @@ html_code = f"""
     window.onload = () => {{
         init();
         const msgPages = [];
-        for (let i = 0; i < fullText.length; i += flapCount) {{ msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split('')); }}
+        for (let i = 0; i < fullText.length; i += flapCount) {{ 
+            msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split('')); 
+        }}
         msgPages[0].forEach((c, i) => {{ updateCard(document.getElementById(`m${{i}}`), c, " "); prevMsg[i] = c; }});
         tick();
         setInterval(tick, 1000);

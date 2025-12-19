@@ -35,6 +35,7 @@ html_code = f"""
 <style>
     :root {{
         --flip-speed: 0.6s;
+        --card-bg: #222;
     }}
     body {{ 
         background-color: #f0f0f0;
@@ -43,30 +44,52 @@ html_code = f"""
         height: 100vh; margin: 0; overflow: hidden; padding-top: 5vh;
     }}
 
-    /* 面板外殼：寬度由內容決定 */
     .board-case {{
-        position: relative; padding: 20px 25px;
+        position: relative; padding: 30px;
         background: rgba(30, 30, 30, 0.95); 
-        border-radius: 15px; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        border-radius: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 10px; z-index: 10; max-width: 95vw;
+        gap: 15px; z-index: 10; max-width: 95vw;
     }}
 
-    .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1000px; }}
+    .row-container {{ display: flex; flex-direction: row; gap: 6px; perspective: 1000px; }}
 
-    /* 物理翻板單元 */
+    /* 物理翻板基礎結構 */
     .flap-unit {{
-        position: relative; width: var(--unit-w); height: calc(var(--unit-w) * 1.4);
-        background: #222; border-radius: 4px; color: #fff; font-weight: 900;
+        position: relative;
+        background: var(--card-bg);
+        border-radius: 4px;
+        color: #fff;
+        font-weight: 900;
         font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+    }}
+
+    /* 訊息列尺寸 (較大) */
+    .msg-unit {{ 
+        width: var(--msg-w); 
+        height: calc(var(--msg-w) * 1.5); 
+        font-size: calc(var(--msg-w) * 0.9); 
+    }}
+
+    /* 日期時間列尺寸 (較小) */
+    .small-unit {{ 
+        width: var(--small-w); 
+        height: calc(var(--small-w) * 1.4); 
+        font-size: calc(var(--small-w) * 0.8); 
     }}
 
     .static-half {{
         position: absolute; left: 0; width: 100%; height: 50%;
         overflow: hidden; background: #222; display: flex; justify-content: center;
     }}
-    .static-top {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--unit-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; }}
-    .static-bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
+    
+    /* 調整文字對齊 */
+    .msg-unit .static-top {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 1px solid #000; z-index: 1; }}
+    .small-unit .static-top {{ top: 0; border-radius: 3px 3px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; }}
+    
+    .static-bottom {{ bottom: 0; line-height: 0px; z-index: 0; }}
+    .msg-unit .static-bottom {{ border-radius: 0 0 4px 4px; }}
+    .small-unit .static-bottom {{ border-radius: 0 0 3px 3px; }}
 
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
@@ -77,16 +100,17 @@ html_code = f"""
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         backface-visibility: hidden; background: #222; display: flex; justify-content: center; overflow: hidden;
     }}
-    .leaf-front {{ z-index: 2; border-radius: 4px 4px 0 0; line-height: calc(var(--unit-w) * 1.4); border-bottom: 0.5px solid #000; }}
-    .leaf-back {{ 
-        transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px;
-        background: linear-gradient(to top, #222 50%, #111 100%);
-    }}
+    
+    .msg-unit .leaf-front {{ border-radius: 4px 4px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 1px solid #000; }}
+    .small-unit .leaf-front {{ border-radius: 3px 3px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; }}
+    
+    .leaf-back {{ transform: rotateX(-180deg); line-height: 0px; background: linear-gradient(to top, #222 50%, #111 100%); }}
+    .msg-unit .leaf-back {{ border-radius: 0 0 4px 4px; }}
+    .small-unit .leaf-back {{ border-radius: 0 0 3px 3px; }}
 
     .flipping .leaf {{ transform: rotateX(-180deg); }}
     .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 20; transform: translateY(-50%); }}
 
-    /* 氣球女孩 */
     .banksy-art {{
         position: absolute; bottom: -200px; right: 0; width: 150px; height: 220px;
         background-image: url("data:image/png;base64,{img_base64}");
@@ -97,14 +121,14 @@ html_code = f"""
 <body>
     <div class="board-case" id="main-board">
         <div id="row-msg" class="row-container"></div>
-        <div id="row-date" class="row-container" style="margin-top:5px;"></div>
-        <div id="row-clock" class="row-container"></div>
+        <div id="row-date" class="row-container" style="margin-top:15px; opacity: 0.8;"></div>
+        <div id="row-clock" class="row-container" style="opacity: 0.8;"></div>
         <div id="banksy" class="banksy-art"></div>
     </div>
 
 <script>
     const fullText = "{input_text}";
-    // 1. 計算翻板數量：字數 <= 20 則字數/2，否則最多 10
+    // 規則：字數 <= 20 則商數 (字數/2)，否則上限 10
     const flapCount = Math.min(10, fullText.length <= 20 ? Math.floor(fullText.length / 2) : 10);
     
     let msgPages = [];
@@ -140,13 +164,15 @@ html_code = f"""
     }}
 
     function adjustSize() {{
-        // 考慮手機寬度，動態計算單個翻板寬度
-        const availableW = window.innerWidth * 0.85;
-        const unitW = Math.min(65, Math.floor(availableW / flapCount));
-        document.documentElement.style.setProperty('--unit-w', unitW + 'px');
-        document.querySelectorAll('.flap-unit').forEach(u => {{
-            u.style.fontSize = (unitW * 0.85) + 'px';
-        }});
+        const availableW = window.innerWidth * 0.9;
+        
+        // 訊息列寬度計算 (大)
+        const msgUnitW = Math.min(80, Math.floor(availableW / (flapCount + 1)));
+        document.documentElement.style.setProperty('--msg-w', msgUnitW + 'px');
+
+        // 日期時間寬度計算 (小，固定比例)
+        const smallUnitW = Math.max(20, Math.floor(msgUnitW * 0.5));
+        document.documentElement.style.setProperty('--small-w', smallUnitW + 'px');
     }}
 
     function init() {{

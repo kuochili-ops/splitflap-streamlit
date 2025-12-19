@@ -23,9 +23,9 @@ if os.path.exists(img_filename):
 
 # --- 3. 參數獲取 ---
 input_text = st.query_params.get("text", "HAPPY HOLIDAY")
-stay_sec = max(2.5, float(st.query_params.get("stay", 3.0)))
+stay_sec = max(3.0, float(st.query_params.get("stay", 3.0)))
 
-# --- 4. 核心 HTML (解決動畫失效問題) ---
+# --- 4. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -34,7 +34,7 @@ html_code = f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     :root {{
-        --flip-speed: 0.85s; /* 慢速、厚重 */
+        --flip-speed: 0.85s; /* 慢速且有重量感的翻轉 */
     }}
     body {{ 
         background-color: #f0f0f0;
@@ -57,37 +57,27 @@ html_code = f"""
     .flip-card {{
         position: relative; background-color: #222; border-radius: 6px;
         color: #f0f0f0; text-align: center; font-weight: bold;
+        transition: transform 0.2s;
     }}
 
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 1.0); }}
     .small-unit {{ width: var(--small-w); height: calc(var(--small-w) * 1.4); font-size: calc(var(--small-w) * 0.8); }}
 
-    /* 物理結構層 */
+    /* 結構與動畫 */
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #222; }}
-    
-    .msg-unit .top {{ top: 0; border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 1px solid #000; z-index: 1; }}
-    .msg-unit .bottom {{ bottom: 0; border-radius: 0 0 6px 6px; line-height: 0px; z-index: 0; }}
-    
-    .small-unit .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; }}
-    .small-unit .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
+    .top {{ top: 0; border-radius: 6px 6px 0 0; line-height: var(--line-h); border-bottom: 0.5px solid #000; z-index: 1; }}
+    .bottom {{ bottom: 0; border-radius: 0 0 6px 6px; line-height: 0px; z-index: 0; }}
 
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
         z-index: 10; transform-origin: bottom; transform-style: preserve-3d;
         transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1);
     }}
-
     .leaf-front, .leaf-back {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; backface-visibility: hidden; background: #222; overflow: hidden; }}
+    .leaf-front {{ border-radius: 6px 6px 0 0; line-height: var(--line-h); border-bottom: 0.5px solid #000; }}
+    .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 6px 6px; line-height: 0px; background: linear-gradient(to top, #222 50%, #151515 100%); }}
 
-    .msg-unit .leaf-front {{ border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 1px solid #000; }}
-    .msg-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 6px 6px; line-height: 0px; background: linear-gradient(to top, #222 50%, #151515 100%); }}
-
-    .small-unit .leaf-front {{ border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; }}
-    .small-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; background: linear-gradient(to top, #222 50%, #151515 100%); }}
-
-    /* 翻轉觸發 */
     .flipping .leaf {{ transform: rotateX(-180deg); }}
-    
     .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 15; transform: translateY(-50%); }}
 
     .banksy-art {{
@@ -108,87 +98,98 @@ html_code = f"""
 <script>
     const fullText = "{input_text}";
     const flapCount = Math.min(10, fullText.length <= 20 ? Math.floor(fullText.length / 2) : 10);
+    let prevMsg = "".padEnd(flapCount, ' ').split('');
+    let prevDate = "        ".split('');
+    let prevTimeStr = "     ".split('');
     
     let msgPages = [];
     for (let i = 0; i < fullText.length; i += flapCount) {{
         msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
     }}
 
-    function createHTML(char, unitClass) {{
-        return `
-            <div class="flip-card ${{unitClass}}">
-                <div class="top">${{char}}</div>
-                <div class="bottom">${{char}}</div>
-                <div class="leaf">
-                    <div class="leaf-front">${{char}}</div>
-                    <div class="leaf-back">${{char}}</div>
-                </div>
-                <div class="hinge"></div>
-            </div>`;
-    }}
-
-    function updateCard(el, newVal) {{
-        const oldVal = el.querySelector('.top').innerText;
+    function updateCard(elId, newVal, oldVal) {{
         if (newVal === oldVal) return;
+        const el = document.getElementById(elId);
+        if (!el) return;
 
-        // 1. 先移除動畫 class
+        // 完全依照您的 clock1219.py 邏輯：重新寫入整個 HTML 並觸發 reflow
+        el.innerHTML = `
+            <div class="top">${{newVal}}</div>
+            <div class="bottom">${{oldVal}}</div>
+            <div class="leaf">
+                <div class="leaf-front">${{oldVal}}</div>
+                <div class="leaf-back">${{newVal}}</div>
+            </div>
+            <div class="hinge"></div>
+        `;
+
         el.classList.remove('flipping');
-
-        // 2. 依照您的 clock1219 邏輯，在 leaf 翻下前，設定正確的正反面內容
-        el.querySelector('.top').innerText = newVal;
-        el.querySelector('.bottom').innerText = oldVal;
-        el.querySelector('.leaf-front').innerText = oldVal;
-        el.querySelector('.leaf-back').innerText = newVal;
-
-        // 3. 關鍵：強制觸發 Reflow，讓瀏覽器意識到動畫需要「從頭開始」執行
-        void el.offsetWidth;
-
-        // 4. 加入動畫 class 執行下翻
+        void el.offsetWidth; // 強制重繪
         el.classList.add('flipping');
-
-        // 5. 動畫結束後(850ms)，將靜態底層同步為新字
-        setTimeout(() => {{
-            el.querySelector('.bottom').innerText = newVal;
-        }}, 850);
     }}
 
     function adjustSize() {{
         const vw = window.innerWidth;
         const msgW = Math.min(85, Math.floor((vw * 0.9) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
+        document.documentElement.style.setProperty('--line-h', (msgW * 1.5) + 'px');
         const smallW = Math.floor(msgW * 0.55);
         document.documentElement.style.setProperty('--small-w', smallW + 'px');
     }}
 
     function init() {{
         adjustSize();
-        document.getElementById('row-msg').innerHTML = msgPages[0].map(c => createHTML(c, 'msg-unit')).join('');
-        document.getElementById('row-date').innerHTML = "        ".split('').map(c => createHTML(c, 'small-unit')).join('');
-        document.getElementById('row-clock').innerHTML = "     ".split('').map(c => createHTML(c, 'small-unit')).join('');
+        let msgHtml = '';
+        for (let i=0; i<flapCount; i++) msgHtml += `<div class="flip-card msg-unit" id="m${{i}}"></div>`;
+        document.getElementById('row-msg').innerHTML = msgHtml;
+
+        let dateHtml = '';
+        for (let i=0; i<8; i++) dateHtml += `<div class="flip-card small-unit" id="d${{i}}"></div>`;
+        document.getElementById('row-date').innerHTML = dateHtml;
+
+        let clockHtml = '';
+        for (let i=0; i<5; i++) clockHtml += `<div class="flip-card small-unit" id="t${{i}}"></div>`;
+        document.getElementById('row-clock').innerHTML = clockHtml;
     }}
 
     function tick() {{
         const n = new Date();
         const dStr = (["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + ["日","一","二","三","四","五","六"][n.getDay()]).padEnd(8, ' ');
         const tStr = String(n.getHours()).padStart(2,'0') + ":" + String(n.getMinutes()).padStart(2,'0');
-        document.querySelectorAll('#row-date .flip-card').forEach((u, i) => updateCard(u, dStr[i]));
-        document.querySelectorAll('#row-clock .flip-card').forEach((u, i) => updateCard(u, tStr[i]));
+        
+        for (let i=0; i<8; i++) {{
+            updateCard(`d${{i}}`, dStr[i], prevDate[i]);
+            prevDate[i] = dStr[i];
+        }}
+        for (let i=0; i<5; i++) {{
+            updateCard(`t${{i}}`, tStr[i], prevTimeStr[i]);
+            prevTimeStr[i] = tStr[i];
+        }}
     }}
 
     let pIdx = 0;
+    function cycleMsg() {{
+        pIdx = (pIdx + 1) % msgPages.length;
+        const currentPage = msgPages[pIdx];
+        currentPage.forEach((char, i) => {{
+            setTimeout(() => {{
+                updateCard(`m${{i}}`, char, prevMsg[i]);
+                prevMsg[i] = char;
+            }}, i * 100);
+        }});
+    }}
+
     window.onload = () => {{
         init();
         tick();
+        // 初始訊息顯示
+        msgPages[0].forEach((char, i) => {{
+            updateCard(`m${{i}}`, char, " ");
+            prevMsg[i] = char;
+        }});
+
         setInterval(tick, 1000);
-        if (msgPages.length > 1) {{
-            setInterval(() => {{
-                pIdx = (pIdx + 1) % msgPages.length;
-                document.querySelectorAll('#row-msg .flip-card').forEach((u, i) => {{
-                    // 加入稍微長一點的字元間延遲 (120ms)，營造波浪翻轉的機械感
-                    setTimeout(() => updateCard(u, msgPages[pIdx][i]), i * 120);
-                }});
-            }}, {stay_sec} * 1000);
-        }}
+        if (msgPages.length > 1) setInterval(cycleMsg, {stay_sec} * 1000);
     }};
     window.onresize = adjustSize;
 </script>

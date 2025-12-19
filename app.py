@@ -10,11 +10,11 @@ st.markdown("""
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
     .block-container {padding: 0 !important; background-color: transparent !important;}
     .stApp {background-color: transparent !important;}
-    iframe { border: none; width: 100%; height: 100vh; overflow: hidden; background-color: transparent !important; }
+    iframe { border: none; width: 100%; height: 100vh; overflow: hidden; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 圖片處理 (讀取本地圖片並轉為 Base64) ---
+# --- 2. 圖片處理 ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_base64 = ""
 if os.path.exists(img_filename):
@@ -22,7 +22,7 @@ if os.path.exists(img_filename):
         img_base64 = base64.b64encode(f.read()).decode()
 
 # --- 3. 參數獲取 ---
-input_text_raw = st.query_params.get("text", "HAPPY HOLIDAY")
+input_text = st.query_params.get("text", "HAPPY HOLIDAY")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
 # --- 4. 核心 HTML ---
@@ -31,112 +31,107 @@ html_code = f"""
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     :root {{
-        --font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
         --flip-speed: 0.6s;
     }}
     body {{ 
         background-color: #f0f0f0;
         background-image: url("https://www.transparenttextures.com/patterns/white-wall.png");
         display: flex; flex-direction: column; align-items: center; 
-        height: 100vh; margin: 0; overflow: hidden;
-        padding-top: 40px; box-sizing: border-box;
+        height: 100vh; margin: 0; overflow: hidden; padding-top: 5vh;
     }}
 
+    /* 面板外殼：寬度由內容決定 */
     .board-case {{
-        position: relative; padding: 25px 35px;
+        position: relative; padding: 20px 25px;
         background: rgba(30, 30, 30, 0.95); 
-        border-radius: 18px; box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+        border-radius: 15px; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 12px; z-index: 10;
+        gap: 10px; z-index: 10; max-width: 95vw;
     }}
 
-    .row-container {{ display: flex; flex-direction: row; gap: 6px; perspective: 1200px; }}
+    .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1000px; }}
 
-    /* 單個翻板單元：四層物理結構 */
+    /* 物理翻板單元 */
     .flap-unit {{
-        position: relative; width: var(--unit-w); height: var(--unit-h);
-        background: #222; border-radius: 6px; color: #fff; font-weight: 900;
+        position: relative; width: var(--unit-w); height: calc(var(--unit-w) * 1.4);
+        background: #222; border-radius: 4px; color: #fff; font-weight: 900;
+        font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
     }}
 
-    .msg-unit {{ --unit-w: var(--msg-w, 60px); --unit-h: calc(var(--unit-w) * 1.5); font-size: calc(var(--unit-w) * 0.9); }}
-    .small-unit {{ --unit-w: 22px; --unit-h: 32px; font-size: 16px; }}
-
-    /* 靜態層 */
     .static-half {{
         position: absolute; left: 0; width: 100%; height: 50%;
         overflow: hidden; background: #222; display: flex; justify-content: center;
     }}
-    .static-top {{ top: 0; border-radius: 4px 4px 0 0; line-height: var(--unit-h); border-bottom: 1px solid #000; z-index: 1; }}
+    .static-top {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--unit-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; }}
     .static-bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
-    /* 動態翻轉層 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-        z-index: 10; transform-origin: bottom; transition: transform var(--flip-speed) ease-in;
+        z-index: 10; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1);
         transform-style: preserve-3d;
     }}
     .leaf-front, .leaf-back {{
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         backface-visibility: hidden; background: #222; display: flex; justify-content: center; overflow: hidden;
     }}
-    .leaf-front {{ z-index: 2; border-radius: 4px 4px 0 0; line-height: var(--unit-h); border-bottom: 1px solid #000; }}
+    .leaf-front {{ z-index: 2; border-radius: 4px 4px 0 0; line-height: calc(var(--unit-w) * 1.4); border-bottom: 0.5px solid #000; }}
     .leaf-back {{ 
         transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px;
         background: linear-gradient(to top, #222 50%, #111 100%);
     }}
 
     .flipping .leaf {{ transform: rotateX(-180deg); }}
-
-    /* 裝飾細節 */
     .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 20; transform: translateY(-50%); }}
-    .screw {{ position: absolute; width: 8px; height: 8px; background: radial-gradient(circle at 3px 3px, #777, #111); border-radius: 50%; }}
 
+    /* 氣球女孩 */
     .banksy-art {{
-        position: absolute; bottom: -240px; right: 0px; width: 180px; height: 260px;
+        position: absolute; bottom: -200px; right: 0; width: 150px; height: 220px;
         background-image: url("data:image/png;base64,{img_base64}");
         background-size: contain; background-repeat: no-repeat; z-index: -1;
     }}
 </style>
 </head>
 <body>
-    <div class="board-case">
-        <div class="screw" style="top:8px; left:8px;"></div>
-        <div class="screw" style="top:8px; right:8px;"></div>
+    <div class="board-case" id="main-board">
         <div id="row-msg" class="row-container"></div>
-        <div id="row-date" class="row-container" style="margin-top:15px;"></div>
+        <div id="row-date" class="row-container" style="margin-top:5px;"></div>
         <div id="row-clock" class="row-container"></div>
-        <div class="screw" style="bottom:8px; left:8px;"></div>
-        <div class="screw" style="bottom:8px; right:8px;"></div>
         <div id="banksy" class="banksy-art"></div>
     </div>
 
 <script>
-    function createFlap(char, type) {{
-        return `
-            <div class="flap-unit ${{type}}">
-                <div class="static-half static-top"><div>${{char}}</div></div>
-                <div class="static-half static-bottom"><div>${{char}}</div></div>
-                <div class="leaf">
-                    <div class="leaf-front"><div>${{char}}</div></div>
-                    <div class="leaf-back"><div>${{char}}</div></div>
-                </div>
-                <div class="hinge"></div>
-            </div>`;
+    const fullText = "{input_text}";
+    // 1. 計算翻板數量：字數 <= 20 則字數/2，否則最多 10
+    const flapCount = Math.min(10, fullText.length <= 20 ? Math.floor(fullText.length / 2) : 10);
+    
+    let msgPages = [];
+    for (let i = 0; i < fullText.length; i += flapCount) {{
+        msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
+    }}
+
+    function createHTML(char, unitClass) {{
+        return `<div class="flap-unit ${{unitClass}}">
+            <div class="static-half static-top"><div>${{char}}</div></div>
+            <div class="static-half static-bottom"><div>${{char}}</div></div>
+            <div class="leaf">
+                <div class="leaf-front"><div>${{char}}</div></div>
+                <div class="leaf-back"><div>${{char}}</div></div>
+            </div>
+            <div class="hinge"></div>
+        </div>`;
     }}
 
     function updateFlap(unit, newChar) {{
-        const oldChar = unit.querySelector('.static-top div').innerText;
-        if (oldChar === newChar) return;
-
+        const current = unit.querySelector('.static-top div').innerText;
+        if (current === newChar) return;
         unit.querySelector('.static-top div').innerText = newChar;
         unit.querySelector('.leaf-back div').innerText = newChar;
-
         unit.classList.remove('flipping');
         void unit.offsetWidth;
         unit.classList.add('flipping');
-
         setTimeout(() => {{
             unit.querySelector('.static-bottom div').innerText = newChar;
             unit.querySelector('.leaf-front div').innerText = newChar;
@@ -144,19 +139,21 @@ html_code = f"""
         }}, 600);
     }}
 
-    const inputRaw = "{input_text_raw}";
-    const flapCount = 10;
-    let msgPages = [];
-    for (let i = 0; i < inputRaw.length; i += flapCount) {{
-        msgPages.push(inputRaw.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
+    function adjustSize() {{
+        // 考慮手機寬度，動態計算單個翻板寬度
+        const availableW = window.innerWidth * 0.85;
+        const unitW = Math.min(65, Math.floor(availableW / flapCount));
+        document.documentElement.style.setProperty('--unit-w', unitW + 'px');
+        document.querySelectorAll('.flap-unit').forEach(u => {{
+            u.style.fontSize = (unitW * 0.85) + 'px';
+        }});
     }}
 
     function init() {{
-        const w = Math.min(60, Math.max(30, Math.floor((window.innerWidth - 120) / flapCount)));
-        document.documentElement.style.setProperty('--msg-w', w + 'px');
-        document.getElementById('row-msg').innerHTML = msgPages[0].map(c => createFlap(c, 'msg-unit')).join('');
-        document.getElementById('row-date').innerHTML = "        ".split('').map(c => createFlap(c, 'small-unit')).join('');
-        document.getElementById('row-clock').innerHTML = "     ".split('').map(c => createFlap(c, 'small-unit')).join('');
+        adjustSize();
+        document.getElementById('row-msg').innerHTML = msgPages[0].map(c => createHTML(c, 'msg-unit')).join('');
+        document.getElementById('row-date').innerHTML = "        ".split('').map(c => createHTML(c, 'small-unit')).join('');
+        document.getElementById('row-clock').innerHTML = "     ".split('').map(c => createHTML(c, 'small-unit')).join('');
     }}
 
     function tick() {{
@@ -174,12 +171,13 @@ html_code = f"""
         setInterval(tick, 1000);
         if (msgPages.length > 1) setInterval(() => {{
             pIdx = (pIdx + 1) % msgPages.length;
-            document.querySelectorAll('#row-msg .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, msgPages[pIdx][i]), i*60));
+            document.querySelectorAll('#row-msg .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, msgPages[pIdx][i]), i*80));
         }}, {stay_sec} * 1000);
     }};
+    window.onresize = adjustSize;
 </script>
 </body>
 </html>
 """
 
-components.html(html_code, height=1000, scrolling=False)
+components.html(html_code, height=800, scrolling=False)

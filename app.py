@@ -16,7 +16,7 @@ st.markdown("""
 input_text_raw = st.query_params.get("text", "BANKSY STYLE")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 核心 HTML ---
+# --- 3. 核心 HTML (內嵌 Base64 圖案) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -42,7 +42,7 @@ html_code = f"""
     /* 面板外殼 */
     .board-case {{
         position: relative; padding: 35px 45px;
-        background: rgba(0, 0, 0, 0.7); border-radius: 20px;
+        background: rgba(0, 0, 0, 0.75); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 40px 80px rgba(0,0,0,0.8);
         backdrop-filter: blur(10px);
@@ -52,31 +52,21 @@ html_code = f"""
         z-index: 10;
     }}
 
-    /* 塗鴉圖案容器 */
-    .graffiti {{
+    /* 氣球女孩圖案 - Base64 直接嵌入，保證顯示 */
+    .balloon-girl {{
         position: absolute;
-        width: 160px; height: 160px;
+        bottom: -130px; 
+        right: -40px;
+        width: 140px; 
+        height: 180px;
         background-size: contain;
         background-repeat: no-repeat;
         pointer-events: none;
-        z-index: -1; 
-        transition: opacity 0.5s ease;
-    }}
-    
-    /* 右下角氣球女孩 - 使用 Wikimedia 穩定來源 */
-    .balloon {{
-        bottom: -115px; right: -50px;
-        background-image: url("https://upload.wikimedia.org/wikipedia/commons/f/f3/Banksy_Balloon_Girl.svg");
-        filter: brightness(0.2); /* 讓它看起來像黑色噴漆 */
-    }}
-
-    /* 左下角擲花者 - 使用替代圖源 */
-    .thrower {{
-        bottom: -110px; left: -60px;
-        background-image: url("https://upload.wikimedia.org/wikipedia/en/2/23/Banksy_Flower_Thrower.png");
-        filter: grayscale(1) contrast(1.2) brightness(0.8);
-        width: 180px; height: 180px;
-        display: none;
+        z-index: -1;
+        opacity: 0.9;
+        /* Banksy Balloon Girl Base64 */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 150'%3E%3Cpath d='M30 110 c-2 -5 -5 -15 -5 -25 0 -20 15 -35 35 -35 5 0 10 2 15 5 10 8 15 20 15 35 0 25 -15 45 -40 45 -10 0 -18 -5 -20 -15 z' fill='%23111'/%3E%3Cpath d='M40 145 l-2 -15 5 -10 3 10 -2 15 z' fill='%23111'/%3E%3Ccircle cx='70' cy='30' r='12' fill='%23cc0000'/%3E%3Cpath d='M70 42 l0 20 -15 15' stroke='%23333' fill='none'/%3E%3C/svg%3E");
+        display: block;
     }}
 
     .screw {{
@@ -101,7 +91,7 @@ html_code = f"""
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
     .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
-    .footer-note {{ margin-top: 130px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
+    .footer-note {{ margin-top: 150px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
 </style>
 </head>
 <body onclick="changeStyle()">
@@ -114,16 +104,15 @@ html_code = f"""
         <div class="screw" style="bottom:12px; left:12px;"></div>
         <div class="screw" style="bottom:12px; right:12px;"></div>
 
-        <div id="graf-balloon" class="graffiti balloon"></div>
-        <div id="graf-thrower" class="graffiti thrower"></div>
+        <div id="graf-girl" class="balloon-girl"></div>
     </div>
-    <div class="footer-note">🎨 Click Background to Switch Styles</div>
+    <div class="footer-note">🎨 點擊切換牆面風格 | 𓃥白六製作</div>
 
 <script>
     const styles = [
-        {{ c: '#f0f0f0', t: 'white-wall', g: 'balloon' }},    // 白牆+氣球
-        {{ c: '#999999', t: 'concrete-wall', g: 'thrower' }}, // 水泥+擲花
-        {{ c: '#1a1a1a', t: 'carbon-fibre', g: 'none' }}     // 碳纖維
+        {{ c: '#f0f0f0', t: 'white-wall', g: true }},    // 白牆+女孩
+        {{ c: '#444444', t: 'concrete-wall', g: false }}, // 深灰工業風
+        {{ c: '#1a1a1a', t: 'carbon-fibre', g: false }}  // 碳纖維黑
     ];
     let sIdx = 0;
     function changeStyle() {{
@@ -132,9 +121,8 @@ html_code = f"""
         document.body.style.backgroundColor = s.c;
         document.body.style.backgroundImage = s.t === 'none' ? 'none' : `url("https://www.transparenttextures.com/patterns/${{s.t}}.png")`;
         
-        document.getElementById('graf-balloon').style.display = (s.g === 'balloon') ? 'block' : 'none';
-        document.getElementById('graf-thrower').style.display = (s.g === 'thrower') ? 'block' : 'none';
-        document.querySelector('.footer-note').style.color = (s.c === '#1a1a1a') ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+        document.getElementById('graf-girl').style.display = s.g ? 'block' : 'none';
+        document.querySelector('.footer-note').style.color = (s.c === '#1a1a1a' || s.c === '#444444') ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
     }}
 
     function createFlap(char, type) {{

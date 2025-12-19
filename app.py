@@ -14,7 +14,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 圖片處理 ---
+# --- 2. 圖片處理 (讀取本地圖片並轉為 Base64) ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_base64 = ""
 if os.path.exists(img_filename):
@@ -33,15 +33,14 @@ html_code = f"""
 <meta charset="UTF-8">
 <style>
     :root {{
-        --font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
-        --flip-speed: 0.7s;
-        --card-bg: #222;
+        --font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+        --flip-speed: 0.6s;
     }}
     body {{ 
         background-color: #f0f0f0;
         background-image: url("https://www.transparenttextures.com/patterns/white-wall.png");
         display: flex; flex-direction: column; align-items: center; 
-        height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
+        height: 100vh; margin: 0; overflow: hidden;
         padding-top: 40px; box-sizing: border-box;
     }}
 
@@ -53,65 +52,45 @@ html_code = f"""
         gap: 12px; z-index: 10;
     }}
 
-    .row-container {{ display: flex; flex-direction: row; gap: 5px; perspective: 1000px; margin-bottom: 5px; }}
+    .row-container {{ display: flex; flex-direction: row; gap: 6px; perspective: 1200px; }}
 
-    /* 單個翻板單元結構 */
+    /* 單個翻板單元：四層物理結構 */
     .flap-unit {{
-        position: relative;
-        background: var(--card-bg);
-        border-radius: 6px;
-        color: #fff;
-        font-weight: 900;
-        transform-style: preserve-3d;
+        position: relative; width: var(--unit-w); height: var(--unit-h);
+        background: #222; border-radius: 6px; color: #fff; font-weight: 900;
     }}
 
-    /* 尺寸定義 */
-    .msg-unit {{ 
-        --unit-w: var(--msg-w, 60px); 
-        --unit-h: calc(var(--unit-w) * 1.5); 
-        width: var(--unit-w); height: var(--unit-h); 
-        font-size: calc(var(--unit-w) * 0.9); 
-    }}
-    .small-unit {{ --unit-w: 22px; --unit-h: 32px; width: var(--unit-w); height: var(--unit-h); font-size: 16px; }}
+    .msg-unit {{ --unit-w: var(--msg-w, 60px); --unit-h: calc(var(--unit-w) * 1.5); font-size: calc(var(--unit-w) * 0.9); }}
+    .small-unit {{ --unit-w: 22px; --unit-h: 32px; font-size: 16px; }}
 
-    /* 物理層級樣式 */
+    /* 靜態層 */
     .static-half {{
         position: absolute; left: 0; width: 100%; height: 50%;
-        overflow: hidden; background: var(--card-bg);
-        display: flex; justify-content: center;
+        overflow: hidden; background: #222; display: flex; justify-content: center;
     }}
-    .static-top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; z-index: 1; border-bottom: 1px solid #000; }}
-    .static-bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; z-index: 0; }}
+    .static-top {{ top: 0; border-radius: 4px 4px 0 0; line-height: var(--unit-h); border-bottom: 1px solid #000; z-index: 1; }}
+    .static-bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
+    /* 動態翻轉層 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-        z-index: 10; transform-origin: bottom;
-        transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 10; transform-origin: bottom; transition: transform var(--flip-speed) ease-in;
         transform-style: preserve-3d;
     }}
-
-    .leaf-part {{
+    .leaf-front, .leaf-back {{
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        backface-visibility: hidden; background: var(--card-bg);
-        display: flex; justify-content: center;
+        backface-visibility: hidden; background: #222; display: flex; justify-content: center; overflow: hidden;
     }}
-    .leaf-front {{ z-index: 2; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 1px solid #000; }}
+    .leaf-front {{ z-index: 2; border-radius: 4px 4px 0 0; line-height: var(--unit-h); border-bottom: 1px solid #000; }}
     .leaf-back {{ 
-        z-index: 1; transform: rotateX(-180deg); align-items: flex-end; border-radius: 0 0 4px 4px; 
+        transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px;
         background: linear-gradient(to top, #222 50%, #111 100%);
     }}
-
-    .text {{ position: absolute; width: 100%; text-align: center; }}
-    .msg-unit .text {{ line-height: calc(var(--msg-w) * 1.5); height: calc(var(--msg-w) * 1.5); }}
-    .small-unit .text {{ line-height: 32px; height: 32px; }}
 
     .flipping .leaf {{ transform: rotateX(-180deg); }}
 
     /* 裝飾細節 */
-    .hinge {{
-        position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-        background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 50;
-    }}
+    .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 20; transform: translateY(-50%); }}
     .screw {{ position: absolute; width: 8px; height: 8px; background: radial-gradient(circle at 3px 3px, #777, #111); border-radius: 50%; }}
 
     .banksy-art {{
@@ -119,87 +98,71 @@ html_code = f"""
         background-image: url("data:image/png;base64,{img_base64}");
         background-size: contain; background-repeat: no-repeat; z-index: -1;
     }}
-    .footer-note {{ margin-top: 250px; font-family: var(--font-family); font-size: 11px; color: rgba(0,0,0,0.4); font-weight: bold; }}
 </style>
 </head>
-<body onclick="changeStyle()">
+<body>
     <div class="board-case">
         <div class="screw" style="top:8px; left:8px;"></div>
         <div class="screw" style="top:8px; right:8px;"></div>
         <div id="row-msg" class="row-container"></div>
-        <div id="row-date" class="row-container" style="margin-top:10px;"></div>
+        <div id="row-date" class="row-container" style="margin-top:15px;"></div>
         <div id="row-clock" class="row-container"></div>
         <div class="screw" style="bottom:8px; left:8px;"></div>
         <div class="screw" style="bottom:8px; right:8px;"></div>
         <div id="banksy" class="banksy-art"></div>
     </div>
-    <div class="footer-note">🎨 點擊切換風格 | 物理翻板技術優化版</div>
 
 <script>
-    function createFlapHTML(char, type) {{
+    function createFlap(char, type) {{
         return `
             <div class="flap-unit ${{type}}">
-                <div class="static-half static-top"><div class="text">${{char}}</div></div>
-                <div class="static-half static-bottom"><div class="text">${{char}}</div></div>
+                <div class="static-half static-top"><div>${{char}}</div></div>
+                <div class="static-half static-bottom"><div>${{char}}</div></div>
                 <div class="leaf">
-                    <div class="leaf-part leaf-front"><div class="text">${{char}}</div></div>
-                    <div class="leaf-part leaf-back"><div class="text">${{char}}</div></div>
+                    <div class="leaf-front"><div>${{char}}</div></div>
+                    <div class="leaf-back"><div>${{char}}</div></div>
                 </div>
                 <div class="hinge"></div>
             </div>`;
     }}
 
     function updateFlap(unit, newChar) {{
-        const currentTop = unit.querySelector('.static-top .text').innerText;
-        if (currentTop === newChar) return;
+        const oldChar = unit.querySelector('.static-top div').innerText;
+        if (oldChar === newChar) return;
 
-        // 核心物理邏輯：
-        // 1. 後上層設為新字
-        unit.querySelector('.static-top .text').innerText = newChar;
-        // 2. 翻轉片背面設為新字
-        unit.querySelector('.leaf-back .text').innerText = newChar;
-        
-        const leaf = unit.querySelector('.leaf');
+        unit.querySelector('.static-top div').innerText = newChar;
+        unit.querySelector('.leaf-back div').innerText = newChar;
+
         unit.classList.remove('flipping');
-        void unit.offsetWidth; 
+        void unit.offsetWidth;
         unit.classList.add('flipping');
 
-        // 動畫結束後的資料重整
         setTimeout(() => {{
-            unit.querySelector('.static-bottom .text').innerText = newChar;
-            unit.querySelector('.leaf-front .text').innerText = newChar;
-            leaf.style.transition = 'none';
+            unit.querySelector('.static-bottom div').innerText = newChar;
+            unit.querySelector('.leaf-front div').innerText = newChar;
             unit.classList.remove('flipping');
-            void unit.offsetWidth;
-            leaf.style.transition = '';
-        }}, 650);
+        }}, 600);
     }}
 
-    const cleanText = (str => {{
-        let d = str; try {{ d = decodeURIComponent(d.replace(/\\+/g, ' ')); }} catch(e) {{}}
-        return d;
-    }})("{input_text_raw}");
-
+    const inputRaw = "{input_text_raw}";
     const flapCount = 10;
     let msgPages = [];
-    for (let i = 0; i < cleanText.length; i += flapCount) {{
-        msgPages.push(cleanText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
+    for (let i = 0; i < inputRaw.length; i += flapCount) {{
+        msgPages.push(inputRaw.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
     }}
 
     function init() {{
-        const w = Math.min(60, Math.max(30, Math.floor((window.innerWidth - 100) / flapCount)));
+        const w = Math.min(60, Math.max(30, Math.floor((window.innerWidth - 120) / flapCount)));
         document.documentElement.style.setProperty('--msg-w', w + 'px');
-        
-        document.getElementById('row-msg').innerHTML = msgPages[0].map(c => createFlapHTML(c, 'msg-unit')).join('');
-        document.getElementById('row-date').innerHTML = "        ".split('').map(c => createFlapHTML(c, 'small-unit')).join('');
-        document.getElementById('row-clock').innerHTML = "     ".split('').map(c => createFlapHTML(c, 'small-unit')).join('');
+        document.getElementById('row-msg').innerHTML = msgPages[0].map(c => createFlap(c, 'msg-unit')).join('');
+        document.getElementById('row-date').innerHTML = "        ".split('').map(c => createFlap(c, 'small-unit')).join('');
+        document.getElementById('row-clock').innerHTML = "     ".split('').map(c => createFlap(c, 'small-unit')).join('');
     }}
 
     function tick() {{
         const n = new Date();
         const dStr = (["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + ["日","一","二","三","四","五","六"][n.getDay()]).padEnd(8, ' ');
         const tStr = String(n.getHours()).padStart(2,'0') + ":" + String(n.getMinutes()).padStart(2,'0');
-
         document.querySelectorAll('#row-date .flap-unit').forEach((u, i) => updateFlap(u, dStr[i]));
         document.querySelectorAll('#row-clock .flap-unit').forEach((u, i) => updateFlap(u, tStr[i]));
     }}
@@ -208,20 +171,12 @@ html_code = f"""
     window.onload = () => {{
         init();
         tick();
+        setInterval(tick, 1000);
         if (msgPages.length > 1) setInterval(() => {{
             pIdx = (pIdx + 1) % msgPages.length;
-            document.querySelectorAll('#row-msg .flap-unit').forEach((u, i) => {{
-                setTimeout(() => updateFlap(u, msgPages[pIdx][i]), i * 70);
-            }});
+            document.querySelectorAll('#row-msg .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, msgPages[pIdx][i]), i*60));
         }}, {stay_sec} * 1000);
-        setInterval(tick, 1000);
     }};
-
-    function changeStyle() {{
-        const colors = ['#f0f0f0', '#333', '#1a1a1a'];
-        const current = getComputedStyle(document.body).backgroundColor;
-        // 簡易切換邏輯
-    }}
 </script>
 </body>
 </html>

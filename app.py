@@ -65,7 +65,7 @@ html_code = f"""
     /* 使用您上傳的真實 Banksy 圖片 */
     .banksy-art {{
         position: absolute;
-        bottom: -180px; 
+        bottom: -150px; 
         right: -30px;
         width: 200px; 
         height: 250px;

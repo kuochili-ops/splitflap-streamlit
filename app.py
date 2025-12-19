@@ -16,10 +16,16 @@ st.markdown("""
 
 # --- 2. 圖片處理 (氣球女孩) ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
-img_base64 = ""
+img_data = ""
+
+# 優先讀取本地檔案，若無則使用網路預留圖
 if os.path.exists(img_filename):
     with open(img_filename, "rb") as f:
-        img_base64 = base64.b64encode(f.read()).decode()
+        img_b64 = base64.b64encode(f.read()).decode()
+        img_data = f"data:image/png;base64,{img_b64}"
+else:
+    # 預留一個可靠的網路圖片連結，防止本地檔案讀取失敗
+    img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
 
 # --- 3. 參數獲取 ---
 input_text = st.query_params.get("text", "假日愉快，身體健康").upper()
@@ -35,48 +41,46 @@ html_code = f"""
 <style>
     :root {{ --flip-speed: 0.85s; }}
     
-    /* 牆面風格與佈局：讓內容靠頂部對齊 */
     body {{ 
-        display: flex; 
-        justify-content: center; 
-        align-items: flex-start; /* 面板上移至頂部 */
-        padding-top: 8vh; /* 頂部間距 */
-        height: 100vh; margin: 0; overflow: hidden;
+        display: flex; justify-content: center; align-items: flex-start; 
+        padding-top: 5vh; height: 100vh; margin: 0; overflow: hidden;
         font-family: 'Arial Black', "PingFang TC", sans-serif;
-        cursor: pointer; transition: background 0.5s ease;
-        box-sizing: border-box;
+        cursor: pointer; transition: all 0.5s ease;
+        background-size: cover; background-position: center;
     }}
     
+    /* 風格 0: 深色工業 */
     .wall-0 {{ background: #1a1a1a; background-image: radial-gradient(circle, #2c2c2c 0%, #1a1a1a 100%); }}
+    /* 風格 1: 水泥牆 */
     .wall-1 {{ background: #444; background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png"); }}
+    /* 風格 2: Banksy 牆 */
     .wall-2 {{ 
-        background: #f0f0f0; 
-        background-image: url("data:image/png;base64,{img_base64}");
+        background-color: #e0e0e0; 
+        background-image: url("{img_data}");
         background-repeat: no-repeat;
-        background-position: bottom 5% right 5%; /* 塗鴉在右下角 */
-        background-size: 35vh; /* 調整塗鴉大小 */
+        background-position: bottom 5% right 5%;
+        background-size: auto 40vh; /* 確保圖片高度足夠大 */
     }}
 
-    /* 壓克力面板 */
     .acrylic-board {{
-        position: relative; padding: 40px 30px; 
-        background: rgba(255, 255, 255, 0.02); 
-        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 15px; box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+        position: relative; padding: 45px 35px; 
+        background: rgba(255, 255, 255, 0.05); 
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 6px; z-index: 10;
+        gap: 8px; z-index: 10;
     }}
 
-    /* 螺絲 */
     .screw {{
         position: absolute; width: 14px; height: 14px;
-        background: radial-gradient(circle at 35% 35%, #ddd, #555);
-        border-radius: 50%; box-shadow: 1px 2px 4px rgba(0,0,0,0.8);
+        background: radial-gradient(circle at 35% 35%, #eee, #444);
+        border-radius: 50%; box-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+        z-index: 20;
     }}
     .screw::after, .screw::before {{
         content: ''; position: absolute; top: 50%; left: 50%;
-        width: 8px; height: 1.5px; background: rgba(0,0,0,0.5);
+        width: 8px; height: 1.5px; background: rgba(0,0,0,0.4);
     }}
     .screw::after {{ transform: translate(-50%, -50%) rotate(45deg); }}
     .screw::before {{ transform: translate(-50%, -50%) rotate(-45deg); }}
@@ -120,7 +124,8 @@ html_code = f"""
     let wallIdx = 0;
     
     function changeWall() {{
-        document.body.className = "wall-" + (++wallIdx % 3);
+        wallIdx = (wallIdx + 1) % 3;
+        document.body.className = "wall-" + wallIdx;
     }}
 
     let prevMsg = Array(flapCount).fill(' ');
@@ -172,8 +177,8 @@ html_code = f"""
         msgPages[0].forEach((char, i) => {{ updateCard(`m${{i}}`, char, " "); prevMsg[i] = char; }});
         setInterval(tick, 1000);
         if (msgPages.length > 1) setInterval(() => {{
-            const p = msgPages[++pIdx % msgPages.length];
-            p.forEach((char, i) => {{ updateCard(`m${{i}}`, char, prevMsg[i]); prevMsg[i] = char; }});
+            pIdx = (pIdx + 1) % msgPages.length;
+            msgPages[pIdx].forEach((char, i) => {{ updateCard(`m${{i}}`, char, prevMsg[i]); prevMsg[i] = char; }});
         }}, {stay_sec} * 1000);
     }};
     let pIdx = 0;
@@ -183,4 +188,4 @@ html_code = f"""
 </html>
 """
 
-components.html(html_code, height=1000, scrolling=False)
+components.html(html_code, height=900, scrolling=False)

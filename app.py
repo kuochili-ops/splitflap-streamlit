@@ -14,7 +14,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 圖片處理 (氣球女孩) ---
+# --- 2. 圖片處理 (班克西) ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_data = ""
 if os.path.exists(img_filename):
@@ -27,7 +27,7 @@ else:
 input_text = st.query_params.get("text", "假日愉快，身體健康").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 3.0)))
 
-# --- 3. 核心 HTML (比照指定翻板做法) ---
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -38,11 +38,10 @@ html_code = f"""
         display: flex; justify-content: center; align-items: flex-start; 
         padding-top: 5vh; height: 100vh; margin: 0; overflow: hidden;
         font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
-        cursor: pointer; transition: all 0.5s ease;
+        background-color: #1a1a1a;
+        cursor: pointer;
     }}
     
-    .wall-0 {{ background: #1a1a1a; background-image: radial-gradient(circle, #2c2c2c 0%, #1a1a1a 100%); }}
-    .wall-1 {{ background: #444; background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png"); }}
     .wall-2 {{ 
         background-color: #d0d0d0; 
         background-image: url("{img_data}");
@@ -58,85 +57,77 @@ html_code = f"""
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 15px; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 8px; z-index: 10; margin-top: 2vh;
+        gap: 12px; z-index: 10; margin-top: 2vh;
     }}
 
-    .screw {{
-        position: absolute; width: 12px; height: 12px;
-        background: radial-gradient(circle at 35% 35%, #999, #333);
-        border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.6);
-    }}
-    .tl {{ top: 12px; left: 12px; }} .tr {{ top: 12px; right: 12px; }}
-    .bl {{ bottom: 12px; left: 12px; }} .br {{ bottom: 12px; right: 12px; }}
-
-    .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1200px; }}
-    
-    /* 翻板核心 */
     .flip-card {{
         position: relative;
         background-color: #1a1a1a;
         color: #e0e0e0;
         text-align: center;
         font-weight: 900;
+        perspective: 1000px;
     }}
 
+    /* 靜態底板：上半部與下半部 */
     .top, .bottom {{
         position: absolute; left: 0; width: 100%; height: 50%;
-        overflow: hidden; background: #1a1a1a; border: 0.5px solid #000;
+        overflow: hidden; background: #1a1a1a;
     }}
-    .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; }}
-    .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; }}
+    
+    /* 修正：上半部文字一開始維持舊字，翻轉完才變新字，或提高葉片層級 */
+    .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; z-index: 1; }}
+    .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
+    /* 翻轉葉片：必須是最高層級 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-        z-index: 10; transform-origin: bottom;
+        z-index: 20; /* 確保葉片蓋住 top */
+        transform-origin: bottom;
         transform-style: preserve-3d;
-        transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); /* 速度調整為 1.2s */
+        transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
     }}
 
     .leaf-front, .leaf-back {{
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         backface-visibility: hidden; background: #1a1a1a;
     }}
-    .leaf-front {{ border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; }}
-    .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; }}
+    .leaf-front {{ z-index: 2; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; }}
+    .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; border-top: 1px solid #000; }}
 
     .flipping .leaf {{ transform: rotateX(-180deg); }}
 
     .hinge {{
         position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-        background: #000; z-index: 20; transform: translateY(-50%);
+        background: #000; z-index: 30; transform: translateY(-50%);
     }}
 
-    /* 尺寸配置 */
     .msg-unit {{ --w: var(--msg-w); --h: calc(var(--msg-w) * 1.5); --fs: calc(var(--msg-w) * 1.1); width: var(--w); height: var(--h); font-size: var(--fs); }}
     .small-unit {{ --w: 30px; --h: 42px; --fs: 26px; width: var(--w); height: var(--h); font-size: var(--fs); }}
-
+    .row-container {{ display: flex; gap: 4px; }}
 </style>
 </head>
-<body class="wall-0" onclick="changeWall()">
-    <div class="acrylic-board" onclick="event.stopPropagation()">
-        <div class="screw tl"></div><div class="screw tr"></div>
+<body class="wall-2">
+    <div class="acrylic-board">
         <div id="row-msg" class="row-container"></div>
         <div id="row-date" class="row-container" style="margin-top: 5px;"></div>
         <div id="row-clock" class="row-container"></div>
-        <div class="screw bl"></div><div class="screw br"></div>
     </div>
 
 <script>
     const fullText = "{input_text}";
-    const flapCount = Math.min(10, Math.max(1, Math.floor(fullText.length / 2)));
-    let wallIdx = 0;
-    let pIdx = 0;
+    const flapCount = Math.min(10, Math.floor(fullText.length / 2) || 5);
     let prevMsg = [], prevDate = [], prevTime = [];
-
-    function changeWall() {{
-        wallIdx = (wallIdx + 1) % 3;
-        document.body.className = "wall-" + wallIdx;
-    }}
 
     function updateCard(el, nv, ov) {{
         if (nv === ov && el.innerHTML !== "") return;
+        
+        // 關鍵結構：
+        // .top 顯示【新字】
+        // .bottom 顯示【舊字】
+        // .leaf-front 顯示【舊字】 (翻下去遮住 bottom)
+        // .leaf-back 顯示【新字】 (蓋在底下的內容上)
+        
         el.innerHTML = `
             <div class="top">${{nv}}</div>
             <div class="bottom">${{ov}}</div>
@@ -146,15 +137,30 @@ html_code = f"""
             </div>
             <div class="hinge"></div>
         `;
+        
+        // 為了防止 nv 在 top 處太早露出：
+        // 我們讓 .top 在動畫剛開始時維持 visibility: hidden 或者是讓 leaf 擋死它
+        // 這裡透過 z-index 確保 leaf 絕對高於 top 即可解決
+        
         el.classList.remove('flipping');
         void el.offsetWidth;
         el.classList.add('flipping');
+
+        // 當翻轉完成後，確保底板文字更新一致
+        setTimeout(() => {{
+            const b = el.querySelector('.bottom');
+            if(b) b.innerText = nv;
+        }}, 1200);
     }}
 
-    function adjustSize() {{
+    function init() {{
         const vw = window.innerWidth;
         const msgW = Math.min(65, Math.floor((vw * 0.85) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
+        
+        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="flip-card msg-unit" id="m${{i}}"></div>`).join('');
+        document.getElementById('row-date').innerHTML = Array.from({{length: 7}}, (_, i) => `<div class="flip-card small-unit" id="d${{i}}"></div>`).join('');
+        document.getElementById('row-clock').innerHTML = Array.from({{length: 8}}, (_, i) => `<div class="flip-card small-unit" id="t${{i}}"></div>`).join('');
     }}
 
     function tick() {{
@@ -164,40 +170,31 @@ html_code = f"""
         const dStr = months[n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + weeks[n.getDay()];
         const tStr = String(n.getHours()).padStart(2,'0') + ":" + String(n.getMinutes()).padStart(2,'0') + ":" + String(n.getSeconds()).padStart(2,'0');
 
-        dStr.split('').forEach((c, i) => {{ 
-            updateCard(document.getElementById(`d${{i}}`), c, prevDate[i] || ""); 
-            prevDate[i] = c; 
-        }});
-        tStr.split('').forEach((c, i) => {{ 
-            updateCard(document.getElementById(`t${{i}}`), c, prevTime[i] || ""); 
-            prevTime[i] = c; 
-        }});
+        dStr.split('').forEach((c, i) => {{ updateCard(document.getElementById(`d${{i}}`), c, prevDate[i] || ""); prevDate[i] = c; }});
+        tStr.split('').forEach((c, i) => {{ updateCard(document.getElementById(`t${{i}}`), c, prevTime[i] || ""); prevTime[i] = c; }});
     }}
 
     window.onload = () => {{
-        adjustSize();
-        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="flip-card msg-unit" id="m${{i}}"></div>`).join('');
-        document.getElementById('row-date').innerHTML = Array.from({{length: 7}}, (_, i) => `<div class="flip-card small-unit" id="d${{i}}"></div>`).join('');
-        document.getElementById('row-clock').innerHTML = Array.from({{length: 8}}, (_, i) => `<div class="flip-card small-unit" id="t${{i}}"></div>`).join('');
-
+        init();
         const msgPages = [];
         for (let i = 0; i < fullText.length; i += flapCount) {{
             msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
         }}
-
         msgPages[0].forEach((c, i) => {{ updateCard(document.getElementById(`m${{i}}`), c, ""); prevMsg[i] = c; }});
         tick();
         setInterval(tick, 1000);
-
-        if (msgPages.length > 1) setInterval(() => {{
-            pIdx = (pIdx + 1) % msgPages.length;
-            msgPages[pIdx].forEach((c, i) => {{ 
-                updateCard(document.getElementById(`m${{i}}`), c, prevMsg[i]); 
-                prevMsg[i] = c; 
-            }});
-        }}, {stay_sec} * 1000);
+        if (msgPages.length > 1) {{
+            setInterval(() => {{
+                let pIdx = (Math.floor(Date.now() / ({stay_sec} * 1000))) % msgPages.length;
+                msgPages[pIdx].forEach((c, i) => {{ 
+                    if(prevMsg[i] !== c) {{
+                        updateCard(document.getElementById(`m${{i}}`), c, prevMsg[i]); 
+                        prevMsg[i] = c; 
+                    }}
+                }});
+            }}, 1000);
+        }}
     }};
-    window.onresize = adjustSize;
 </script>
 </body>
 </html>

@@ -16,7 +16,7 @@ st.markdown("""
 input_text_raw = st.query_params.get("text", "BANKSY STYLE")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 核心 HTML (內嵌 Base64 圖案) ---
+# --- 3. 核心 HTML (優化後的 SVG) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -36,10 +36,9 @@ html_code = f"""
         justify-content: flex-start; 
         align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
-        padding-top: 30px; 
+        padding-top: 35px; 
     }}
 
-    /* 面板外殼 */
     .board-case {{
         position: relative; padding: 35px 45px;
         background: rgba(0, 0, 0, 0.75); border-radius: 20px;
@@ -52,20 +51,21 @@ html_code = f"""
         z-index: 10;
     }}
 
-    /* 氣球女孩圖案 - Base64 直接嵌入，保證顯示 */
+    /* 氣球女孩圖案 - 修正 ViewBox 與比例 */
     .balloon-girl {{
         position: absolute;
-        bottom: -130px; 
-        right: -40px;
-        width: 140px; 
-        height: 180px;
+        bottom: -150px; 
+        right: -60px;
+        width: 220px; /* 增加寬度以容納氣球與女孩的間距 */
+        height: 200px;
         background-size: contain;
         background-repeat: no-repeat;
+        background-position: center bottom;
         pointer-events: none;
         z-index: -1;
         opacity: 0.9;
-        /* Banksy Balloon Girl Base64 */
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 150'%3E%3Cpath d='M30 110 c-2 -5 -5 -15 -5 -25 0 -20 15 -35 35 -35 5 0 10 2 15 5 10 8 15 20 15 35 0 25 -15 45 -40 45 -10 0 -18 -5 -20 -15 z' fill='%23111'/%3E%3Cpath d='M40 145 l-2 -15 5 -10 3 10 -2 15 z' fill='%23111'/%3E%3Ccircle cx='70' cy='30' r='12' fill='%23cc0000'/%3E%3Cpath d='M70 42 l0 20 -15 15' stroke='%23333' fill='none'/%3E%3C/svg%3E");
+        /* 完整繪製的 Banksy 風格 SVG */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3C!-- 女孩 --%3E%3Cpath d='M50 160 c-2 -5 -5 -15 -5 -25 0 -20 15 -35 35 -35 5 0 10 2 15 5 10 8 15 20 15 35 0 25 -15 45 -40 45 -10 0 -18 -5 -20 -15 z' fill='%23111'/%3E%3Cpath d='M60 195 l-2 -15 5 -10 3 10 -2 15 z' fill='%23111'/%3E%3Cpath d='M95 110 l25 -35' stroke='%23111' stroke-width='2' fill='none'/%3E%3C!-- 氣球 --%3E%3Ccircle cx='140' cy='45' r='18' fill='%23cc0000'/%3E%3Cpath d='M140 63 l-5 10 -15 25' stroke='%23444' stroke-width='1' fill='none'/%3E%3C/svg%3E");
         display: block;
     }}
 
@@ -91,7 +91,7 @@ html_code = f"""
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
     .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
-    .footer-note {{ margin-top: 150px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
+    .footer-note {{ margin-top: 170px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
 </style>
 </head>
 <body onclick="changeStyle()">
@@ -106,13 +106,13 @@ html_code = f"""
 
         <div id="graf-girl" class="balloon-girl"></div>
     </div>
-    <div class="footer-note">🎨 點擊切換牆面風格 | 𓃥白六製作</div>
+    <div class="footer-note">🎨 CLICK TO SWITCH STYLES | 𓃥白六</div>
 
 <script>
     const styles = [
-        {{ c: '#f0f0f0', t: 'white-wall', g: true }},    // 白牆+女孩
-        {{ c: '#444444', t: 'concrete-wall', g: false }}, // 深灰工業風
-        {{ c: '#1a1a1a', t: 'carbon-fibre', g: false }}  // 碳纖維黑
+        {{ c: '#f0f0f0', t: 'white-wall', g: true }},
+        {{ c: '#444444', t: 'concrete-wall', g: false }},
+        {{ c: '#1a1a1a', t: 'carbon-fibre', g: false }}
     ];
     let sIdx = 0;
     function changeStyle() {{

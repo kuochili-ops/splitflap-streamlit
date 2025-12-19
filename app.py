@@ -27,55 +27,41 @@ else:
 input_text = st.query_params.get("text", "假日愉快，身體健康").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 3.0)))
 
-# --- 3. 核心 HTML (徹底修復穿透感) ---
+# --- 3. 核心 HTML (物理隔離邏輯版) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <style>
-    :root {{ --flip-duration: 1.2s; }} /* 慢速翻轉 */
-    
+    :root {{ --speed: 1.2s; }}
     body {{ 
         display: flex; justify-content: center; align-items: flex-start; 
-        padding-top: 5vh; height: 100vh; margin: 0; overflow: hidden;
+        padding-top: 5vh; height: 100vh; margin: 0; background-color: #1a1a1a;
         font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
-        background-color: #1a1a1a;
     }}
-    
-    .wall-2 {{ 
-        background-color: #d0d0d0; 
-        background-image: url("{img_data}");
-        background-repeat: no-repeat;
-        background-position: right 15% top 42%; 
-        background-size: auto 22vh;
-    }}
+    .wall-2 {{ background-color: #d0d0d0; background-image: url("{img_data}"); background-repeat: no-repeat; background-position: right 15% top 42%; background-size: auto 22vh; }}
 
     .acrylic-board {{
-        position: relative; padding: 45px 35px; 
-        background: rgba(255, 255, 255, 0.05); 
-        backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 15px; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
-        display: inline-flex; flex-direction: column; align-items: center;
-        gap: 12px; z-index: 10; margin-top: 2vh;
+        position: relative; padding: 45px 35px; background: rgba(255, 255, 255, 0.05); 
+        backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 15px; display: inline-flex; flex-direction: column; align-items: center; gap: 12px;
     }}
 
     .flip-card {{
-        position: relative; background-color: #1a1a1a; color: #e0e0e0;
+        position: relative; background: #1a1a1a; color: #e0e0e0;
         text-align: center; font-weight: 900; perspective: 1000px;
     }}
 
-    /* 靜態層 */
+    /* 結構層級 */
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; }}
     .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; z-index: 1; }}
     .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
-    /* 翻轉葉片 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-        z-index: 20; transform-origin: bottom; transform-style: preserve-3d;
-        transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 10; transform-origin: bottom; transform-style: preserve-3d;
+        transition: transform var(--speed) cubic-bezier(0.4, 0, 0.2, 1);
     }}
 
     .leaf-front, .leaf-back {{
@@ -85,17 +71,11 @@ html_code = f"""
     .leaf-front {{ z-index: 2; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; }}
     .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; z-index: 1; }}
 
+    /* 翻轉動作 */
     .flipping .leaf {{ transform: rotateX(-180deg); }}
 
-    /* 穿透修復：當還沒翻下去時，上板背景強制維持隱藏新內容 */
-    .top-new-text {{ display: none; }}
-    .flipping .top-new-text {{ display: block; }}
-
-    .hinge {{
-        position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-        background: #000; z-index: 30; transform: translateY(-50%);
-    }}
-
+    .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 20; transform: translateY(-50%); }}
+    
     .msg-unit {{ --w: var(--msg-w); --h: calc(var(--msg-w) * 1.5); --fs: calc(var(--msg-w) * 1.1); width: var(--w); height: var(--h); font-size: var(--fs); }}
     .small-unit {{ --w: 30px; --h: 42px; --fs: 26px; width: var(--w); height: var(--h); font-size: var(--fs); }}
     .row-container {{ display: flex; gap: 4px; }}
@@ -116,10 +96,10 @@ html_code = f"""
     function updateCard(el, nv, ov) {{
         if (nv === ov && el.innerHTML !== "") return;
         
-        // 核心邏輯：Top 底板一開始要顯示「舊字」
+        // 物理隔離：top 區塊在翻轉期間「只准顯示舊字 ov」
         el.innerHTML = `
             <div class="top">${{ov}}</div>
-            <div class="bottom">${{ov}}</div>
+            <div class="bottom">${{nv}}</div>
             <div class="leaf">
                 <div class="leaf-front">${{ov}}</div>
                 <div class="leaf-back">${{nv}}</div>
@@ -131,18 +111,10 @@ html_code = f"""
         void el.offsetWidth;
         el.classList.add('flipping');
 
-        // 【關鍵優化】比照參考範例：
-        // 在翻轉到 90 度時 (約動畫 0.6s)，才把背景的 .top 換成新字
-        // 這樣就不會發生「上板還沒翻上來字就已經在位置」的情況
+        // 等 1.2s 動畫完全結束（葉片已經蓋死底部），才偷偷把上半部換成新字，完成狀態同步
         setTimeout(() => {{
             const t = el.querySelector('.top');
             if(t) t.innerText = nv;
-        }}, 600); 
-
-        // 動畫結束，同步下板內容
-        setTimeout(() => {{
-            const b = el.querySelector('.bottom');
-            if(b) b.innerText = nv;
         }}, 1200);
     }}
 
@@ -150,7 +122,6 @@ html_code = f"""
         const vw = window.innerWidth;
         const msgW = Math.min(65, Math.floor((vw * 0.85) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
-        
         document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="flip-card msg-unit" id="m${{i}}"></div>`).join('');
         document.getElementById('row-date').innerHTML = Array.from({{length: 7}}, (_, i) => `<div class="flip-card small-unit" id="d${{i}}"></div>`).join('');
         document.getElementById('row-clock').innerHTML = Array.from({{length: 8}}, (_, i) => `<div class="flip-card small-unit" id="t${{i}}"></div>`).join('');
@@ -158,9 +129,7 @@ html_code = f"""
 
     function tick() {{
         const n = new Date();
-        const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-        const weeks = ["日","一","二","三","四","五","六"];
-        const dStr = months[n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + weeks[n.getDay()];
+        const dStr = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + ["日","一","二","三","四","五","六"][n.getDay()];
         const tStr = String(n.getHours()).padStart(2,'0') + ":" + String(n.getMinutes()).padStart(2,'0') + ":" + String(n.getSeconds()).padStart(2,'0');
 
         dStr.split('').forEach((c, i) => {{ updateCard(document.getElementById(`d${{i}}`), c, prevDate[i] || " "); prevDate[i] = c; }});
@@ -170,21 +139,15 @@ html_code = f"""
     window.onload = () => {{
         init();
         const msgPages = [];
-        for (let i = 0; i < fullText.length; i += flapCount) {{
-            msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
-        }}
+        for (let i = 0; i < fullText.length; i += flapCount) {{ msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split('')); }}
         msgPages[0].forEach((c, i) => {{ updateCard(document.getElementById(`m${{i}}`), c, " "); prevMsg[i] = c; }});
         tick();
         setInterval(tick, 1000);
-        
         if (msgPages.length > 1) {{
             setInterval(() => {{
                 let pIdx = (Math.floor(Date.now() / ({stay_sec} * 1000))) % msgPages.length;
                 msgPages[pIdx].forEach((c, i) => {{ 
-                    if(prevMsg[i] !== c) {{
-                        updateCard(document.getElementById(`m${{i}}`), c, prevMsg[i]); 
-                        prevMsg[i] = c; 
-                    }}
+                    if(prevMsg[i] !== c) {{ updateCard(document.getElementById(`m${{i}}`), c, prevMsg[i]); prevMsg[i] = c; }}
                 }});
             }}, 1000);
         }}

@@ -33,7 +33,7 @@ html_code = f"""
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
     :root {{
         --font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
@@ -48,83 +48,91 @@ html_code = f"""
         justify-content: flex-start; 
         align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
-        padding-top: 50px;
+        padding-top: 40px;
         box-sizing: border-box;
     }}
 
     .board-case {{
         position: relative; 
-        padding: 30px 40px; /* 縮小內距確保螺絲可見 */
-        background: rgba(35, 35, 35, 0.9); 
-        border-radius: 20px;
+        padding: 25px 35px; /* 優化螺絲可見度 */
+        background: rgba(35, 35, 35, 0.93); 
+        border-radius: 18px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 40px 80px rgba(0,0,0,0.7);
-        backdrop-filter: blur(10px);
+        box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+        backdrop-filter: blur(8px);
         display: inline-flex; flex-direction: column; align-items: center;
-        max-width: 90vw; /* 稍微縮小寬度，給手機留點邊界 */
-        gap: 12px;
+        max-width: 88vw; /* 確保四角螺絲在窄螢幕不被切掉 */
+        gap: 10px;
         z-index: 10;
     }}
 
-    /* 優化：將女孩往右下角移動，避免遮擋面板 */
+    /* 氣球女孩：電腦版定位 */
     .banksy-art {{
         position: absolute;
-        bottom: -220px; /* 降低高度 */
-        right: 50px;  /* 往右移開 */
-        width: 180px;  /* 稍微縮小比例更精確 */
-        height: 250px;
+        bottom: -240px; 
+        right: -60px;
+        width: 180px; 
+        height: 260px;
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center bottom;
         background-image: url("data:image/png;base64,{img_base64}");
         pointer-events: none;
         z-index: -1;
-        opacity: 0.9;
+        opacity: 0.95;
+        transition: all 0.3s ease;
+    }}
+
+    /* 氣球女孩：手機版定位優化 */
+    @media (max-width: 600px) {{
+        .board-case {{ padding: 20px 25px; max-width: 92vw; }} 
+        .banksy-art {{ 
+            width: 130px; 
+            right: 5px;   /* 靠右邊界 5px，確保完整顯示 */
+            bottom: -190px; 
+            opacity: 0.85;
+        }}
+        .footer-note {{ margin-top: 220px !important; }}
     }}
 
     .screw {{
         position: absolute; width: 8px; height: 8px;
-        background: radial-gradient(circle at 3px 3px, #888, #111);
+        background: radial-gradient(circle at 3px 3px, #999, #222);
         border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }}
     .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1000px; }}
+    .flap-unit {{ position: relative; background: #000; border-radius: 3px; color: #fff; font-weight: 900; }}
     
-    .flap-unit {{ position: relative; background: #000; border-radius: 4px; color: #fff; font-weight: 900; }}
-    
-    /* 響應式字體與大小控制 */
     .msg-unit {{ --unit-w: var(--msg-w, 60px); --unit-h: calc(var(--unit-w) * 1.4); width: var(--unit-w); height: var(--unit-h); font-size: calc(var(--unit-w) * 0.9); }}
-    .small-unit {{ --unit-w: 20px; --unit-h: 30px; width: var(--unit-w); height: var(--unit-h); font-size: 15px; }}
-    
-    @media (max-width: 600px) {{
-        .board-case {{ padding: 25px 30px; }} /* 手機版螺絲位置微調 */
-        .banksy-art {{ width: 140px; right: -40px; bottom: -180px; }} /* 手機版縮小圖片 */
-    }}
+    .small-unit {{ --unit-w: 18px; --unit-h: 28px; width: var(--unit-w); height: var(--unit-h); font-size: 14px; }}
 
     .half {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--card-bg); display: flex; justify-content: center; backface-visibility: hidden; }}
-    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000; }}
-    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
+    .top {{ top: 0; align-items: flex-start; border-radius: 3px 3px 0 0; border-bottom: 0.5px solid #000; }}
+    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 3px 3px; }}
     .text {{ position: absolute; left: 0; width: 100%; text-align: center; }}
     .msg-unit .text {{ height: calc(var(--msg-w) * 1.4); line-height: calc(var(--msg-w) * 1.4); }}
-    .small-unit .text {{ height: 30px; line-height: 30px; }}
+    .small-unit .text {{ height: 28px; line-height: 28px; }}
     .top .text {{ top: 0; }}
     .bottom .text {{ bottom: 0; }}
+    
     .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
-    .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
-    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; border-radius: 0 0 4px 4px; }}
+    .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 3px 3px 0 0; }} 
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; border-radius: 0 0 3px 3px; }}
     .flipping {{ transform: rotateX(-180deg); }}
-    .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(0,0,0,0.6); transform: translateY(-50%); z-index: 60; }}
-    .footer-note {{ margin-top: 240px; font-family: var(--font-family); font-size: 10px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
+    
+    .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(0,0,0,0.5); transform: translateY(-50%); z-index: 60; }}
+    .footer-note {{ margin-top: 250px; font-family: var(--font-family); font-size: 10px; color: rgba(0, 0, 0, 0.4); font-weight: bold; transition: color 0.5s; }}
 </style>
 </head>
 <body onclick="changeStyle()">
     <div class="board-case">
-        <div class="screw" style="top:10px; left:10px;"></div>
-        <div class="screw" style="top:10px; right:10px;"></div>
+        <div class="screw" style="top:8px; left:8px;"></div>
+        <div class="screw" style="top:8px; right:8px;"></div>
         <div id="row-msg" class="row-container"></div>
         <div id="row-date" class="row-container"></div>
         <div id="row-clock" class="row-container"></div>
-        <div class="screw" style="bottom:10px; left:10px;"></div>
-        <div class="screw" style="bottom:10px; right:10px;"></div>
+        <div class="screw" style="bottom:8px; left:8px;"></div>
+        <div class="screw" style="bottom:8px; right:8px;"></div>
         <div id="banksy" class="banksy-art"></div>
     </div>
     <div class="footer-note">🎨 CLICK TO SWITCH STYLE | 𓃥白六製作</div>
@@ -167,7 +175,7 @@ html_code = f"""
         const t = document.createElement('textarea'); t.innerHTML = d; return t.value;
     }})("{input_text_raw}");
 
-    const flapCount = Math.min(10, Math.max(1, Math.floor(cleanText.length / 2)));
+    const flapCount = 10;
     let msgPages = [];
     for (let i = 0; i < cleanText.length; i += flapCount) {{
         msgPages.push(cleanText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
@@ -176,7 +184,7 @@ html_code = f"""
     function init() {{
         const msgRow = document.getElementById('row-msg');
         msgRow.innerHTML = msgPages[0].map(c => createFlap(c, 'msg-unit')).join('');
-        const w = Math.min(65, Math.max(30, Math.floor((window.innerWidth - 80) / flapCount)));
+        const w = Math.min(60, Math.max(28, Math.floor((window.innerWidth - 70) / flapCount)));
         document.documentElement.style.setProperty('--msg-w', w + 'px');
         document.getElementById('row-date').innerHTML = getDateString().split('').map(c => createFlap(c, 'small-unit')).join('');
         document.getElementById('row-clock').innerHTML = getTimeString().split('').map(c => createFlap(c, 'small-unit')).join('');

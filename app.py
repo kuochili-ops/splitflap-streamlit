@@ -1,7 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# --- 1. 頁面透明化設定 ---
+# --- 1. 頁面基礎設定 ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
@@ -13,14 +13,10 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. 參數獲取 ---
-input_text_raw = st.query_params.get("text", "WELCOME")
+input_text_raw = st.query_params.get("text", "BANKSY STYLE")
 stay_sec = float(st.query_params.get("stay", 2.5))
-bg_param = st.query_params.get("bg", "transparent")
 
-if bg_param != "transparent" and not bg_param.startswith("#"):
-    if len(bg_param) in [3, 6]: bg_param = f"#{bg_param}"
-
-# --- 3. 核心 HTML (確保前後 """ 完整) ---
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -33,48 +29,67 @@ html_code = f"""
         --card-bg: linear-gradient(180deg, #333 0%, #111 50%, #000 51%, #222 100%);
     }}
     body {{ 
-        transition: background-color 0.8s ease;
-        background-color: {bg_param};
-        background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png");
+        transition: all 0.8s ease;
+        background-color: #dcdcdc;
+        background-image: url("https://www.transparenttextures.com/patterns/white-wall.png");
         display: flex; flex-direction: column; 
         justify-content: flex-start; 
         align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
         padding-top: 20px; 
     }}
+
+    /* 面板外殼 */
     .board-case {{
         position: relative; padding: 35px 45px;
-        background: rgba(0, 0, 0, 0.45); border-radius: 20px;
+        background: rgba(0, 0, 0, 0.6); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+        box-shadow: 0 40px 80px rgba(0,0,0,0.8);
         backdrop-filter: blur(10px);
         display: inline-flex; flex-direction: column; align-items: center;
         max-width: 98vw;
         gap: 12px;
+        z-index: 10;
     }}
+
+    /* 塗鴉圖案容器 */
+    .graffiti {{
+        position: absolute;
+        width: 150px; height: 150px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        pointer-events: none;
+        opacity: 0.8;
+        z-index: -1; /* 放在面板正後方或下方 */
+        transition: all 0.5s ease;
+    }}
+    
+    /* 右下角氣球女孩 */
+    .graffiti.balloon {{
+        bottom: -120px; right: -60px;
+        background-image: url("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Banksy_Balloon_Girl.svg/800px-Banksy_Balloon_Girl.svg.png");
+        filter: grayscale(1) brightness(1.2);
+    }}
+
+    /* 左下角擲花者 */
+    .graffiti.thrower {{
+        bottom: -130px; left: -80px;
+        background-image: url("https://www.vhv.rs/dpng/d/436-4364183_banksy-flower-thrower-png-transparent-png.png");
+        filter: grayscale(1) contrast(1.5);
+        width: 180px; height: 180px;
+        display: none;
+    }}
+
     .screw {{
         position: absolute; width: 10px; height: 10px;
         background: radial-gradient(circle at 3px 3px, #888, #111);
         border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }}
-    .row-container {{
-        display: flex; flex-direction: row; gap: 6px; 
-        perspective: 1000px; justify-content: center;
-    }}
+    .row-container {{ display: flex; flex-direction: row; gap: 6px; perspective: 1000px; justify-content: center; }}
     .flap-unit {{ position: relative; background: #000; border-radius: 4px; color: #fff; font-weight: 900; }}
-    .msg-unit {{ 
-        --unit-w: var(--msg-w, 60px); --unit-h: calc(var(--unit-w) * 1.4); 
-        width: var(--unit-w); height: var(--unit-h); font-size: calc(var(--unit-w) * 0.9); 
-    }}
-    .small-unit {{ 
-        --unit-w: 22px; --unit-h: 32px; 
-        width: var(--unit-w); height: var(--unit-h); font-size: 16px; 
-    }}
-    .half {{ 
-        position: absolute; left: 0; width: 100%; height: 50%; 
-        overflow: hidden; background: var(--card-bg); 
-        display: flex; justify-content: center; backface-visibility: hidden; 
-    }}
+    .msg-unit {{ --unit-w: var(--msg-w, 60px); --unit-h: calc(var(--unit-w) * 1.4); width: var(--unit-w); height: var(--unit-h); font-size: calc(var(--unit-w) * 0.9); }}
+    .small-unit {{ --unit-w: 22px; --unit-h: 32px; width: var(--unit-w); height: var(--unit-h); font-size: 16px; }}
+    .half {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--card-bg); display: flex; justify-content: center; backface-visibility: hidden; }}
     .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000; }}
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     .text {{ position: absolute; left: 0; width: 100%; text-align: center; }}
@@ -82,40 +97,55 @@ html_code = f"""
     .small-unit .text {{ height: 32px; line-height: 32px; }}
     .top .text {{ top: 0; }}
     .bottom .text {{ bottom: 0; }}
-    .leaf {{ 
-        position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
-        z-index: 15; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); 
-        transform-style: preserve-3d; 
-    }}
+    .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
     .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
     .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
-    .footer-note {{ margin-top: 20px; font-family: var(--font-family); font-size: 11px; color: rgba(255, 255, 255, 0.3); letter-spacing: 1px; }}
+    .footer-note {{ margin-top: 100px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
 </style>
 </head>
 <body onclick="changeStyle()">
-    <div class="board-case">
+    <div class="board-case" id="main-board">
         <div class="screw" style="top:12px; left:12px;"></div>
         <div class="screw" style="top:12px; right:12px;"></div>
+        
         <div id="row-msg" class="row-container"></div>
         <div id="row-date" class="row-container"></div>
         <div id="row-clock" class="row-container"></div>
+        
         <div class="screw" style="bottom:12px; left:12px;"></div>
         <div class="screw" style="bottom:12px; right:12px;"></div>
+
+        <div id="graf-balloon" class="graffiti balloon"></div>
+        <div id="graf-thrower" class="graffiti thrower"></div>
     </div>
-    <div class="footer-note">👋 點擊牆面切換風格 | 𓃥白六訊息告示牌</div>
+    <div class="footer-note">🎨 Click to switch Banksy styles & backgrounds</div>
+
 <script>
-    const styles = [{{ c: '#1a1a1a', t: 'carbon-fibre' }}, {{ c: '#888888', t: 'concrete-wall' }}, {{ c: '#1a2a3a', t: 'stardust' }}, {{ c: 'transparent', t: 'none' }}];
+    const styles = [
+        {{ c: '#dcdcdc', t: 'white-wall', g: 'balloon' }},    // 氣球女孩牆
+        {{ c: '#888888', t: 'concrete-wall', g: 'thrower' }}, // 擲花者水泥牆
+        {{ c: '#1a1a1a', t: 'carbon-fibre', g: 'none' }},    // 原本的風格
+        {{ c: '#222222', t: 'brushed-alum', g: 'none' }}
+    ];
     let sIdx = 0;
     function changeStyle() {{
         sIdx = (sIdx + 1) % styles.length;
-        document.body.style.backgroundColor = styles[sIdx].c;
-        document.body.style.backgroundImage = styles[sIdx].t === 'none' ? 'none' : `url("https://www.transparenttextures.com/patterns/${{styles[sIdx].t}}.png")`;
+        const s = styles[sIdx];
+        document.body.style.backgroundColor = s.c;
+        document.body.style.backgroundImage = s.t === 'none' ? 'none' : `url("https://www.transparenttextures.com/patterns/${{s.t}}.png")`;
+        
+        // 切換塗鴉顯示
+        document.getElementById('graf-balloon').style.display = (s.g === 'balloon') ? 'block' : 'none';
+        document.getElementById('graf-thrower').style.display = (s.g === 'thrower') ? 'block' : 'none';
+        document.querySelector('.footer-note').style.color = (s.c === '#1a1a1a' || s.c === '#222222') ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
     }}
+
     function createFlap(char, type) {{
         return `<div class="flap-unit ${{type}}"><div class="half top base-top"><div class="text">${{char}}</div></div><div class="half bottom base-bottom"><div class="text">${{char}}</div></div><div class="leaf"><div class="half top leaf-front"><div class="text">${{char}}</div></div><div class="half bottom leaf-back"><div class="text">${{char}}</div></div></div></div>`;
     }}
+
     function updateFlap(unit, newChar) {{
         if (unit.querySelector('.base-top .text').innerText === newChar) return;
         const leaf = unit.querySelector('.leaf');
@@ -128,15 +158,18 @@ html_code = f"""
             leaf.offsetHeight; leaf.style.transition = '';
         }}, {{once: true}});
     }}
+
     const cleanText = (str => {{
         let d = str; try {{ d = decodeURIComponent(d.replace(/\\+/g, ' ')); }} catch(e) {{}}
         const t = document.createElement('textarea'); t.innerHTML = d; return t.value;
     }})("{input_text_raw}");
+
     const flapCount = Math.min(10, Math.max(1, Math.floor(cleanText.length / 2)));
     let msgPages = [];
     for (let i = 0; i < cleanText.length; i += flapCount) {{
         msgPages.push(cleanText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
     }}
+
     function init() {{
         const msgRow = document.getElementById('row-msg');
         const dateRow = document.getElementById('row-date');
@@ -147,6 +180,7 @@ html_code = f"""
         dateRow.innerHTML = getDateString().split('').map(c => createFlap(c, 'small-unit')).join('');
         clockRow.innerHTML = getTimeString().split('').map(c => createFlap(c, 'small-unit')).join('');
     }}
+
     function getDateString() {{
         const n = new Date();
         const m = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()];
@@ -154,10 +188,12 @@ html_code = f"""
         const w = ["日","一","二","三","四","五","六"][n.getDay()];
         return `${{m}}${{d}} ${{w}}`;
     }}
+
     function getTimeString() {{
         const n = new Date();
         return `${{String(n.getHours()).padStart(2,'0')}}:${{String(n.getMinutes()).padStart(2,'0')}}`;
     }}
+
     let pIdx = 0;
     window.onload = () => {{
         init();
@@ -176,5 +212,4 @@ html_code = f"""
 </html>
 """
 
-# --- 4. 渲染組件 ---
 components.html(html_code, height=900, scrolling=False)

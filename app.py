@@ -13,10 +13,10 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. 參數獲取 ---
-input_text_raw = st.query_params.get("text", "HAPPY HOLIDAY")
+input_text_raw = st.query_params.get("text", "BANKSY ART")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 核心 HTML ---
+# --- 3. 核心 HTML (重新設計的高辨識度 Banksy SVG) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -41,7 +41,7 @@ html_code = f"""
 
     .board-case {{
         position: relative; padding: 35px 45px;
-        background: rgba(40, 40, 40, 0.85); border-radius: 20px;
+        background: rgba(30, 30, 30, 0.9); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 30px 60px rgba(0,0,0,0.6);
         backdrop-filter: blur(10px);
@@ -51,20 +51,20 @@ html_code = f"""
         z-index: 10;
     }}
 
-    /* 班克西氣球女孩 - 完整重繪版 */
+    /* 班克西氣球女孩 - 2024 高辨識度重繪版 */
     .banksy-art {{
         position: absolute;
-        bottom: -180px; 
-        right: -80px;
-        width: 250px; 
-        height: 250px;
+        bottom: -190px; 
+        right: -90px;
+        width: 280px; 
+        height: 280px;
         background-size: contain;
         background-repeat: no-repeat;
         pointer-events: none;
         z-index: -1;
-        opacity: 0.85;
-        /* 重新設計的 SVG: 包含女孩伸手與分離的紅氣球 */
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3C!-- 女孩主體 --%3E%3Cpath d='M40 165 c-2 -8 -6 -20 -4 -30 2 -10 12 -25 25 -28 5 -1 10 1 14 4 8 7 12 18 10 32 -2 22 -15 38 -35 40 -8 1 -13 -3 -10 -18 z' fill='%23222'/%3E%3Cpath d='M55 198 l-3 -15 5 -8 2 8 -2 15 z' fill='%23222'/%3E%3Cpath d='M75 115 c5 -10 15 -25 30 -35' stroke='%23222' stroke-width='2.5' fill='none'/%3E%3C!-- 紅氣球 --%3E%3Ccircle cx='145' cy='45' r='16' fill='%23b30000'/%3E%3Cpath d='M145 61 l-3 8 -12 20' stroke='%23444' stroke-width='1.2' fill='none'/%3E%3C/svg%3E");
+        opacity: 0.95;
+        /* 重新構圖：女孩(左下) 追逐 氣球(右上) */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3C!-- 女孩 --%3E%3Cpath d='M30 180 c0 -15 10 -35 25 -40 c5 -2 10 0 15 5 c5 5 8 15 5 25 c-3 10 -15 20 -30 22 c-10 1 -15 -5 -15 -12 z' fill='%23000'/%3E%3Cpath d='M45 145 c-5 -10 -5 -25 5 -30 c8 -5 15 0 18 10 c3 10 -2 20 -10 25' fill='%23000'/%3E%3Cpath d='M58 120 l35 -30 m-35 30 l25 -5' stroke='%23000' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M42 195 l-2 -12 l4 -4 l3 16 z' fill='%23000'/%3E%3C!-- 氣球 --%3E%3Ccircle cx='150' cy='45' r='18' fill='%23d00000'/%3E%3Cpath d='M150 63 c0 5 -5 15 -20 35' stroke='%23000' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
     }}
 
     .screw {{
@@ -89,7 +89,7 @@ html_code = f"""
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
     .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
-    .footer-note {{ margin-top: 200px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.3); font-weight: bold; letter-spacing: 1px; }}
+    .footer-note {{ margin-top: 220px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.3); font-weight: bold; letter-spacing: 1px; }}
 </style>
 </head>
 <body onclick="changeStyle()">
@@ -103,7 +103,7 @@ html_code = f"""
         <div class="screw" style="bottom:12px; right:12px;"></div>
         <div id="banksy" class="banksy-art"></div>
     </div>
-    <div class="footer-note">👋 CLICK TO SWITCH STYLES | 𓃥白六製作</div>
+    <div class="footer-note">🎨 CLICK BACKGROUND TO SWITCH STYLE | 𓃥白六</div>
 
 <script>
     const styles = [

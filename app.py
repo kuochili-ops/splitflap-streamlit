@@ -35,9 +35,8 @@ html_code = f"""
 <meta charset="UTF-8">
 <style>
     :root {{ 
-        --flip-speed: 0.6s; 
+        --flip-speed: 1.2s; /* 速度調慢，增加機械沉穩感 */
         --small-fixed-w: 30px; 
-        --bg-color: #121212;
         --card-bg: #1a1a1a;
         --text-color: #e0e0e0;
     }}
@@ -69,7 +68,6 @@ html_code = f"""
         gap: 12px; z-index: 10; margin-top: 2vh;
     }}
 
-    /* 螺絲細節 */
     .screw {{
         position: absolute; width: 12px; height: 12px;
         background: radial-gradient(circle at 30% 30%, #999, #333);
@@ -80,7 +78,6 @@ html_code = f"""
 
     .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1000px; }}
     
-    /* 翻板核心樣式 */
     .flip-card {{
         position: relative; width: var(--w); height: var(--h);
         background-color: var(--card-bg); border-radius: 4px;
@@ -96,7 +93,7 @@ html_code = f"""
 
     .top {{ 
         top: 0; border-radius: 4px 4px 0 0; 
-        line-height: var(--h); border-bottom: 1px solid rgba(0,0,0,0.5); 
+        line-height: var(--h); border-bottom: 1px solid rgba(0,0,0,0.6); 
     }}
     .bottom {{ 
         bottom: 0; border-radius: 0 0 4px 4px; 
@@ -105,7 +102,9 @@ html_code = f"""
 
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-        z-index: 2; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 10; transform-origin: bottom; 
+        /* 使用更平滑的貝茲曲線，增加慢速質感 */
+        transition: transform var(--flip-speed) cubic-bezier(0.45, 0.05, 0.55, 0.95);
         transform-style: preserve-3d;
     }}
 
@@ -115,19 +114,17 @@ html_code = f"""
         background: var(--card-bg);
     }}
 
-    .leaf-front {{ border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid rgba(0,0,0,0.5); }}
+    .leaf-front {{ border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid rgba(0,0,0,0.6); }}
     .leaf-back {{ border-radius: 0 0 4px 4px; transform: rotateX(-180deg); line-height: 0; }}
 
     .flipping .leaf {{ transform: rotateX(-180deg); }}
 
-    /* 第一排 */
     .msg-unit {{ --w: var(--msg-w); --h: calc(var(--msg-w) * 1.5); --fs: calc(var(--msg-w) * 1.1); }}
-    /* 二三排 */
     .small-unit {{ --w: var(--small-fixed-w); --h: calc(var(--small-fixed-w) * 1.4); --fs: calc(var(--small-fixed-w) * 0.9); }}
 
     .hinge {{
         position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-        background: rgba(0,0,0,0.8); z-index: 5; transform: translateY(-50%);
+        background: rgba(0,0,0,0.8); z-index: 15; transform: translateY(-50%);
     }}
 </style>
 </head>
@@ -168,7 +165,6 @@ html_code = f"""
         const leafFront = el.querySelector('.leaf-front');
         const leafBack = el.querySelector('.leaf-back');
 
-        // 設定初始狀態
         top.innerText = newVal;
         bottom.innerText = oldVal;
         leafFront.innerText = oldVal;
@@ -178,10 +174,10 @@ html_code = f"""
         void el.offsetWidth; 
         el.classList.add('flipping');
 
-        // 動畫結束後同步底部
+        // 同步底部內容，時間設為與動畫速度一致
         setTimeout(() => {{
             bottom.innerText = newVal;
-        }}, 600);
+        }}, 1200); 
     }}
 
     function adjustSize() {{
@@ -203,12 +199,11 @@ html_code = f"""
         const n = new Date();
         const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         const weeks = ["日","一","二","三","四","五","六"];
-        
         const dStr = months[n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + weeks[n.getDay()];
         const tStr = String(n.getHours()).padStart(2,'0') + ":" + String(n.getMinutes()).padStart(2,'0') + ":" + String(n.getSeconds()).padStart(2,'0');
 
-        dStr.split('').forEach((c, i) => {{ updateCard(`d${{i}}`, c, prevDate[i]); prevDate[i] = c; }});
-        tStr.split('').forEach((c, i) => {{ updateCard(`t${{i}}`, c, prevTime[i]); prevTime[i] = c; }});
+        dStr.split('').forEach((c, i) => {{ updateCard(`d${{i}}`, c, prevDate[i] || ''); prevDate[i] = c; }});
+        tStr.split('').forEach((c, i) => {{ updateCard(`t${{i}}`, c, prevTime[i] || ''); prevTime[i] = c; }});
     }}
 
     window.onload = () => {{
@@ -218,7 +213,6 @@ html_code = f"""
             msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
         }}
 
-        // 初始訊息顯示
         msgPages[0].forEach((c, i) => {{ updateCard(`m${{i}}`, c, ''); prevMsg[i] = c; }});
         tick();
 

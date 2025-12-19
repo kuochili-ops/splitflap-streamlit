@@ -1,5 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import base64
+import os
 
 # --- 1. 頁面基礎設定 ---
 st.set_page_config(layout="wide")
@@ -12,11 +14,20 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 參數獲取 ---
+# --- 2. 圖片處理 (讀取本地圖片並轉為 Base64) ---
+img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
+img_base64 = ""
+
+if os.path.exists(img_filename):
+    with open(img_filename, "rb") as f:
+        data = f.read()
+        img_base64 = base64.b64encode(data).decode()
+
+# --- 3. 參數獲取 ---
 input_text_raw = st.query_params.get("text", "BANKSY STYLE")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 核心 HTML (精確勾勒 Banksy 剪影) ---
+# --- 4. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -36,12 +47,12 @@ html_code = f"""
         justify-content: flex-start; 
         align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
-        padding-top: 45px; 
+        padding-top: 50px; 
     }}
 
     .board-case {{
         position: relative; padding: 35px 45px;
-        background: rgba(35, 35, 35, 0.9); border-radius: 20px;
+        background: rgba(30, 30, 30, 0.9); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 40px 80px rgba(0,0,0,0.7);
         backdrop-filter: blur(10px);
@@ -51,20 +62,20 @@ html_code = f"""
         z-index: 10;
     }}
 
-    /* 班克西氣球女孩 - 幾何精確版 */
+    /* 使用您上傳的真實 Banksy 圖片 */
     .banksy-art {{
         position: absolute;
-        bottom: -200px; 
-        right: -100px;
-        width: 300px; 
-        height: 300px;
+        bottom: -180px; 
+        right: -30px;
+        width: 200px; 
+        height: 250px;
         background-size: contain;
         background-repeat: no-repeat;
+        background-position: center bottom;
+        background-image: url("data:image/png;base64,{img_base64}");
         pointer-events: none;
         z-index: -1;
         opacity: 0.9;
-        /* 重繪 SVG: 強化裙襬與辮子特徵 */
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3C!-- 女孩主體 --%3E%3C!-- 裙子與身體 --%3E%3Cpath d='M40 180 L70 185 L65 140 L45 135 Z' fill='%23000'/%3E%3C!-- 頭部與辮子 --%3E%3Ccircle cx='55' cy='125' r='8' fill='%23000'/%3E%3Cpath d='M48 122 Q40 115 42 105' stroke='%23000' stroke-width='2.5' fill='none'/%3E%3C!-- 伸出的手臂 --%3E%3Cpath d='M65 140 L105 110' stroke='%23000' stroke-width='4' stroke-linecap='round'/%3E%3C!-- 腿 --%3E%3Cpath d='M50 183 L48 198 M60 184 L62 198' stroke='%23000' stroke-width='3'/%3E%3C!-- 紅氣球 --%3E%3Ccircle cx='155' cy='45' r='18' fill='%23e60000'/%3E%3Cpath d='M155 63 Q155 80 130 110' stroke='%23555' stroke-width='1.2' fill='none'/%3E%3C/svg%3E");
         display: block;
     }}
 
@@ -90,7 +101,7 @@ html_code = f"""
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
     .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
-    .footer-note {{ margin-top: 240px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.3); font-weight: bold; }}
+    .footer-note {{ margin-top: 240px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
 </style>
 </head>
 <body onclick="changeStyle()">
@@ -119,7 +130,7 @@ html_code = f"""
         document.body.style.backgroundColor = s.c;
         document.body.style.backgroundImage = s.t === 'none' ? 'none' : `url("https://www.transparenttextures.com/patterns/${{s.t}}.png")`;
         document.getElementById('banksy').style.display = s.g ? 'block' : 'none';
-        document.querySelector('.footer-note').style.color = (s.c === '#1a1a1a' || s.c === '#333333') ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
+        document.querySelector('.footer-note').style.color = (s.c === '#1a1a1a' || s.c === '#333333') ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
     }}
 
     function createFlap(char, type) {{

@@ -25,7 +25,7 @@ if os.path.exists(img_filename):
 input_text = st.query_params.get("text", "HAPPY HOLIDAY")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 4. 核心 HTML ---
+# --- 4. 核心 HTML (已修正 f-string 語法) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -54,57 +54,39 @@ html_code = f"""
 
     .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1200px; }}
 
-    /* 物理翻板基礎結構 */
     .flip-card {{
-        position: relative;
-        background-color: #222;
-        border-radius: 6px;
-        color: #f0f0f0;
-        text-align: center;
-        font-weight: bold;
+        position: relative; background-color: #222; border-radius: 6px;
+        color: #f0f0f0; text-align: center; font-weight: bold;
     }}
 
-    /* 訊息列尺寸 (動態計算) */
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 1.0); }}
     .small-unit {{ width: var(--small-w); height: calc(var(--small-w) * 1.4); font-size: calc(var(--small-w) * 0.8); }}
 
-    /* 靜態底層 */
-    .top, .bottom {{
-        position: absolute; left: 0; width: 100%; height: 50%;
-        overflow: hidden; background: #222;
-    }}
+    .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #222; }}
+    
     .msg-unit .top {{ top: 0; border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; z-index: 1; }}
     .msg-unit .bottom {{ bottom: 0; border-radius: 0 0 6px 6px; line-height: 0px; z-index: 0; }}
     
     .small-unit .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; }}
     .small-unit .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
-    /* 動態翻轉葉片 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-        z-index: 10; transform-origin: bottom;
-        transform-style: preserve-3d;
+        z-index: 10; transform-origin: bottom; transform-style: preserve-3d;
         transition: transform var(--flip-speed) ease-in;
     }}
 
-    .leaf-front, .leaf-back {{
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        backface-visibility: hidden; background: #222; overflow: hidden;
-    }}
+    .leaf-front, .leaf-back {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; backface-visibility: hidden; background: #222; overflow: hidden; }}
 
-    .msg-unit .leaf-front {{ border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; z-index: 2; }}
+    .msg-unit .leaf-front {{ border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; }}
     .msg-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 6px 6px; line-height: 0px; background: linear-gradient(to top, #222 50%, #181818 100%); }}
 
-    .small-unit .leaf-front {{ border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 2; }}
+    .small-unit .leaf-front {{ border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; }}
     .small-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; background: linear-gradient(to top, #222 50%, #181818 100%); }}
 
-    /* 純粹下翻，不留餘地 */
     .flipping .leaf {{ transform: rotateX(-180deg); }}
-
-    .hinge {{
-        position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
-        background: #000; z-index: 15; transform: translateY(-50%);
-    }}
+    
+    .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 15; transform: translateY(-50%); }}
 
     .banksy-art {{
         position: absolute; bottom: -200px; right: 0; width: 140px; height: 210px;
@@ -133,8 +115,8 @@ html_code = f"""
     function createHTML(char, unitClass) {{
         return `
             <div class="flip-card ${{unitClass}}">
-                <div class="top static">${{char}}</div>
-                <div class="bottom static">${{char}}</div>
+                <div class="top">${{char}}</div>
+                <div class="bottom">${{char}}</div>
                 <div class="leaf">
                     <div class="leaf-front">${{char}}</div>
                     <div class="leaf-back">${{char}}</div>
@@ -147,7 +129,6 @@ html_code = f"""
         const oldVal = el.querySelector('.top').innerText;
         if (newVal === oldVal) return;
 
-        // 設置內容：Top 顯示新字，Bottom 顯示舊字
         el.querySelector('.top').innerText = newVal;
         el.querySelector('.bottom').innerText = oldVal;
         el.querySelector('.leaf-front').innerText = oldVal;
@@ -157,13 +138,12 @@ html_code = f"""
         void el.offsetWidth;
         el.classList.add('flipping');
 
-        // 動態結束後將底層同步，為下一次翻轉做準備
         setTimeout(() => {{
             el.querySelector('.bottom').innerText = newVal;
             el.querySelector('.leaf-front').innerText = newVal;
             el.classList.remove('flipping');
         }}, 600);
-    }
+    }}
 
     function adjustSize() {{
         const vw = window.innerWidth;

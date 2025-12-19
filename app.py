@@ -25,7 +25,7 @@ if os.path.exists(img_filename):
 input_text = st.query_params.get("text", "HAPPY HOLIDAY")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 4. 核心 HTML (已修正 f-string 語法) ---
+# --- 4. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -34,7 +34,7 @@ html_code = f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     :root {{
-        --flip-speed: 0.6s;
+        --flip-speed: 0.55s;
     }}
     body {{ 
         background-color: #f0f0f0;
@@ -45,23 +45,25 @@ html_code = f"""
     }}
 
     .board-case {{
-        position: relative; padding: 25px 30px;
-        background: rgba(30, 30, 30, 0.96); 
-        border-radius: 15px; box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+        position: relative; padding: 25px 35px;
+        background: rgba(28, 28, 28, 0.98); 
+        border-radius: 12px; box-shadow: 0 40px 80px rgba(0,0,0,0.6);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 12px; z-index: 10; max-width: 95vw;
+        gap: 15px; z-index: 10; max-width: 95vw;
     }}
 
-    .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1200px; }}
+    .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1500px; }}
 
     .flip-card {{
         position: relative; background-color: #222; border-radius: 6px;
         color: #f0f0f0; text-align: center; font-weight: bold;
     }}
 
+    /* 尺寸差異化 */
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 1.0); }}
     .small-unit {{ width: var(--small-w); height: calc(var(--small-w) * 1.4); font-size: calc(var(--small-w) * 0.8); }}
 
+    /* 靜態層 */
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #222; }}
     
     .msg-unit .top {{ top: 0; border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; z-index: 1; }}
@@ -70,6 +72,7 @@ html_code = f"""
     .small-unit .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; }}
     .small-unit .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
+    /* 動態翻轉葉片 - 嚴格下翻邏輯 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
         z-index: 10; transform-origin: bottom; transform-style: preserve-3d;
@@ -79,10 +82,10 @@ html_code = f"""
     .leaf-front, .leaf-back {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; backface-visibility: hidden; background: #222; overflow: hidden; }}
 
     .msg-unit .leaf-front {{ border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; }}
-    .msg-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 6px 6px; line-height: 0px; background: linear-gradient(to top, #222 50%, #181818 100%); }}
+    .msg-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 6px 6px; line-height: 0px; background: linear-gradient(to top, #222 50%, #151515 100%); }}
 
     .small-unit .leaf-front {{ border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; }}
-    .small-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; background: linear-gradient(to top, #222 50%, #181818 100%); }}
+    .small-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; background: linear-gradient(to top, #222 50%, #151515 100%); }}
 
     .flipping .leaf {{ transform: rotateX(-180deg); }}
     
@@ -129,25 +132,27 @@ html_code = f"""
         const oldVal = el.querySelector('.top').innerText;
         if (newVal === oldVal) return;
 
-        el.querySelector('.top').innerText = newVal;
-        el.querySelector('.bottom').innerText = oldVal;
-        el.querySelector('.leaf-front').innerText = oldVal;
-        el.querySelector('.leaf-back').innerText = newVal;
+        // 1. 初始化物理層級內容
+        el.querySelector('.top').innerText = newVal;    // 上半靜態層預備顯示新字
+        el.querySelector('.bottom').innerText = oldVal; // 下半靜態層維持舊字
+        el.querySelector('.leaf-front').innerText = oldVal; // 翻動層正面為舊字
+        el.querySelector('.leaf-back').innerText = newVal;  // 翻動層背面為新字
 
+        // 2. 觸發下翻動畫
         el.classList.remove('flipping');
         void el.offsetWidth;
         el.classList.add('flipping');
 
+        // 3. 關鍵修正：動畫結束後，只更新底層 static-bottom，絕不觸發 leaf 內容重繪
         setTimeout(() => {{
             el.querySelector('.bottom').innerText = newVal;
-            el.querySelector('.leaf-front').innerText = newVal;
-            el.classList.remove('flipping');
-        }}, 600);
+            // 這裡不再重置 leaf 內容，避免產生「跳動」或「上翻」感
+        }}, 580); 
     }}
 
     function adjustSize() {{
         const vw = window.innerWidth;
-        const msgW = Math.min(85, Math.floor((vw * 0.85) / flapCount));
+        const msgW = Math.min(85, Math.floor((vw * 0.9) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
         const smallW = Math.floor(msgW * 0.55);
         document.documentElement.style.setProperty('--small-w', smallW + 'px');
@@ -176,7 +181,7 @@ html_code = f"""
         if (msgPages.length > 1) setInterval(() => {{
             pIdx = (pIdx + 1) % msgPages.length;
             document.querySelectorAll('#row-msg .flip-card').forEach((u, i) => {{
-                setTimeout(() => updateCard(u, msgPages[pIdx][i]), i * 60);
+                setTimeout(() => updateCard(u, msgPages[pIdx][i]), i * 65);
             }});
         }}, {stay_sec} * 1000);
     }};

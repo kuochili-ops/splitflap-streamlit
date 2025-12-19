@@ -1,25 +1,39 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import math
 
 # --- 1. 頁面透明化與手機適配設定 ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
+    /* 隱藏所有 Streamlit 預設元件 */
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
+    
+    /* 讓 Streamlit 容器完全透明，暴露出底層 HTML 背景 */
     .block-container {padding: 0 !important; background-color: transparent !important;}
-    .stApp {background: transparent !important;}
-    iframe {border: none; width: 100%; height: 100vh; overflow: hidden;}
+    .stApp {background-color: transparent !important;}
+    
+    /* 修正 iframe 容器樣式 */
+    iframe {
+        border: none; 
+        width: 100%; 
+        height: 100vh; 
+        overflow: hidden;
+        background-color: transparent !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. 參數獲取 ---
 input_text_raw = st.query_params.get("text", "載入中...")
 stay_sec = float(st.query_params.get("stay", 2.5))
-# 新增：獲取 bg 參數，預設為 transparent
 bg_param = st.query_params.get("bg", "transparent")
 
-# --- 3. 核心 HTML ---
+# 自動處理 Hex 色碼：如果傳入的是 3 或 6 位純數字/字母，自動補上 #
+if bg_param != "transparent" and not bg_param.startswith("#"):
+    if len(bg_param) in [3, 6]:
+        bg_param = f"#{bg_param}"
+
+# --- 3. 核心 HTML (內含水泥牆背景邏輯) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -35,7 +49,7 @@ html_code = f"""
     }}
     body {{ 
         background-color: var(--main-bg);
-        /* 疊加一層微弱的水泥紋理圖案，增加質感 */
+        /* 水泥牆紋理疊加 (來自 Transparent Textures) */
         background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png");
         display: flex; flex-direction: column; justify-content: center; 
         align-items: center; height: 100vh; margin: 0; padding: 10px;
@@ -199,4 +213,5 @@ html_code = f"""
 </html>
 """
 
-components.html(html_code, height=600)
+# --- 4. 渲染 ---
+components.html(html_code, height=800, scrolling=False)

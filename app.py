@@ -30,24 +30,24 @@ html_code = f"""
     }}
     body {{ 
         transition: all 0.8s ease;
-        background-color: #dcdcdc;
+        background-color: #f0f0f0;
         background-image: url("https://www.transparenttextures.com/patterns/white-wall.png");
         display: flex; flex-direction: column; 
         justify-content: flex-start; 
         align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
-        padding-top: 20px; 
+        padding-top: 30px; 
     }}
 
     /* 面板外殼 */
     .board-case {{
         position: relative; padding: 35px 45px;
-        background: rgba(0, 0, 0, 0.6); border-radius: 20px;
+        background: rgba(0, 0, 0, 0.7); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 40px 80px rgba(0,0,0,0.8);
         backdrop-filter: blur(10px);
         display: inline-flex; flex-direction: column; align-items: center;
-        max-width: 98vw;
+        max-width: 95vw;
         gap: 12px;
         z-index: 10;
     }}
@@ -55,27 +55,26 @@ html_code = f"""
     /* 塗鴉圖案容器 */
     .graffiti {{
         position: absolute;
-        width: 150px; height: 150px;
+        width: 160px; height: 160px;
         background-size: contain;
         background-repeat: no-repeat;
         pointer-events: none;
-        opacity: 0.8;
-        z-index: -1; /* 放在面板正後方或下方 */
-        transition: all 0.5s ease;
+        z-index: -1; 
+        transition: opacity 0.5s ease;
     }}
     
-    /* 右下角氣球女孩 */
-    .graffiti.balloon {{
-        bottom: -120px; right: -60px;
-        background-image: url("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Banksy_Balloon_Girl.svg/800px-Banksy_Balloon_Girl.svg.png");
-        filter: grayscale(1) brightness(1.2);
+    /* 右下角氣球女孩 - 使用 Wikimedia 穩定來源 */
+    .balloon {{
+        bottom: -115px; right: -50px;
+        background-image: url("https://upload.wikimedia.org/wikipedia/commons/f/f3/Banksy_Balloon_Girl.svg");
+        filter: brightness(0.2); /* 讓它看起來像黑色噴漆 */
     }}
 
-    /* 左下角擲花者 */
-    .graffiti.thrower {{
-        bottom: -130px; left: -80px;
-        background-image: url("https://www.vhv.rs/dpng/d/436-4364183_banksy-flower-thrower-png-transparent-png.png");
-        filter: grayscale(1) contrast(1.5);
+    /* 左下角擲花者 - 使用替代圖源 */
+    .thrower {{
+        bottom: -110px; left: -60px;
+        background-image: url("https://upload.wikimedia.org/wikipedia/en/2/23/Banksy_Flower_Thrower.png");
+        filter: grayscale(1) contrast(1.2) brightness(0.8);
         width: 180px; height: 180px;
         display: none;
     }}
@@ -102,32 +101,29 @@ html_code = f"""
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
     .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
-    .footer-note {{ margin-top: 100px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
+    .footer-note {{ margin-top: 130px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
 </style>
 </head>
 <body onclick="changeStyle()">
     <div class="board-case" id="main-board">
         <div class="screw" style="top:12px; left:12px;"></div>
         <div class="screw" style="top:12px; right:12px;"></div>
-        
         <div id="row-msg" class="row-container"></div>
         <div id="row-date" class="row-container"></div>
         <div id="row-clock" class="row-container"></div>
-        
         <div class="screw" style="bottom:12px; left:12px;"></div>
         <div class="screw" style="bottom:12px; right:12px;"></div>
 
         <div id="graf-balloon" class="graffiti balloon"></div>
         <div id="graf-thrower" class="graffiti thrower"></div>
     </div>
-    <div class="footer-note">🎨 Click to switch Banksy styles & backgrounds</div>
+    <div class="footer-note">🎨 Click Background to Switch Styles</div>
 
 <script>
     const styles = [
-        {{ c: '#dcdcdc', t: 'white-wall', g: 'balloon' }},    // 氣球女孩牆
-        {{ c: '#888888', t: 'concrete-wall', g: 'thrower' }}, // 擲花者水泥牆
-        {{ c: '#1a1a1a', t: 'carbon-fibre', g: 'none' }},    // 原本的風格
-        {{ c: '#222222', t: 'brushed-alum', g: 'none' }}
+        {{ c: '#f0f0f0', t: 'white-wall', g: 'balloon' }},    // 白牆+氣球
+        {{ c: '#999999', t: 'concrete-wall', g: 'thrower' }}, // 水泥+擲花
+        {{ c: '#1a1a1a', t: 'carbon-fibre', g: 'none' }}     // 碳纖維
     ];
     let sIdx = 0;
     function changeStyle() {{
@@ -136,10 +132,9 @@ html_code = f"""
         document.body.style.backgroundColor = s.c;
         document.body.style.backgroundImage = s.t === 'none' ? 'none' : `url("https://www.transparenttextures.com/patterns/${{s.t}}.png")`;
         
-        // 切換塗鴉顯示
         document.getElementById('graf-balloon').style.display = (s.g === 'balloon') ? 'block' : 'none';
         document.getElementById('graf-thrower').style.display = (s.g === 'thrower') ? 'block' : 'none';
-        document.querySelector('.footer-note').style.color = (s.c === '#1a1a1a' || s.c === '#222222') ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+        document.querySelector('.footer-note').style.color = (s.c === '#1a1a1a') ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
     }}
 
     function createFlap(char, type) {{
@@ -212,4 +207,4 @@ html_code = f"""
 </html>
 """
 
-components.html(html_code, height=900, scrolling=False)
+components.html(html_code, height=1000, scrolling=False)

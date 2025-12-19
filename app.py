@@ -14,7 +14,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 圖片處理 ---
+# --- 2. 圖片處理 (氣球女孩) ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_base64 = ""
 if os.path.exists(img_filename):
@@ -23,9 +23,9 @@ if os.path.exists(img_filename):
 
 # --- 3. 參數獲取 ---
 input_text = st.query_params.get("text", "HAPPY HOLIDAY")
-stay_sec = max(2.0, float(st.query_params.get("stay", 3.0))) # 確保停留在每一頁的時間足夠長
+stay_sec = max(2.5, float(st.query_params.get("stay", 3.0)))
 
-# --- 4. 核心 HTML ---
+# --- 4. 核心 HTML (解決動畫失效問題) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -34,7 +34,7 @@ html_code = f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     :root {{
-        --flip-speed: 0.85s; /* 慢速且有重量感的翻轉 */
+        --flip-speed: 0.85s; /* 慢速、厚重 */
     }}
     body {{ 
         background-color: #f0f0f0;
@@ -62,31 +62,30 @@ html_code = f"""
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 1.0); }}
     .small-unit {{ width: var(--small-w); height: calc(var(--small-w) * 1.4); font-size: calc(var(--small-w) * 0.8); }}
 
-    /* 靜態層 */
+    /* 物理結構層 */
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #222; }}
     
-    .msg-unit .top {{ top: 0; border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; z-index: 1; }}
+    .msg-unit .top {{ top: 0; border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 1px solid #000; z-index: 1; }}
     .msg-unit .bottom {{ bottom: 0; border-radius: 0 0 6px 6px; line-height: 0px; z-index: 0; }}
     
     .small-unit .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; }}
     .small-unit .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
-    /* 翻轉葉片 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
         z-index: 10; transform-origin: bottom; transform-style: preserve-3d;
-        /* 使用較慢的運動曲線 */
-        transition: transform var(--flip-speed) cubic-bezier(0.45, 0.05, 0.55, 0.95);
+        transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1);
     }}
 
     .leaf-front, .leaf-back {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; backface-visibility: hidden; background: #222; overflow: hidden; }}
 
-    .msg-unit .leaf-front {{ border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; }}
+    .msg-unit .leaf-front {{ border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 1px solid #000; }}
     .msg-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 6px 6px; line-height: 0px; background: linear-gradient(to top, #222 50%, #151515 100%); }}
 
     .small-unit .leaf-front {{ border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; }}
     .small-unit .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; background: linear-gradient(to top, #222 50%, #151515 100%); }}
 
+    /* 翻轉觸發 */
     .flipping .leaf {{ transform: rotateX(-180deg); }}
     
     .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 15; transform: translateY(-50%); }}
@@ -129,30 +128,28 @@ html_code = f"""
     }}
 
     function updateCard(el, newVal) {{
-        const topPart = el.querySelector('.top');
-        const oldVal = topPart.innerText;
+        const oldVal = el.querySelector('.top').innerText;
         if (newVal === oldVal) return;
 
-        // 重要：先移除動畫類別
+        // 1. 先移除動畫 class
         el.classList.remove('flipping');
-        
-        // 更新物理層級內容
-        topPart.innerText = newVal;    
-        el.querySelector('.bottom').innerText = oldVal; 
-        el.querySelector('.leaf-front').innerText = oldVal; 
-        el.querySelector('.leaf-back').innerText = newVal;  
 
-        // 強制觸發重繪 (Reflow)，確保瀏覽器知道動畫需要重新執行
+        // 2. 依照您的 clock1219 邏輯，在 leaf 翻下前，設定正確的正反面內容
+        el.querySelector('.top').innerText = newVal;
+        el.querySelector('.bottom').innerText = oldVal;
+        el.querySelector('.leaf-front').innerText = oldVal;
+        el.querySelector('.leaf-back').innerText = newVal;
+
+        // 3. 關鍵：強制觸發 Reflow，讓瀏覽器意識到動畫需要「從頭開始」執行
         void el.offsetWidth;
-        
-        // 重新加入動畫類別
+
+        // 4. 加入動畫 class 執行下翻
         el.classList.add('flipping');
 
-        // 等動畫執行完畢 (0.85s)，更新底部靜態內容
+        // 5. 動畫結束後(850ms)，將靜態底層同步為新字
         setTimeout(() => {{
             el.querySelector('.bottom').innerText = newVal;
-            // 動畫結束後不需要再重新賦值 leaf-front，保持穩定
-        }}, 850); 
+        }}, 850);
     }}
 
     function adjustSize() {{
@@ -183,13 +180,11 @@ html_code = f"""
         init();
         tick();
         setInterval(tick, 1000);
-        
-        // 訊息輪播
         if (msgPages.length > 1) {{
             setInterval(() => {{
                 pIdx = (pIdx + 1) % msgPages.length;
                 document.querySelectorAll('#row-msg .flip-card').forEach((u, i) => {{
-                    // 給予每個字元 100ms 的波浪式延遲，這會讓翻頁看起來更像真實機械
+                    // 加入稍微長一點的字元間延遲 (120ms)，營造波浪翻轉的機械感
                     setTimeout(() => updateCard(u, msgPages[pIdx][i]), i * 120);
                 }});
             }}, {stay_sec} * 1000);

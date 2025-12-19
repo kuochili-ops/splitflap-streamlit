@@ -69,20 +69,18 @@ html_code = f"""
         perspective: 1000px;
     }}
 
-    /* 靜態底板：上半部與下半部 */
     .top, .bottom {{
         position: absolute; left: 0; width: 100%; height: 50%;
         overflow: hidden; background: #1a1a1a;
     }}
     
-    /* 修正：上半部文字一開始維持舊字，翻轉完才變新字，或提高葉片層級 */
+    /* 關鍵：top 在翻轉中盤前必須遮蓋新字或顯示舊字 */
     .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; z-index: 1; }}
     .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
-    /* 翻轉葉片：必須是最高層級 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-        z-index: 20; /* 確保葉片蓋住 top */
+        z-index: 10;
         transform-origin: bottom;
         transform-style: preserve-3d;
         transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -93,7 +91,11 @@ html_code = f"""
         backface-visibility: hidden; background: #1a1a1a;
     }}
     .leaf-front {{ z-index: 2; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; }}
-    .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; border-top: 1px solid #000; }}
+    .leaf-back {{ 
+        transform: rotateX(-180deg); border-radius: 0 0 4px 4px; 
+        line-height: 0px; border-top: 1px solid #000; 
+        z-index: 1;
+    }}
 
     .flipping .leaf {{ transform: rotateX(-180deg); }}
 
@@ -122,14 +124,9 @@ html_code = f"""
     function updateCard(el, nv, ov) {{
         if (nv === ov && el.innerHTML !== "") return;
         
-        // 關鍵結構：
-        // .top 顯示【新字】
-        // .bottom 顯示【舊字】
-        // .leaf-front 顯示【舊字】 (翻下去遮住 bottom)
-        // .leaf-back 顯示【新字】 (蓋在底下的內容上)
-        
+        // 初始化結構：Top 暫時放「舊字」以防穿透，或者透過 CSS 控制
         el.innerHTML = `
-            <div class="top">${{nv}}</div>
+            <div class="top">${{ov}}</div>
             <div class="bottom">${{ov}}</div>
             <div class="leaf">
                 <div class="leaf-front">${{ov}}</div>
@@ -138,15 +135,19 @@ html_code = f"""
             <div class="hinge"></div>
         `;
         
-        // 為了防止 nv 在 top 處太早露出：
-        // 我們讓 .top 在動畫剛開始時維持 visibility: hidden 或者是讓 leaf 擋死它
-        // 這裡透過 z-index 確保 leaf 絕對高於 top 即可解決
-        
         el.classList.remove('flipping');
         void el.offsetWidth;
         el.classList.add('flipping');
 
-        // 當翻轉完成後，確保底板文字更新一致
+        // 【關鍵優化】
+        // 1. 在翻轉到一半 (約 600ms) 時，將背景的 top 悄悄換成新字
+        // 這時候 leaf 已經翻到 90 度，遮住了 top 的變化
+        setTimeout(() => {{
+            const t = el.querySelector('.top');
+            if(t) t.innerText = nv;
+        }}, 600); 
+
+        // 2. 在完全翻轉完後，將 bottom 換成新字
         setTimeout(() => {{
             const b = el.querySelector('.bottom');
             if(b) b.innerText = nv;
@@ -170,8 +171,8 @@ html_code = f"""
         const dStr = months[n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + weeks[n.getDay()];
         const tStr = String(n.getHours()).padStart(2,'0') + ":" + String(n.getMinutes()).padStart(2,'0') + ":" + String(n.getSeconds()).padStart(2,'0');
 
-        dStr.split('').forEach((c, i) => {{ updateCard(document.getElementById(`d${{i}}`), c, prevDate[i] || ""); prevDate[i] = c; }});
-        tStr.split('').forEach((c, i) => {{ updateCard(document.getElementById(`t${{i}}`), c, prevTime[i] || ""); prevTime[i] = c; }});
+        dStr.split('').forEach((c, i) => {{ updateCard(document.getElementById(`d${{i}}`), c, prevDate[i] || " "); prevDate[i] = c; }});
+        tStr.split('').forEach((c, i) => {{ updateCard(document.getElementById(`t${{i}}`), c, prevTime[i] || " "); prevTime[i] = c; }});
     }}
 
     window.onload = () => {{
@@ -180,9 +181,10 @@ html_code = f"""
         for (let i = 0; i < fullText.length; i += flapCount) {{
             msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
         }}
-        msgPages[0].forEach((c, i) => {{ updateCard(document.getElementById(`m${{i}}`), c, ""); prevMsg[i] = c; }});
+        msgPages[0].forEach((c, i) => {{ updateCard(document.getElementById(`m${{i}}`), c, " "); prevMsg[i] = c; }});
         tick();
         setInterval(tick, 1000);
+        
         if (msgPages.length > 1) {{
             setInterval(() => {{
                 let pIdx = (Math.floor(Date.now() / ({stay_sec} * 1000))) % msgPages.length;

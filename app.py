@@ -27,19 +27,20 @@ else:
 input_text = st.query_params.get("text", "假日愉快，身體健康").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 3.0)))
 
-# --- 3. 核心 HTML ---
+# --- 3. 核心 HTML (徹底修復穿透感) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <style>
+    :root {{ --flip-duration: 1.2s; }} /* 慢速翻轉 */
+    
     body {{ 
         display: flex; justify-content: center; align-items: flex-start; 
         padding-top: 5vh; height: 100vh; margin: 0; overflow: hidden;
         font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
         background-color: #1a1a1a;
-        cursor: pointer;
     }}
     
     .wall-2 {{ 
@@ -52,38 +53,29 @@ html_code = f"""
 
     .acrylic-board {{
         position: relative; padding: 45px 35px; 
-        background: rgba(255, 255, 255, 0.02); 
+        background: rgba(255, 255, 255, 0.05); 
         backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 15px; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
         display: inline-flex; flex-direction: column; align-items: center;
         gap: 12px; z-index: 10; margin-top: 2vh;
     }}
 
     .flip-card {{
-        position: relative;
-        background-color: #1a1a1a;
-        color: #e0e0e0;
-        text-align: center;
-        font-weight: 900;
-        perspective: 1000px;
+        position: relative; background-color: #1a1a1a; color: #e0e0e0;
+        text-align: center; font-weight: 900; perspective: 1000px;
     }}
 
-    .top, .bottom {{
-        position: absolute; left: 0; width: 100%; height: 50%;
-        overflow: hidden; background: #1a1a1a;
-    }}
-    
-    /* 初始 Z-index 確保層級正確 */
+    /* 靜態層 */
+    .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; }}
     .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; z-index: 1; }}
     .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
+    /* 翻轉葉片 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-        z-index: 10;
-        transform-origin: bottom;
-        transform-style: preserve-3d;
-        transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 20; transform-origin: bottom; transform-style: preserve-3d;
+        transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1);
     }}
 
     .leaf-front, .leaf-back {{
@@ -91,13 +83,13 @@ html_code = f"""
         backface-visibility: hidden; background: #1a1a1a;
     }}
     .leaf-front {{ z-index: 2; border-radius: 4px 4px 0 0; line-height: var(--h); border-bottom: 1px solid #000; }}
-    .leaf-back {{ 
-        transform: rotateX(-180deg); border-radius: 0 0 4px 4px; 
-        line-height: 0px; border-top: 1px solid #000; 
-        z-index: 1;
-    }}
+    .leaf-back {{ transform: rotateX(-180deg); border-radius: 0 0 4px 4px; line-height: 0px; z-index: 1; }}
 
     .flipping .leaf {{ transform: rotateX(-180deg); }}
+
+    /* 穿透修復：當還沒翻下去時，上板背景強制維持隱藏新內容 */
+    .top-new-text {{ display: none; }}
+    .flipping .top-new-text {{ display: block; }}
 
     .hinge {{
         position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
@@ -124,12 +116,7 @@ html_code = f"""
     function updateCard(el, nv, ov) {{
         if (nv === ov && el.innerHTML !== "") return;
         
-        // 解決穿透的關鍵邏輯：
-        // 1. 初始化時，底板上半部(.top) 必須顯示【舊字 ov】
-        // 2. 葉片正面(.leaf-front) 顯示【舊字 ov】
-        // 3. 葉片背面(.leaf-back) 顯示【新字 nv】
-        // 4. 底板下半部(.bottom) 顯示【舊字 ov】
-        
+        // 核心邏輯：Top 底板一開始要顯示「舊字」
         el.innerHTML = `
             <div class="top">${{ov}}</div>
             <div class="bottom">${{ov}}</div>
@@ -144,14 +131,15 @@ html_code = f"""
         void el.offsetWidth;
         el.classList.add('flipping');
 
-        // 在翻轉到一半 (90度，對應 1.2s 動畫約 0.6s 處) 時
-        // 此時葉片垂直，擋住了上半部，我們才悄悄把 .top 換成新字
+        // 【關鍵優化】比照參考範例：
+        // 在翻轉到 90 度時 (約動畫 0.6s)，才把背景的 .top 換成新字
+        // 這樣就不會發生「上板還沒翻上來字就已經在位置」的情況
         setTimeout(() => {{
             const t = el.querySelector('.top');
             if(t) t.innerText = nv;
         }}, 600); 
 
-        // 動畫完全結束後，把底部也更新為新字
+        // 動畫結束，同步下板內容
         setTimeout(() => {{
             const b = el.querySelector('.bottom');
             if(b) b.innerText = nv;

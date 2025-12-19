@@ -13,10 +13,10 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. 參數獲取 ---
-input_text_raw = st.query_params.get("text", "BANKSY ART")
+input_text_raw = st.query_params.get("text", "BANKSY STYLE")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 核心 HTML (重新設計的高辨識度 Banksy SVG) ---
+# --- 3. 核心 HTML (精確勾勒 Banksy 剪影) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -36,14 +36,14 @@ html_code = f"""
         justify-content: flex-start; 
         align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
-        padding-top: 40px; 
+        padding-top: 45px; 
     }}
 
     .board-case {{
         position: relative; padding: 35px 45px;
-        background: rgba(30, 30, 30, 0.9); border-radius: 20px;
+        background: rgba(35, 35, 35, 0.9); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+        box-shadow: 0 40px 80px rgba(0,0,0,0.7);
         backdrop-filter: blur(10px);
         display: inline-flex; flex-direction: column; align-items: center;
         max-width: 95vw;
@@ -51,20 +51,21 @@ html_code = f"""
         z-index: 10;
     }}
 
-    /* 班克西氣球女孩 - 2024 高辨識度重繪版 */
+    /* 班克西氣球女孩 - 幾何精確版 */
     .banksy-art {{
         position: absolute;
-        bottom: -190px; 
-        right: -90px;
-        width: 280px; 
-        height: 280px;
+        bottom: -200px; 
+        right: -100px;
+        width: 300px; 
+        height: 300px;
         background-size: contain;
         background-repeat: no-repeat;
         pointer-events: none;
         z-index: -1;
-        opacity: 0.95;
-        /* 重新構圖：女孩(左下) 追逐 氣球(右上) */
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3C!-- 女孩 --%3E%3Cpath d='M30 180 c0 -15 10 -35 25 -40 c5 -2 10 0 15 5 c5 5 8 15 5 25 c-3 10 -15 20 -30 22 c-10 1 -15 -5 -15 -12 z' fill='%23000'/%3E%3Cpath d='M45 145 c-5 -10 -5 -25 5 -30 c8 -5 15 0 18 10 c3 10 -2 20 -10 25' fill='%23000'/%3E%3Cpath d='M58 120 l35 -30 m-35 30 l25 -5' stroke='%23000' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M42 195 l-2 -12 l4 -4 l3 16 z' fill='%23000'/%3E%3C!-- 氣球 --%3E%3Ccircle cx='150' cy='45' r='18' fill='%23d00000'/%3E%3Cpath d='M150 63 c0 5 -5 15 -20 35' stroke='%23000' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+        opacity: 0.9;
+        /* 重繪 SVG: 強化裙襬與辮子特徵 */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3C!-- 女孩主體 --%3E%3C!-- 裙子與身體 --%3E%3Cpath d='M40 180 L70 185 L65 140 L45 135 Z' fill='%23000'/%3E%3C!-- 頭部與辮子 --%3E%3Ccircle cx='55' cy='125' r='8' fill='%23000'/%3E%3Cpath d='M48 122 Q40 115 42 105' stroke='%23000' stroke-width='2.5' fill='none'/%3E%3C!-- 伸出的手臂 --%3E%3Cpath d='M65 140 L105 110' stroke='%23000' stroke-width='4' stroke-linecap='round'/%3E%3C!-- 腿 --%3E%3Cpath d='M50 183 L48 198 M60 184 L62 198' stroke='%23000' stroke-width='3'/%3E%3C!-- 紅氣球 --%3E%3Ccircle cx='155' cy='45' r='18' fill='%23e60000'/%3E%3Cpath d='M155 63 Q155 80 130 110' stroke='%23555' stroke-width='1.2' fill='none'/%3E%3C/svg%3E");
+        display: block;
     }}
 
     .screw {{
@@ -89,7 +90,7 @@ html_code = f"""
     .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
     .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
-    .footer-note {{ margin-top: 220px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.3); font-weight: bold; letter-spacing: 1px; }}
+    .footer-note {{ margin-top: 240px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.3); font-weight: bold; }}
 </style>
 </head>
 <body onclick="changeStyle()">
@@ -103,7 +104,7 @@ html_code = f"""
         <div class="screw" style="bottom:12px; right:12px;"></div>
         <div id="banksy" class="banksy-art"></div>
     </div>
-    <div class="footer-note">🎨 CLICK BACKGROUND TO SWITCH STYLE | 𓃥白六</div>
+    <div class="footer-note">🎨 CLICK TO SWITCH STYLE | 𓃥白六製作</div>
 
 <script>
     const styles = [

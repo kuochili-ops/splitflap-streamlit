@@ -42,42 +42,42 @@ html_code = f"""
     }}
 
     .board-case {{
-        position: relative; padding: 50px 60px;
-        background: rgba(0, 0, 0, 0.4); border-radius: 25px;
+        position: relative; padding: 30px 20px;
+        background: rgba(0, 0, 0, 0.4); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 40px 80px rgba(0,0,0,0.8);
+        box-shadow: 0 30px 60px rgba(0,0,0,0.8);
         backdrop-filter: blur(10px);
         display: flex; flex-direction: column; align-items: center;
-        min-width: 520px;
+        width: 90%; max-width: 500px; /* 適配手機寬度 */
     }}
 
     .screw {{
-        position: absolute; width: 12px; height: 12px;
-        background: radial-gradient(circle at 4px 4px, #888, #111);
-        border-radius: 50%; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        position: absolute; width: 10px; height: 10px;
+        background: radial-gradient(circle at 3px 3px, #888, #111);
+        border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }}
 
-    /* 主訊息 */
+    /* 主訊息排列 */
     #board-container {{ 
-        display: grid; grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 60px)); 
-        gap: 12px; perspective: 1500px; margin-bottom: 40px;
+        display: grid; grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 45px)); 
+        gap: 8px; perspective: 1500px; margin-bottom: 15px; /* 縮小與下方的間距 */
     }}
 
-    /* 時間訊息 */
+    /* 時間訊息排列 (11-12格) */
     #clock-container {{
-        display: grid; grid-template-columns: repeat(12, 32px); 
-        gap: 6px; perspective: 1000px;
+        display: grid; grid-template-columns: repeat(12, 24px); /* 縮小翻板寬度 */
+        gap: 4px; perspective: 1000px;
     }}
 
     .flap-unit {{ 
-        position: relative; background: #000; border-radius: 6px; 
+        position: relative; background: #000; border-radius: 4px; 
         font-family: var(--font-family); font-weight: 900; color: #fff; 
+        overflow: visible;
     }}
 
-    /* 翻板尺寸定義 */
-    #board-container .flap-unit {{ --w: var(--unit-width, 60px); --h: calc(var(--w) * 1.4); }}
-    #clock-container .flap-unit {{ --w: 32px; --h: 46px; font-size: 24px; }}
-    #board-container .flap-unit {{ font-size: calc(var(--w) * 0.9); }}
+    /* 尺寸定義 */
+    #board-container .flap-unit {{ --w: var(--unit-width, 45px); --h: calc(var(--w) * 1.4); font-size: calc(var(--w) * 0.9); }}
+    #clock-container .flap-unit {{ --w: 24px; --h: 36px; font-size: 18px; }}
 
     .flap-unit {{ width: var(--w); height: var(--h); }}
 
@@ -87,10 +87,10 @@ html_code = f"""
         display: flex; justify-content: center; backface-visibility: hidden; 
     }}
     
-    .top {{ top: 0; align-items: flex-start; border-radius: 6px 6px 0 0; border-bottom: 0.5px solid #000; }}
-    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 6px 6px; }}
+    .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000; }}
+    .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
 
-    /* 【核心修正】精確鎖定文字位置 */
+    /* 文字精確定位修正 */
     .text {{ 
         position: absolute; left: 0; width: 100%; height: var(--h);
         text-align: center; line-height: var(--h);
@@ -104,30 +104,32 @@ html_code = f"""
         transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); 
         transform-style: preserve-3d; 
     }}
-    .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 6px 6px 0 0; }} 
+    .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
     .leaf-back {{ 
         transform: rotateX(-180deg); z-index: 15; background: #111; 
         display: flex; justify-content: center; align-items: flex-end; 
-        overflow: hidden; border-radius: 0 0 6px 6px; 
+        overflow: hidden; border-radius: 0 0 4px 4px; 
     }}
     .flipping {{ transform: rotateX(-180deg); }}
+
+    /* 中間細線 */
     .flap-unit::before {{ 
         content: ""; position: absolute; top: 50%; left: 0; 
-        width: 100%; height: 2px; background: rgba(0,0,0,0.8); 
+        width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); 
         transform: translateY(-50%); z-index: 60; 
     }}
 
-    .footer-note {{ margin-top: 30px; font-family: var(--font-family); font-size: 14px; color: rgba(255, 255, 255, 0.3); letter-spacing: 2px; }}
+    .footer-note {{ margin-top: 20px; font-family: var(--font-family); font-size: 12px; color: rgba(255, 255, 255, 0.3); letter-spacing: 1px; }}
 </style>
 </head>
 <body onclick="changeStyle()">
     <div class="board-case">
-        <div class="screw" style="top:15px; left:15px;"></div>
-        <div class="screw" style="top:15px; right:15px;"></div>
+        <div class="screw" style="top:10px; left:10px;"></div>
+        <div class="screw" style="top:10px; right:10px;"></div>
         <div id="board-container"></div>
         <div id="clock-container"></div>
-        <div class="screw" style="bottom:15px; left:15px;"></div>
-        <div class="screw" style="bottom:15px; right:15px;"></div>
+        <div class="screw" style="bottom:10px; left:10px;"></div>
+        <div class="screw" style="bottom:10px; right:10px;"></div>
     </div>
     <div class="footer-note">👋 點擊切換風格 | 𓃥白六訊息告示牌</div>
 
@@ -191,7 +193,7 @@ html_code = f"""
     function init() {{
         document.getElementById('board-container').innerHTML = rows[0].map(c => createFlap(c)).join('');
         document.documentElement.style.setProperty('--cols', mCols);
-        const w = Math.min(80, Math.max(30, Math.floor((window.innerWidth - 200) / mCols)));
+        const w = Math.min(70, Math.max(30, Math.floor((window.innerWidth - 80) / mCols)));
         document.documentElement.style.setProperty('--unit-width', w + 'px');
         document.getElementById('clock-container').innerHTML = getTime().split('').map(c => createFlap(c)).join('');
     }}
@@ -199,7 +201,11 @@ html_code = f"""
     function getTime() {{
         const n = new Date();
         const m = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()];
-        return `${{m}}/${{String(n.getDate()).padStart(2,'0')}} ${{String(n.getHours()).padStart(2,'0')}}:${{String(n.getMinutes()).padStart(2,'0')}}`;
+        const d = String(n.getDate()).padStart(2,'0');
+        const w = ["日","一","二","三","四","五","六"][n.getDay()];
+        const h = String(n.getHours()).padStart(2,'0');
+        const min = String(n.getMinutes()).padStart(2,'0');
+        return `${{m}} ${{d}} ${{w}} ${{h}}:${{min}}`; // 長度剛好 12 個字元
     }}
 
     let rIdx = 0;
@@ -207,7 +213,7 @@ html_code = f"""
         init();
         if (rows.length > 1) setInterval(() => {{
             rIdx = (rIdx + 1) % rows.length;
-            document.querySelectorAll('#board-container .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, rows[rIdx][i] || ' '), i*50));
+            document.querySelectorAll('#board-container .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, rows[rIdx][i] || ' '), i*40));
         }}, {stay_sec} * 1000);
         setInterval(() => {{
             const s = getTime();

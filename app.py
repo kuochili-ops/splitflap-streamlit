@@ -8,24 +8,16 @@ st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    .block-container {padding: 0 !important; background-color: transparent !important;}
-    .stApp {background-color: transparent !important;}
+    .block-container {padding: 0 !important; background-image: url('https://www.transparenttextures.com/patterns/concrete-wall.png'); background-color: #2b2b2b;}
     iframe { border: none; width: 100%; height: 100vh; overflow: hidden; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 圖片處理 (氣球女孩) ---
-img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
-img_base64 = ""
-if os.path.exists(img_filename):
-    with open(img_filename, "rb") as f:
-        img_base64 = base64.b64encode(f.read()).decode()
-
-# --- 3. 參數獲取 ---
-input_text = st.query_params.get("text", "HAPPY HOLIDAY")
+# --- 2. 參數與邏輯獲取 ---
+input_text = st.query_params.get("text", "HAPPY HOLIDAY").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 3.0)))
 
-# --- 4. 核心 HTML ---
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -34,95 +26,108 @@ html_code = f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     :root {{
-        --flip-speed: 0.85s; 
+        --flip-speed: 0.7s;
+        --glass-bg: rgba(255, 255, 255, 0.1);
+        --screw-color: #888;
     }}
     body {{ 
-        background-color: #f0f0f0;
-        background-image: url("https://www.transparenttextures.com/patterns/white-wall.png");
-        display: flex; flex-direction: column; align-items: center; 
-        height: 100vh; margin: 0; overflow: hidden; padding-top: 5vh;
-        font-family: 'Arial Black', "PingFang TC", sans-serif;
+        display: flex; justify-content: center; align-items: center; 
+        height: 100vh; margin: 0; overflow: hidden;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     }}
 
-    .board-case {{
-        position: relative; padding: 30px 40px;
-        background: rgba(25, 25, 25, 0.98); 
-        border-radius: 12px; box-shadow: 0 40px 80px rgba(0,0,0,0.6);
-        display: inline-flex; flex-direction: column; align-items: center;
-        gap: 15px; z-index: 10; max-width: 95vw;
+    /* 壓克力面板設定 */
+    .acrylic-board {{
+        position: relative;
+        padding: 60px 50px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 15px;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,255,255,0.1);
+        display: flex; flex-direction: column; align-items: center;
+        gap: 25px;
     }}
 
-    .row-container {{ display: flex; flex-direction: row; gap: 6px; perspective: 1500px; }}
+    /* 四個角落的螺絲 */
+    .acrylic-board::before, .acrylic-board::after,
+    .screw-bottom-left, .screw-bottom-right {{
+        content: ''; position: absolute; width: 14px; height: 14px;
+        background: radial-gradient(circle at 30% 30%, #bbb, #444);
+        border-radius: 50%; box-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+        z-index: 100;
+    }}
+    /* 螺絲位置 */
+    .acrylic-board::before {{ top: 15px; left: 15px; }} /* 左上 */
+    .acrylic-board::after {{ top: 15px; right: 15px; }} /* 右上 */
+    .screw-bottom-left {{ bottom: 15px; left: 15px; position: absolute; }}
+    .screw-bottom-right {{ bottom: 15px; right: 15px; position: absolute; }}
 
-    /* 翻板基礎樣式 */
+    /* 螺絲的十字刻痕 */
+    .screw-mark {{
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 8px; height: 1px; background: rgba(0,0,0,0.3);
+    }}
+    .screw-mark::after {{
+        content: ''; position: absolute; width: 8px; height: 1px; 
+        background: rgba(0,0,0,0.3); transform: rotate(90deg);
+    }}
+
+    /* 翻板通用樣式 */
+    .row-container {{ display: flex; flex-direction: row; gap: 6px; perspective: 1000px; }}
     .flip-card {{
-        position: relative; background-color: #222; border-radius: 6px;
-        color: #f0f0f0; text-align: center; font-weight: bold;
+        position: relative; background-color: #1a1a1a; border-radius: 4px;
+        color: #eee; font-weight: bold; text-align: center;
     }}
 
-    /* 訊息列尺寸 - 大 */
-    .msg-unit {{ 
-        width: var(--msg-w); height: calc(var(--msg-w) * 1.5); 
-        font-size: calc(var(--msg-w) * 1.0); 
-    }}
-    /* 日期時間列尺寸 - 小 */
-    .small-unit {{ 
-        width: var(--small-w); height: calc(var(--small-w) * 1.4); 
-        font-size: calc(var(--small-w) * 0.8); 
-    }}
+    /* 第一排：大 (訊息) */
+    .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 1.1); }}
+    /* 第二、三排：小 (日期、時間) */
+    .small-unit {{ width: var(--small-w); height: calc(var(--small-w) * 1.4); font-size: calc(var(--small-w) * 0.9); }}
 
-    /* 物理層級設定 (繼承父級 line-height 以修正位置) */
-    .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #222; }}
+    /* 翻板物理構造 */
+    .top, .bottom, .leaf-front, .leaf-back {{
+        position: absolute; left: 0; width: 100%; height: 50%;
+        overflow: hidden; background: #222; display: flex; justify-content: center;
+    }}
+    .top, .leaf-front {{ top: 0; align-items: flex-end; line-height: 0; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000; }}
+    .bottom, .leaf-back {{ bottom: 0; align-items: flex-start; line-height: 0; border-radius: 0 0 4px 4px; }}
     
-    .msg-unit .top, .msg-unit .leaf-front {{ 
-        top: 0; border-radius: 6px 6px 0 0; 
-        line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; z-index: 1; 
-    }}
-    .msg-unit .bottom, .msg-unit .leaf-back {{ 
-        bottom: 0; border-radius: 0 0 6px 6px; line-height: 0px; z-index: 0; 
-    }}
-
-    .small-unit .top, .small-unit .leaf-front {{ 
-        top: 0; border-radius: 4px 4px 0 0; 
-        line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; 
-    }}
-    .small-unit .bottom, .small-unit .leaf-back {{ 
-        bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; 
-    }}
-
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
         z-index: 10; transform-origin: bottom; transform-style: preserve-3d;
         transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1);
     }}
-    .leaf-front, .leaf-back {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; backface-visibility: hidden; background: #222; overflow: hidden; }}
-    .leaf-back {{ transform: rotateX(-180deg); background: linear-gradient(to top, #222 50%, #151515 100%); }}
-
+    .leaf-front, .leaf-back {{ backface-visibility: hidden; }}
+    .leaf-back {{ transform: rotateX(-180deg); background: #222; }}
     .flipping .leaf {{ transform: rotateX(-180deg); }}
-    .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: #000; z-index: 15; transform: translateY(-50%); }}
 
-    .banksy-art {{
-        position: absolute; bottom: -200px; right: 0; width: 140px; height: 210px;
-        background-image: url("data:image/png;base64,{img_base64}");
-        background-size: contain; background-repeat: no-repeat; z-index: -1;
+    .hinge {{
+        position: absolute; top: 50%; left: 0; width: 100%; height: 2px;
+        background: #000; z-index: 20; transform: translateY(-50%);
     }}
 </style>
 </head>
 <body>
-    <div class="board-case">
+    <div class="acrylic-board">
+        <div class="screw-bottom-left"></div>
+        <div class="screw-bottom-right"></div>
+        
         <div id="row-msg" class="row-container"></div>
-        <div id="row-date" class="row-container" style="margin-top:15px; opacity: 0.7;"></div>
-        <div id="row-clock" class="row-container" style="opacity: 0.7;"></div>
-        <div id="banksy" class="banksy-art"></div>
+        <div id="row-date" class="row-container"></div>
+        <div id="row-clock" class="row-container"></div>
     </div>
 
 <script>
     const fullText = "{input_text}";
-    const flapCount = Math.min(10, fullText.length <= 20 ? Math.floor(fullText.length / 2) : 10);
-    let prevMsg = "".padEnd(flapCount, ' ').split('');
-    let prevDate = "        ".split('');
-    let prevTime = "     ".split('');
+    // 邏輯：訊息字數除以二，最多10個
+    const flapCount = Math.min(10, Math.max(4, Math.floor(fullText.length / 2)));
     
+    let prevMsg = Array(flapCount).fill(' ');
+    let prevDate = Array(8).fill(' ');
+    let prevTime = Array(5).fill(' ');
+
     let msgPages = [];
     for (let i = 0; i < fullText.length; i += flapCount) {{
         msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
@@ -132,18 +137,12 @@ html_code = f"""
         if (newVal === oldVal) return;
         const el = document.getElementById(elId);
         if (!el) return;
-
-        // 重新寫入 HTML 以確保動力學穩定性
         el.innerHTML = `
             <div class="top">${{newVal}}</div>
             <div class="bottom">${{oldVal}}</div>
-            <div class="leaf">
-                <div class="leaf-front">${{oldVal}}</div>
-                <div class="leaf-back">${{newVal}}</div>
-            </div>
+            <div class="leaf"><div class="leaf-front">${{oldVal}}</div><div class="leaf-back">${{newVal}}</div></div>
             <div class="hinge"></div>
         `;
-
         el.classList.remove('flipping');
         void el.offsetWidth; 
         el.classList.add('flipping');
@@ -151,10 +150,10 @@ html_code = f"""
 
     function adjustSize() {{
         const vw = window.innerWidth;
-        const msgW = Math.min(85, Math.floor((vw * 0.9) / flapCount));
+        // 確保在手機上也能橫向塞入面板
+        const msgW = Math.min(65, Math.floor((vw * 0.8) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
-        const smallW = Math.floor(msgW * 0.65); // 提高比例，避免縮太小
-        document.documentElement.style.setProperty('--small-w', smallW + 'px');
+        document.documentElement.style.setProperty('--small-w', (msgW * 0.75) + 'px');
     }}
 
     function init() {{
@@ -166,41 +165,27 @@ html_code = f"""
 
     function tick() {{
         const n = new Date();
-        const dStr = (["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()] + String(n.getDate()).padStart(2,'0') + " " + ["日","一","二","三","四","五","六"][n.getDay()]).padEnd(8, ' ');
+        const dStr = (["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()] + String(n.getDate()).padStart(2,'0') + "  ").substring(0,8);
         const tStr = String(n.getHours()).padStart(2,'0') + ":" + String(n.getMinutes()).padStart(2,'0');
-        
-        for (let i=0; i<8; i++) {{
-            updateCard(`d${{i}}`, dStr[i], prevDate[i]);
-            prevDate[i] = dStr[i];
-        }}
-        for (let i=0; i<5; i++) {{
-            updateCard(`t${{i}}`, tStr[i], prevTime[i]);
-            prevTime[i] = tStr[i];
-        }}
+        for(let i=0; i<8; i++) {{ updateCard(`d${{i}}`, dStr[i], prevDate[i]); prevDate[i] = dStr[i]; }}
+        for(let i=0; i<5; i++) {{ updateCard(`t${{i}}`, tStr[i], prevTime[i]); prevTime[i] = tStr[i]; }}
     }}
 
     let pIdx = 0;
     function cycleMsg() {{
+        if (msgPages.length <= 1) return;
         pIdx = (pIdx + 1) % msgPages.length;
-        const currentPage = msgPages[pIdx];
-        currentPage.forEach((char, i) => {{
-            setTimeout(() => {{
-                updateCard(`m${{i}}`, char, prevMsg[i]);
-                prevMsg[i] = char;
-            }}, i * 110);
+        msgPages[pIdx].forEach((char, i) => {{
+            setTimeout(() => {{ updateCard(`m${{i}}`, char, prevMsg[i]); prevMsg[i] = char; }}, i * 100);
         }});
     }}
 
     window.onload = () => {{
         init();
         tick();
-        // 初始第一頁訊息
-        msgPages[0].forEach((char, i) => {{
-            updateCard(`m${{i}}`, char, " ");
-            prevMsg[i] = char;
-        }});
+        msgPages[0].forEach((char, i) => {{ updateCard(`m${{i}}`, char, " "); prevMsg[i] = char; }});
         setInterval(tick, 1000);
-        if (msgPages.length > 1) setInterval(cycleMsg, {stay_sec} * 1000);
+        setInterval(cycleMsg, {stay_sec} * 1000);
     }};
     window.onresize = adjustSize;
 </script>
@@ -208,4 +193,4 @@ html_code = f"""
 </html>
 """
 
-components.html(html_code, height=900, scrolling=False)
+components.html(html_code, height=800, scrolling=False)

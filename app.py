@@ -18,13 +18,12 @@ st.markdown("""
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_data = ""
 
-# 優先讀取本地檔案，若無則使用網路預留圖
 if os.path.exists(img_filename):
     with open(img_filename, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
         img_data = f"data:image/png;base64,{img_b64}"
 else:
-    # 預留一個可靠的網路圖片連結，防止本地檔案讀取失敗
+    # 預留圖，確保開發時也能看到位置
     img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
 
 # --- 3. 參數獲取 ---
@@ -49,32 +48,33 @@ html_code = f"""
         background-size: cover; background-position: center;
     }}
     
-    /* 風格 0: 深色工業 */
     .wall-0 {{ background: #1a1a1a; background-image: radial-gradient(circle, #2c2c2c 0%, #1a1a1a 100%); }}
-    /* 風格 1: 水泥牆 */
     .wall-1 {{ background: #444; background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png"); }}
-    /* 風格 2: Banksy 牆 */
+    
+    /* 修正：塗鴉縮小且位置調高 */
     .wall-2 {{ 
-        background-color: #e0e0e0; 
+        background-color: #dcdcdc; 
         background-image: url("{img_data}");
         background-repeat: no-repeat;
-        background-position: bottom 5% right 5%;
-        background-size: auto 40vh; /* 確保圖片高度足夠大 */
+        /* 橫向右 10%，縱向從底部往上移 30% 處 (約在面板下方) */
+        background-position: right 10% bottom 30%; 
+        background-size: auto 25vh; /* 縮小至 25vh */
     }}
 
     .acrylic-board {{
-        position: relative; padding: 45px 35px; 
-        background: rgba(255, 255, 255, 0.05); 
+        position: relative; padding: 40px 30px; 
+        background: rgba(255, 255, 255, 0.02); 
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 15px; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 8px; z-index: 10;
+        gap: 6px; z-index: 10;
+        margin-top: 2vh;
     }}
 
     .screw {{
         position: absolute; width: 14px; height: 14px;
-        background: radial-gradient(circle at 35% 35%, #eee, #444);
+        background: radial-gradient(circle at 35% 35%, #ddd, #444);
         border-radius: 50%; box-shadow: 1px 1px 3px rgba(0,0,0,0.6);
         z-index: 20;
     }}
@@ -84,8 +84,8 @@ html_code = f"""
     }}
     .screw::after {{ transform: translate(-50%, -50%) rotate(45deg); }}
     .screw::before {{ transform: translate(-50%, -50%) rotate(-45deg); }}
-    .tl {{ top: 15px; left: 15px; }} .tr {{ top: 15px; right: 15px; }}
-    .bl {{ bottom: 15px; left: 15px; }} .br {{ bottom: 15px; right: 15px; }}
+    .tl {{ top: 12px; left: 12px; }} .tr {{ top: 12px; right: 12px; }}
+    .bl {{ bottom: 12px; left: 12px; }} .br {{ bottom: 12px; right: 12px; }}
 
     .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1200px; }}
     .flip-card {{ position: relative; background-color: #111; border-radius: 4px; color: #fff; text-align: center; font-weight: bold; }}
@@ -122,6 +122,7 @@ html_code = f"""
     const fullText = "{input_text}";
     const flapCount = Math.min(10, Math.max(1, Math.floor(fullText.length / 2)));
     let wallIdx = 0;
+    let pIdx = 0;
     
     function changeWall() {{
         wallIdx = (wallIdx + 1) % 3;
@@ -181,7 +182,6 @@ html_code = f"""
             msgPages[pIdx].forEach((char, i) => {{ updateCard(`m${{i}}`, char, prevMsg[i]); prevMsg[i] = char; }});
         }}, {stay_sec} * 1000);
     }};
-    let pIdx = 0;
     window.onresize = adjustSize;
 </script>
 </body>

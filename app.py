@@ -1,7 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# --- 1. 頁面透明化設定 ---
+# --- 1. 頁面透明化與基礎設定 ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
@@ -13,7 +13,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. 參數獲取 ---
-input_text_raw = st.query_params.get("text", "HELLO")
+input_text_raw = st.query_params.get("text", "載入中...")
 stay_sec = float(st.query_params.get("stay", 2.5))
 bg_param = st.query_params.get("bg", "transparent")
 
@@ -41,14 +41,15 @@ html_code = f"""
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
     }}
 
+    /* 透明外框：尺寸視翻板區域決定 */
     .board-case {{
-        position: relative; padding: 25px 20px;
+        position: relative; padding: 35px 30px;
         background: rgba(0, 0, 0, 0.4); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 30px 60px rgba(0,0,0,0.8);
         backdrop-filter: blur(10px);
-        display: flex; flex-direction: column; align-items: center;
-        width: 90%; max-width: 420px; /* 針對手機進一步收窄 */
+        display: inline-flex; flex-direction: column; align-items: center;
+        max-width: 95vw;
     }}
 
     .screw {{
@@ -57,17 +58,15 @@ html_code = f"""
         border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }}
 
-    /* 主訊息排列 (最大10字) */
-    #board-container {{ 
-        display: grid; grid-template-columns: repeat(var(--cols, 10), var(--unit-width, 38px)); 
-        gap: 6px; perspective: 1500px; margin-bottom: 12px;
+    /* 翻板容器樣式 */
+    .row-container {{
+        display: grid; 
+        grid-template-columns: repeat(var(--cols), var(--unit-width)); 
+        gap: 8px; perspective: 1500px;
     }}
-
-    /* 時間訊息排列 (縮減至11格) */
-    #clock-container {{
-        display: grid; grid-template-columns: repeat(11, 22px); 
-        gap: 4px; perspective: 1000px;
-    }}
+    
+    #message-rows {{ display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }}
+    #clock-row {{ margin-top: 10px; }}
 
     .flap-unit {{ 
         position: relative; background: #000; border-radius: 4px; 
@@ -75,10 +74,10 @@ html_code = f"""
     }}
 
     /* 尺寸調整 */
-    #board-container .flap-unit {{ --w: var(--unit-width, 38px); --h: calc(var(--w) * 1.4); font-size: calc(var(--w) * 0.9); }}
-    #clock-container .flap-unit {{ --w: 22px; --h: 32px; font-size: 16px; }}
+    .msg-unit {{ --unit-width: var(--msg-w, 40px); --unit-height: calc(var(--unit-width) * 1.4); font-size: calc(var(--unit-width) * 0.9); }}
+    .clk-unit {{ --unit-width: 24px; --unit-height: 34px; font-size: 18px; }}
 
-    .flap-unit {{ width: var(--w); height: var(--h); }}
+    .flap-unit {{ width: var(--unit-width); height: var(--unit-height); }}
 
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; 
@@ -89,10 +88,7 @@ html_code = f"""
     .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000; }}
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
 
-    .text {{ 
-        position: absolute; left: 0; width: 100%; height: var(--h);
-        text-align: center; line-height: var(--h);
-    }}
+    .text {{ position: absolute; left: 0; width: 100%; height: var(--unit-height); text-align: center; line-height: var(--unit-height); }}
     .top .text {{ top: 0; }}
     .bottom .text {{ bottom: 0; }}
 
@@ -103,11 +99,7 @@ html_code = f"""
         transform-style: preserve-3d; 
     }}
     .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
-    .leaf-back {{ 
-        transform: rotateX(-180deg); z-index: 15; background: #111; 
-        display: flex; justify-content: center; align-items: flex-end; 
-        overflow: hidden; border-radius: 0 0 4px 4px; 
-    }}
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
 
     .flap-unit::before {{ 
@@ -117,22 +109,22 @@ html_code = f"""
     }}
 
     .footer-note {{ 
-        margin-top: 20px; /* 移到 case 外部 */
-        font-family: var(--font-family); font-size: 12px; 
-        color: rgba(255, 255, 255, 0.3); letter-spacing: 1px; 
+        margin-top: 20px; font-family: var(--font-family); font-size: 12px; 
+        color: rgba(255, 255, 255, 0.3); letter-spacing: 1px; text-align: center;
     }}
 </style>
 </head>
 <body onclick="changeStyle()">
     <div class="board-case">
-        <div class="screw" style="top:10px; left:10px;"></div>
-        <div class="screw" style="top:10px; right:10px;"></div>
+        <div class="screw" style="top:12px; left:12px;"></div>
+        <div class="screw" style="top:12px; right:12px;"></div>
         
-        <div id="board-container"></div>
-        <div id="clock-container"></div>
+        <div id="message-rows"></div>
         
-        <div class="screw" style="bottom:10px; left:10px;"></div>
-        <div class="screw" style="bottom:10px; right:10px;"></div>
+        <div id="clock-row" class="row-container"></div>
+        
+        <div class="screw" style="bottom:12px; left:12px;"></div>
+        <div class="screw" style="bottom:12px; right:12px;"></div>
     </div>
     
     <div class="footer-note">👋 點擊牆面切換風格 | 𓃥白六訊息告示牌</div>
@@ -151,9 +143,9 @@ html_code = f"""
         document.body.style.backgroundImage = styles[sIdx].t === 'none' ? 'none' : `url("https://www.transparenttextures.com/patterns/${{styles[sIdx].t}}.png")`;
     }}
 
-    function createFlap(char) {{
+    function createFlap(char, typeClass) {{
         return `
-            <div class="flap-unit">
+            <div class="flap-unit ${{typeClass}}">
                 <div class="half top base-top"><div class="text">${{char}}</div></div>
                 <div class="half bottom base-bottom"><div class="text">${{char}}</div></div>
                 <div class="leaf">
@@ -183,28 +175,36 @@ html_code = f"""
         const t = document.createElement('textarea'); t.innerHTML = d; return t.value;
     }})("{input_text_raw}");
     
-    let rows = [];
-    let mCols = 1;
-    // 強制限制在 10 個字元內
-    const LIMIT = 10;
-    
-    if (cleanText.includes('，') || cleanText.includes(',')) {{
-        const p = cleanText.replace(/，/g, ',').split(',');
-        mCols = Math.min(LIMIT, Math.max(...p.map(x => x.trim().length)));
-        rows = p.map(x => x.trim().substring(0, LIMIT).padEnd(mCols, ' ').split(''));
-    }} else {{
-        mCols = Math.min(cleanText.length, LIMIT);
-        for (let i = 0; i < cleanText.length; i += mCols) {{
-            rows.push(cleanText.substring(i, i + mCols).padEnd(mCols, ' ').split(''));
-        }}
+    // 計算翻板數：字元數/2，最多10個
+    const flapCount = Math.min(10, Math.max(1, Math.floor(cleanText.length / 2)));
+    let msgPages = [];
+    for (let i = 0; i < cleanText.length; i += (flapCount * 2)) {{
+        let chunk = cleanText.substring(i, i + (flapCount * 2)).padEnd(flapCount * 2, ' ');
+        msgPages.push([
+            chunk.substring(0, flapCount).split(''),
+            chunk.substring(flapCount, flapCount * 2).split('')
+        ]);
     }}
 
     function init() {{
-        document.getElementById('board-container').innerHTML = rows[0].map(c => createFlap(c)).join('');
-        document.documentElement.style.setProperty('--cols', mCols);
-        const w = Math.min(45, Math.max(30, Math.floor((window.innerWidth - 60) / mCols)));
-        document.documentElement.style.setProperty('--unit-width', w + 'px');
-        document.getElementById('clock-container').innerHTML = getTime().split('').map(c => createFlap(c)).join('');
+        const msgContainer = document.getElementById('message-rows');
+        const clockContainer = document.getElementById('clock-row');
+        
+        // 初始化訊息列
+        msgContainer.innerHTML = `
+            <div id="row-1" class="row-container" style="--cols: ${{flapCount}}"></div>
+            <div id="row-2" class="row-container" style="--cols: ${{flapCount}}"></div>
+        `;
+        document.getElementById('row-1').innerHTML = msgPages[0][0].map(c => createFlap(c, 'msg-unit')).join('');
+        document.getElementById('row-2').innerHTML = msgPages[0][1].map(c => createFlap(c, 'msg-unit')).join('');
+        
+        // 適配主訊息寬度
+        const w = Math.min(50, Math.max(30, Math.floor((window.innerWidth - 100) / flapCount)));
+        document.documentElement.style.setProperty('--msg-w', w + 'px');
+
+        // 初始化時鐘列 (11格)
+        clockContainer.style.setProperty('--cols', 11);
+        clockContainer.innerHTML = getTime().split('').map(c => createFlap(c, 'clk-unit')).join('');
     }}
 
     function getTime() {{
@@ -212,22 +212,23 @@ html_code = f"""
         const m = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][n.getMonth()];
         const d = String(n.getDate()).padStart(2,'0');
         const w = ["日","一","二","三","四","五","六"][n.getDay()];
-        const h = String(n.getHours()).padStart(2,'0');
-        const min = String(n.getMinutes()).padStart(2,'0');
-        // 格式：DEC19 五10:44 (長度 11)
-        return `${{m}}${{d}} ${{w}}${{h}}:${{min}}`;
+        return `${{m}}${{d}} ${{w}}${{String(n.getHours()).padStart(2,'0')}}:${{String(n.getMinutes()).padStart(2,'0')}}`;
     }}
 
-    let rIdx = 0;
+    let pIdx = 0;
     window.onload = () => {{
         init();
-        if (rows.length > 1) setInterval(() => {{
-            rIdx = (rIdx + 1) % rows.length;
-            document.querySelectorAll('#board-container .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, rows[rIdx][i] || ' '), i*40));
+        if (msgPages.length > 1) setInterval(() => {{
+            pIdx = (pIdx + 1) % msgPages.length;
+            const units1 = document.querySelectorAll('#row-1 .flap-unit');
+            const units2 = document.querySelectorAll('#row-2 .flap-unit');
+            units1.forEach((u, i) => setTimeout(() => updateFlap(u, msgPages[pIdx][0][i]), i*40));
+            units2.forEach((u, i) => setTimeout(() => updateFlap(u, msgPages[pIdx][1][i]), (i + flapCount)*40));
         }}, {stay_sec} * 1000);
+        
         setInterval(() => {{
             const s = getTime();
-            document.querySelectorAll('#clock-container .flap-unit').forEach((u, i) => updateFlap(u, s[i]));
+            document.querySelectorAll('#clock-row .flap-unit').forEach((u, i) => updateFlap(u, s[i]));
         }}, 1000);
     }};
 </script>

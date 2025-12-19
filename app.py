@@ -16,6 +16,8 @@ st.markdown("""
 # --- 2. 參數獲取 ---
 input_text_raw = st.query_params.get("text", "載入中...")
 stay_sec = float(st.query_params.get("stay", 2.5))
+# 新增：獲取 bg 參數，預設為 transparent
+bg_param = st.query_params.get("bg", "transparent")
 
 # --- 3. 核心 HTML ---
 html_code = f"""
@@ -29,13 +31,16 @@ html_code = f"""
         --font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
         --flip-speed: 0.6s;
         --card-bg: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 50%, #000 51%, #222 100%);
+        --main-bg: {bg_param};
     }}
     body {{ 
-        background: transparent; display: flex; flex-direction: column; justify-content: center; 
+        background-color: var(--main-bg);
+        /* 疊加一層微弱的水泥紋理圖案，增加質感 */
+        background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png");
+        display: flex; flex-direction: column; justify-content: center; 
         align-items: center; height: 100vh; margin: 0; padding: 10px;
         box-sizing: border-box; overflow: hidden; 
     }}
-    /* 看板主容器 */
     #board-container {{ 
         display: grid; 
         grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 40px)); 
@@ -92,8 +97,6 @@ html_code = f"""
         width: 100%; height: 1.5px; background: rgba(0,0,0,0.9); 
         transform: translateY(-50%); z-index: 60; 
     }}
-
-    /* 下方註明文字樣式 */
     .footer-note {{
         margin-top: 25px;
         font-family: var(--font-family);

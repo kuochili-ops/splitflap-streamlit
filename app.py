@@ -13,10 +13,10 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. 參數獲取 ---
-input_text_raw = st.query_params.get("text", "BANKSY STYLE")
+input_text_raw = st.query_params.get("text", "HAPPY HOLIDAY")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 3. 核心 HTML (優化後的 SVG) ---
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -36,14 +36,14 @@ html_code = f"""
         justify-content: flex-start; 
         align-items: center; 
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
-        padding-top: 35px; 
+        padding-top: 40px; 
     }}
 
     .board-case {{
         position: relative; padding: 35px 45px;
-        background: rgba(0, 0, 0, 0.75); border-radius: 20px;
+        background: rgba(40, 40, 40, 0.85); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 40px 80px rgba(0,0,0,0.8);
+        box-shadow: 0 30px 60px rgba(0,0,0,0.6);
         backdrop-filter: blur(10px);
         display: inline-flex; flex-direction: column; align-items: center;
         max-width: 95vw;
@@ -51,22 +51,20 @@ html_code = f"""
         z-index: 10;
     }}
 
-    /* 氣球女孩圖案 - 修正 ViewBox 與比例 */
-    .balloon-girl {{
+    /* 班克西氣球女孩 - 完整重繪版 */
+    .banksy-art {{
         position: absolute;
-        bottom: -150px; 
-        right: -60px;
-        width: 220px; /* 增加寬度以容納氣球與女孩的間距 */
-        height: 200px;
+        bottom: -180px; 
+        right: -80px;
+        width: 250px; 
+        height: 250px;
         background-size: contain;
         background-repeat: no-repeat;
-        background-position: center bottom;
         pointer-events: none;
         z-index: -1;
-        opacity: 0.9;
-        /* 完整繪製的 Banksy 風格 SVG */
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3C!-- 女孩 --%3E%3Cpath d='M50 160 c-2 -5 -5 -15 -5 -25 0 -20 15 -35 35 -35 5 0 10 2 15 5 10 8 15 20 15 35 0 25 -15 45 -40 45 -10 0 -18 -5 -20 -15 z' fill='%23111'/%3E%3Cpath d='M60 195 l-2 -15 5 -10 3 10 -2 15 z' fill='%23111'/%3E%3Cpath d='M95 110 l25 -35' stroke='%23111' stroke-width='2' fill='none'/%3E%3C!-- 氣球 --%3E%3Ccircle cx='140' cy='45' r='18' fill='%23cc0000'/%3E%3Cpath d='M140 63 l-5 10 -15 25' stroke='%23444' stroke-width='1' fill='none'/%3E%3C/svg%3E");
-        display: block;
+        opacity: 0.85;
+        /* 重新設計的 SVG: 包含女孩伸手與分離的紅氣球 */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3C!-- 女孩主體 --%3E%3Cpath d='M40 165 c-2 -8 -6 -20 -4 -30 2 -10 12 -25 25 -28 5 -1 10 1 14 4 8 7 12 18 10 32 -2 22 -15 38 -35 40 -8 1 -13 -3 -10 -18 z' fill='%23222'/%3E%3Cpath d='M55 198 l-3 -15 5 -8 2 8 -2 15 z' fill='%23222'/%3E%3Cpath d='M75 115 c5 -10 15 -25 30 -35' stroke='%23222' stroke-width='2.5' fill='none'/%3E%3C!-- 紅氣球 --%3E%3Ccircle cx='145' cy='45' r='16' fill='%23b30000'/%3E%3Cpath d='M145 61 l-3 8 -12 20' stroke='%23444' stroke-width='1.2' fill='none'/%3E%3C/svg%3E");
     }}
 
     .screw {{
@@ -74,7 +72,7 @@ html_code = f"""
         background: radial-gradient(circle at 3px 3px, #888, #111);
         border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }}
-    .row-container {{ display: flex; flex-direction: row; gap: 6px; perspective: 1000px; justify-content: center; }}
+    .row-container {{ display: flex; flex-direction: row; gap: 6px; perspective: 1000px; }}
     .flap-unit {{ position: relative; background: #000; border-radius: 4px; color: #fff; font-weight: 900; }}
     .msg-unit {{ --unit-w: var(--msg-w, 60px); --unit-h: calc(var(--unit-w) * 1.4); width: var(--unit-w); height: var(--unit-h); font-size: calc(var(--unit-w) * 0.9); }}
     .small-unit {{ --unit-w: 22px; --unit-h: 32px; width: var(--unit-w); height: var(--unit-h); font-size: 16px; }}
@@ -88,14 +86,14 @@ html_code = f"""
     .bottom .text {{ bottom: 0; }}
     .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
     .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
-    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }}
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
     .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
-    .footer-note {{ margin-top: 170px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.4); font-weight: bold; }}
+    .footer-note {{ margin-top: 200px; font-family: var(--font-family); font-size: 11px; color: rgba(0, 0, 0, 0.3); font-weight: bold; letter-spacing: 1px; }}
 </style>
 </head>
 <body onclick="changeStyle()">
-    <div class="board-case" id="main-board">
+    <div class="board-case">
         <div class="screw" style="top:12px; left:12px;"></div>
         <div class="screw" style="top:12px; right:12px;"></div>
         <div id="row-msg" class="row-container"></div>
@@ -103,15 +101,14 @@ html_code = f"""
         <div id="row-clock" class="row-container"></div>
         <div class="screw" style="bottom:12px; left:12px;"></div>
         <div class="screw" style="bottom:12px; right:12px;"></div>
-
-        <div id="graf-girl" class="balloon-girl"></div>
+        <div id="banksy" class="banksy-art"></div>
     </div>
-    <div class="footer-note">🎨 CLICK TO SWITCH STYLES | 𓃥白六</div>
+    <div class="footer-note">👋 CLICK TO SWITCH STYLES | 𓃥白六製作</div>
 
 <script>
     const styles = [
         {{ c: '#f0f0f0', t: 'white-wall', g: true }},
-        {{ c: '#444444', t: 'concrete-wall', g: false }},
+        {{ c: '#333333', t: 'concrete-wall', g: false }},
         {{ c: '#1a1a1a', t: 'carbon-fibre', g: false }}
     ];
     let sIdx = 0;
@@ -120,9 +117,8 @@ html_code = f"""
         const s = styles[sIdx];
         document.body.style.backgroundColor = s.c;
         document.body.style.backgroundImage = s.t === 'none' ? 'none' : `url("https://www.transparenttextures.com/patterns/${{s.t}}.png")`;
-        
-        document.getElementById('graf-girl').style.display = s.g ? 'block' : 'none';
-        document.querySelector('.footer-note').style.color = (s.c === '#1a1a1a' || s.c === '#444444') ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+        document.getElementById('banksy').style.display = s.g ? 'block' : 'none';
+        document.querySelector('.footer-note').style.color = (s.c === '#1a1a1a' || s.c === '#333333') ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
     }}
 
     function createFlap(char, type) {{

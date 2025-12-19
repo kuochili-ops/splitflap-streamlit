@@ -38,7 +38,7 @@ html_code = f"""
 <style>
     :root {{ 
         --flip-speed: 0.85s; 
-        --small-fixed-w: 42px; /* 固定二三排寬度 */
+        --small-fixed-w: 30px; /* 二三排尺寸進一步縮小 */
     }}
     
     body {{ 
@@ -59,13 +59,13 @@ html_code = f"""
     }}
 
     .acrylic-board {{
-        position: relative; padding: 45px 35px; 
+        position: relative; padding: 40px 30px; 
         background: rgba(255, 255, 255, 0.02); 
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 15px; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 8px; z-index: 10; margin-top: 2vh;
+        gap: 6px; z-index: 10; margin-top: 2vh;
     }}
 
     .screw {{
@@ -84,22 +84,25 @@ html_code = f"""
     .bl {{ bottom: 12px; left: 12px; }} .br {{ bottom: 12px; right: 12px; }}
 
     .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1200px; }}
-    .flip-card {{ position: relative; background-color: #111; border-radius: 4px; color: #fff; text-align: center; font-weight: bold; }}
+    .flip-card {{ position: relative; background-color: #111; border-radius: 3px; color: #fff; text-align: center; font-weight: bold; }}
     
-    /* 第一排：維持響應式縮放 */
+    /* 第一排 */
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 1.0); }}
     
-    /* 二、三排：固定小尺寸 */
+    /* 二三排：縮小後的尺寸設定 */
     .small-unit {{ 
         width: var(--small-fixed-w); 
         height: calc(var(--small-fixed-w) * 1.4); 
-        font-size: calc(var(--small-fixed-w) * 0.8); 
+        font-size: calc(var(--small-fixed-w) * 0.85); 
+        gap: 2px;
     }}
 
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #151515; }}
     .msg-unit .top, .msg-unit .leaf-front {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; }}
-    .small-unit .top, .small-unit .leaf-front {{ top: 0; border-radius: 3px 3px 0 0; line-height: calc(var(--small-fixed-w) * 1.4); border-bottom: 0.5px solid #000; }}
-    .bottom, .leaf-back {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; }}
+    
+    /* 二三排字體垂直置中調整 */
+    .small-unit .top, .small-unit .leaf-front {{ top: 0; border-radius: 2px 2px 0 0; line-height: calc(var(--small-fixed-w) * 1.4); border-bottom: 0.5px solid #000; }}
+    .bottom, .leaf-back {{ bottom: 0; border-radius: 0 0 3px 3px; line-height: 0px; }}
 
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
@@ -109,15 +112,15 @@ html_code = f"""
     .leaf-front, .leaf-back {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; backface-visibility: hidden; background: #151515; }}
     .leaf-back {{ transform: rotateX(-180deg); }}
     .flipping .leaf {{ transform: rotateX(-180deg); }}
-    .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: #000; z-index: 15; transform: translateY(-50%); }}
+    .hinge {{ position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: #000; z-index: 15; transform: translateY(-50%); }}
 </style>
 </head>
 <body class="wall-0" onclick="changeWall()">
     <div class="acrylic-board" onclick="event.stopPropagation()">
         <div class="screw tl"></div><div class="screw tr"></div>
         <div id="row-msg" class="row-container"></div>
-        <div id="row-date" class="row-container"></div>
-        <div id="row-clock" class="row-container"></div>
+        <div id="row-date" class="row-container" style="gap: 3px; margin-top: 4px;"></div>
+        <div id="row-clock" class="row-container" style="gap: 3px;"></div>
         <div class="screw bl"></div><div class="screw br"></div>
     </div>
 
@@ -156,7 +159,6 @@ html_code = f"""
         const vw = window.innerWidth;
         const msgW = Math.min(65, Math.floor((vw * 0.85) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
-        // --small-fixed-w 已經在 CSS 中定義，不隨視窗變動連動 msgW
     }}
 
     function init() {{

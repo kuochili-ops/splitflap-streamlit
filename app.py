@@ -1,18 +1,13 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# --- 1. 頁面透明化與手機適配設定 ---
+# --- 1. 頁面透明化設定 ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
-    /* 隱藏所有 Streamlit 預設元件 */
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
-    
-    /* 讓 Streamlit 容器完全透明，暴露出底層 HTML 背景 */
     .block-container {padding: 0 !important; background-color: transparent !important;}
     .stApp {background-color: transparent !important;}
-    
-    /* 修正 iframe 容器樣式 */
     iframe {
         border: none; 
         width: 100%; 
@@ -28,18 +23,18 @@ input_text_raw = st.query_params.get("text", "載入中...")
 stay_sec = float(st.query_params.get("stay", 2.5))
 bg_param = st.query_params.get("bg", "transparent")
 
-# 自動處理 Hex 色碼：如果傳入的是 3 或 6 位純數字/字母，自動補上 #
+# 自動補齊 Hex 色碼
 if bg_param != "transparent" and not bg_param.startswith("#"):
     if len(bg_param) in [3, 6]:
         bg_param = f"#{bg_param}"
 
-# --- 3. 核心 HTML (內含水泥牆背景邏輯) ---
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     :root {{
         --font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
@@ -49,18 +44,47 @@ html_code = f"""
     }}
     body {{ 
         background-color: var(--main-bg);
-        /* 水泥牆紋理疊加 (來自 Transparent Textures) */
         background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png");
         display: flex; flex-direction: column; justify-content: center; 
-        align-items: center; height: 100vh; margin: 0; padding: 10px;
+        align-items: center; height: 100vh; margin: 0; padding: 20px;
         box-sizing: border-box; overflow: hidden; 
     }}
+
+    /* 告示牌外殼 */
+    .board-case {{
+        position: relative;
+        padding: 30px 40px;
+        background: rgba(0, 0, 0, 0.15); /* 半透明外框 */
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 
+            0 20px 50px rgba(0,0,0,0.5), /* 外部大陰影 */
+            inset 0 0 15px rgba(255,255,255,0.05); /* 內部邊緣光 */
+        backdrop-filter: blur(2px); /* 輕微磨砂效果 */
+    }}
+
+    /* 模擬螺絲細節 */
+    .board-case::before, .board-case::after, 
+    .screw-bottom-left, .screw-bottom-right {{
+        content: "";
+        position: absolute;
+        width: 10px; height: 10px;
+        background: radial-gradient(circle at 3px 3px, #999, #333);
+        border-radius: 50%;
+        box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }}
+    .board-case::before {{ top: 10px; left: 10px; }} /* 左上 */
+    .board-case::after {{ top: 10px; right: 10px; }} /* 右上 */
+    .screw-bottom-left {{ bottom: 10px; left: 10px; }}
+    .screw-bottom-right {{ bottom: 10px; right: 10px; }}
+
     #board-container {{ 
         display: grid; 
         grid-template-columns: repeat(var(--cols, 8), var(--unit-width, 40px)); 
-        gap: 6px;
+        gap: 8px; /* 稍微增加間距更有工業感 */
         perspective: 1500px; 
     }}
+
     .flap-unit {{ 
         position: relative; 
         width: var(--unit-width, 40px); 
@@ -69,60 +93,40 @@ html_code = f"""
         font-family: var(--font-family); 
         font-size: calc(var(--unit-width, 40px) * 1.0); 
         font-weight: 900; color: #fff; 
-        box-shadow: 0 8px 20px rgba(0,0,0,0.7);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.8);
     }}
+
+    /* 翻牌結構與動畫相關 (與之前相同) */
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; 
         background: var(--card-bg); display: flex; justify-content: center; 
         backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }}
-    .top {{ 
-        top: 0; height: calc(50% + 0.5px); align-items: flex-start; 
-        border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8);
-        box-shadow: inset 0 1px 2px rgba(255,255,255,0.1);
-    }}
-    .bottom {{ 
-        bottom: 0; height: 50%; align-items: flex-end; 
-        border-radius: 0 0 4px 4px; 
-        background: linear-gradient(180deg, #151515 0%, #000 100%);
-    }}
-    .text {{ 
-        height: calc(var(--unit-width, 40px) * 1.4); width: 100%; 
-        text-align: center; position: absolute; left: 0; 
-        line-height: calc(var(--unit-width, 40px) * 1.4);
-    }}
-    .top .text {{ top: 0; }}
-    .bottom .text {{ bottom: 0; }}
-    .leaf {{ 
-        position: absolute; top: 0; left: 0; width: 100%; height: 50%; 
-        z-index: 15; transform-origin: bottom; 
-        transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); 
-        transform-style: preserve-3d; 
-    }}
+    .top {{ top: 0; height: calc(50% + 0.5px); align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid rgba(0,0,0,0.8); }}
+    .bottom {{ bottom: 0; height: 50%; align-items: flex-end; border-radius: 0 0 4px 4px; background: linear-gradient(180deg, #151515 0%, #000 100%); }}
+    .text {{ height: calc(var(--unit-width, 40px) * 1.4); width: 100%; text-align: center; position: absolute; left: 0; line-height: calc(var(--unit-width, 40px) * 1.4); }}
+    .leaf {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 15; transform-origin: bottom; transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }}
     .leaf-front {{ z-index: 16; background: var(--card-bg); border-radius: 4px 4px 0 0; }} 
-    .leaf-back {{ 
-        transform: rotateX(-180deg); z-index: 15; background: #111; 
-        display: flex; justify-content: center; align-items: flex-end; 
-        overflow: hidden; border-radius: 0 0 4px 4px; 
-    }}
+    .leaf-back {{ transform: rotateX(-180deg); z-index: 15; background: #111; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; border-radius: 0 0 4px 4px; }}
     .flipping {{ transform: rotateX(-180deg); }}
-    .flap-unit::before {{ 
-        content: ""; position: absolute; top: 50%; left: 0; 
-        width: 100%; height: 1.5px; background: rgba(0,0,0,0.9); 
-        transform: translateY(-50%); z-index: 60; 
-    }}
+    .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.9); transform: translateY(-50%); z-index: 60; }}
+
     .footer-note {{
         margin-top: 25px;
         font-family: var(--font-family);
         font-size: 14px;
         color: rgba(255, 255, 255, 0.4);
         letter-spacing: 2px;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }}
 </style>
 </head>
 <body>
-    <div id="board-container"></div>
+    <div class="board-case">
+        <div id="board-container"></div>
+        <div class="screw-bottom-left"></div>
+        <div class="screw-bottom-right"></div>
+    </div>
+    
     <div class="footer-note">𓃥白六訊息告示牌</div>
 
 <script>
@@ -132,8 +136,7 @@ html_code = f"""
         const textarea = document.createElement('textarea');
         textarea.innerHTML = d;
         d = textarea.value;
-        textarea.innerHTML = d;
-        return textarea.value;
+        return d;
     }}
 
     const cleanText = ultimateDecode("{input_text_raw}");
@@ -152,8 +155,8 @@ html_code = f"""
     }}
 
     function adjustSize() {{
-        const winW = window.innerWidth - 40;
-        const calculatedW = Math.floor((winW - (6 * (maxCols - 1))) / maxCols);
+        const winW = window.innerWidth - 120; // 考慮到外殼的 padding
+        const calculatedW = Math.floor((winW - (8 * (maxCols - 1))) / maxCols);
         const finalUnitW = Math.max(25, Math.min(80, calculatedW));
         document.documentElement.style.setProperty('--cols', maxCols);
         document.documentElement.style.setProperty('--unit-width', finalUnitW + 'px');

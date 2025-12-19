@@ -17,13 +17,11 @@ st.markdown("""
 # --- 2. 圖片處理 (氣球女孩) ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_data = ""
-
 if os.path.exists(img_filename):
     with open(img_filename, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
         img_data = f"data:image/png;base64,{img_b64}"
 else:
-    # 備用圖連結
     img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
 
 # --- 3. 參數獲取 ---
@@ -38,7 +36,10 @@ html_code = f"""
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-    :root {{ --flip-speed: 0.85s; }}
+    :root {{ 
+        --flip-speed: 0.85s; 
+        --small-fixed-w: 42px; /* 固定二三排寬度 */
+    }}
     
     body {{ 
         display: flex; justify-content: center; align-items: flex-start; 
@@ -49,26 +50,22 @@ html_code = f"""
     
     .wall-0 {{ background: #1a1a1a; background-image: radial-gradient(circle, #2c2c2c 0%, #1a1a1a 100%); }}
     .wall-1 {{ background: #444; background-image: url("https://www.transparenttextures.com/patterns/concrete-wall.png"); }}
-    
-    /* 修正：塗鴉位置提高到 top 42%，緊貼面板下方 */
     .wall-2 {{ 
         background-color: #d0d0d0; 
         background-image: url("{img_data}");
         background-repeat: no-repeat;
-        /* 橫向右 15%，縱向從頂部算起 42% */
         background-position: right 15% top 42%; 
-        background-size: auto 22vh; /* 稍微再縮小一點點，顯得精緻 */
+        background-size: auto 22vh;
     }}
 
     .acrylic-board {{
-        position: relative; padding: 40px 30px; 
+        position: relative; padding: 45px 35px; 
         background: rgba(255, 255, 255, 0.02); 
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 15px; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
         display: inline-flex; flex-direction: column; align-items: center;
-        gap: 6px; z-index: 10;
-        margin-top: 2vh;
+        gap: 8px; z-index: 10; margin-top: 2vh;
     }}
 
     .screw {{
@@ -89,12 +86,19 @@ html_code = f"""
     .row-container {{ display: flex; flex-direction: row; gap: 4px; perspective: 1200px; }}
     .flip-card {{ position: relative; background-color: #111; border-radius: 4px; color: #fff; text-align: center; font-weight: bold; }}
     
+    /* 第一排：維持響應式縮放 */
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 1.0); }}
-    .small-unit {{ width: var(--small-w); height: calc(var(--small-w) * 1.4); font-size: calc(var(--small-w) * 0.85); }}
+    
+    /* 二、三排：固定小尺寸 */
+    .small-unit {{ 
+        width: var(--small-fixed-w); 
+        height: calc(var(--small-fixed-w) * 1.4); 
+        font-size: calc(var(--small-fixed-w) * 0.8); 
+    }}
 
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #151515; }}
     .msg-unit .top, .msg-unit .leaf-front {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; }}
-    .small-unit .top, .small-unit .leaf-front {{ top: 0; border-radius: 3px 3px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; }}
+    .small-unit .top, .small-unit .leaf-front {{ top: 0; border-radius: 3px 3px 0 0; line-height: calc(var(--small-fixed-w) * 1.4); border-bottom: 0.5px solid #000; }}
     .bottom, .leaf-back {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; }}
 
     .leaf {{
@@ -111,10 +115,10 @@ html_code = f"""
 <body class="wall-0" onclick="changeWall()">
     <div class="acrylic-board" onclick="event.stopPropagation()">
         <div class="screw tl"></div><div class="screw tr"></div>
-        <div class="screw bl"></div><div class="screw br"></div>
         <div id="row-msg" class="row-container"></div>
         <div id="row-date" class="row-container"></div>
         <div id="row-clock" class="row-container"></div>
+        <div class="screw bl"></div><div class="screw br"></div>
     </div>
 
 <script>
@@ -152,7 +156,7 @@ html_code = f"""
         const vw = window.innerWidth;
         const msgW = Math.min(65, Math.floor((vw * 0.85) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
-        document.documentElement.style.setProperty('--small-w', (msgW * 0.72) + 'px');
+        // --small-fixed-w 已經在 CSS 中定義，不隨視窗變動連動 msgW
     }}
 
     function init() {{

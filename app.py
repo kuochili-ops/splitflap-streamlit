@@ -41,14 +41,16 @@ html_code = f"""
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
     }}
 
-    /* 透明背板：尺寸視翻板區域動態決定 */
+    /* 透明背板：動態寬度由內部橫向內容決定 */
     .board-case {{
-        position: relative; padding: 30px 25px;
+        position: relative; padding: 30px 40px;
         background: rgba(0, 0, 0, 0.45); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 30px 60px rgba(0,0,0,0.8);
         backdrop-filter: blur(10px);
-        display: inline-flex; flex-direction: column; align-items: center;
+        display: inline-flex; /* 關鍵：讓容器隨內容寬度伸縮 */
+        flex-direction: column; 
+        align-items: center;
         max-width: 95vw;
     }}
 
@@ -58,26 +60,39 @@ html_code = f"""
         border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }}
 
-    /* 容器布局 */
+    /* 橫向列容器 */
+    .row-container {{
+        display: flex;
+        flex-direction: row; /* 橫向排列 */
+        gap: 6px; 
+        perspective: 1000px;
+        justify-content: center;
+    }}
+    
     #message-rows {{ display: flex; flex-direction: column; gap: 10px; }}
     #clock-row {{ margin-top: 15px; }}
 
-    .row-container {{
-        display: grid; 
-        grid-template-columns: repeat(var(--cols), var(--unit-w)); 
-        gap: 6px; perspective: 1000px;
-    }}
-
+    /* 翻板基礎樣式 */
     .flap-unit {{ 
         position: relative; background: #000; border-radius: 4px; 
         font-family: var(--font-family); font-weight: 900; color: #fff; 
     }}
 
-    /* 訊息與時鐘尺寸 */
-    .msg-unit {{ --unit-w: var(--msg-w, 40px); --unit-h: calc(var(--unit-w) * 1.4); font-size: calc(var(--unit-w) * 0.9); }}
-    .clk-unit {{ --unit-w: 24px; --unit-h: 34px; font-size: 18px; }}
+    /* 尺寸調整：訊息翻板 */
+    .msg-unit {{ 
+        --unit-w: var(--msg-w, 42px); 
+        --unit-h: calc(var(--unit-w) * 1.4); 
+        width: var(--unit-w); height: var(--unit-h);
+        font-size: calc(var(--unit-w) * 0.9); 
+    }}
 
-    .flap-unit {{ width: var(--unit-w); height: var(--unit-h); }}
+    /* 尺寸調整：時鐘翻板 */
+    .clk-unit {{ 
+        --unit-w: 24px; 
+        --unit-h: 34px; 
+        width: var(--unit-w); height: var(--unit-h);
+        font-size: 18px; 
+    }}
 
     .half {{ 
         position: absolute; left: 0; width: 100%; height: 50%; 
@@ -88,7 +103,10 @@ html_code = f"""
     .top {{ top: 0; align-items: flex-start; border-radius: 4px 4px 0 0; border-bottom: 0.5px solid #000; }}
     .bottom {{ bottom: 0; align-items: flex-end; border-radius: 0 0 4px 4px; }}
 
-    .text {{ position: absolute; left: 0; width: 100%; height: var(--unit-h); text-align: center; line-height: var(--unit-h); }}
+    .text {{ position: absolute; left: 0; width: 100%; height: 100%; text-align: center; }}
+    .msg-unit .text {{ line-height: calc(var(--msg-w) * 1.4); }}
+    .clk-unit .text {{ line-height: 34px; }}
+    
     .top .text {{ top: 0; }}
     .bottom .text {{ bottom: 0; }}
 
@@ -113,11 +131,18 @@ html_code = f"""
     <div class="board-case">
         <div class="screw" style="top:10px; left:10px;"></div>
         <div class="screw" style="top:10px; right:10px;"></div>
-        <div id="message-rows"></div>
+        
+        <div id="message-rows">
+            <div id="r1" class="row-container"></div>
+            <div id="r2" class="row-container"></div>
+        </div>
+        
         <div id="clock-row" class="row-container"></div>
+        
         <div class="screw" style="bottom:10px; left:10px;"></div>
         <div class="screw" style="bottom:10px; right:10px;"></div>
     </div>
+    
     <div class="footer-note">👋 點擊牆面切換風格 | 𓃥白六訊息告示牌</div>
 
 <script>
@@ -175,17 +200,17 @@ html_code = f"""
     }}
 
     function init() {{
-        const msgBox = document.getElementById('message-rows');
+        const r1 = document.getElementById('r1');
+        const r2 = document.getElementById('r2');
         const clkBox = document.getElementById('clock-row');
-        msgBox.innerHTML = `<div id="r1" class="row-container" style="--cols:${{flapCount}}"></div><div id="r2" class="row-container" style="--cols:${{flapCount}}"></div>`;
-        document.getElementById('r1').innerHTML = pages[0][0].map(c => createFlap(c, 'msg-unit')).join('');
-        document.getElementById('r2').innerHTML = pages[0][1].map(c => createFlap(c, 'msg-unit')).join('');
         
-        // 自動適配訊息寬度
-        const w = Math.min(45, Math.max(30, Math.floor((window.innerWidth - 80) / flapCount)));
+        r1.innerHTML = pages[0][0].map(c => createFlap(c, 'msg-unit')).join('');
+        r2.innerHTML = pages[0][1].map(c => createFlap(c, 'msg-unit')).join('');
+        
+        // 自動適配手機寬度，設定翻板寬度
+        const w = Math.min(48, Math.max(30, Math.floor((window.innerWidth - 100) / flapCount)));
         document.documentElement.style.setProperty('--msg-w', w + 'px');
 
-        clkBox.style.setProperty('--cols', 11);
         clkBox.innerHTML = getTime().split('').map(c => createFlap(c, 'clk-unit')).join('');
     }}
 
@@ -202,8 +227,10 @@ html_code = f"""
         init();
         if (pages.length > 1) setInterval(() => {{
             pIdx = (pIdx + 1) % pages.length;
-            document.querySelectorAll('#r1 .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, pages[pIdx][0][i]), i*40));
-            document.querySelectorAll('#r2 .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, pages[pIdx][1][i]), (i+flapCount)*40));
+            const u1 = document.querySelectorAll('#r1 .flap-unit');
+            const u2 = document.querySelectorAll('#r2 .flap-unit');
+            u1.forEach((u, i) => setTimeout(() => updateFlap(u, pages[pIdx][0][i]), i*40));
+            u2.forEach((u, i) => setTimeout(() => updateFlap(u, pages[pIdx][1][i]), (i+flapCount)*40));
         }}, {stay_sec} * 1000);
         setInterval(() => {{
             const s = getTime();

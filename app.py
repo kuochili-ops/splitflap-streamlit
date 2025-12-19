@@ -41,16 +41,15 @@ html_code = f"""
         height: 100vh; margin: 0; overflow: hidden; cursor: pointer;
     }}
 
-    /* 透明背板 */
     .board-case {{
-        position: relative; padding: 40px 50px;
+        position: relative; padding: 35px 45px;
         background: rgba(0, 0, 0, 0.45); border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 30px 60px rgba(0,0,0,0.8);
         backdrop-filter: blur(10px);
         display: inline-flex; flex-direction: column; align-items: center;
         max-width: 98vw;
-        gap: 15px; /* 排與排之間的間距 */
+        gap: 12px;
     }}
 
     .screw {{
@@ -60,11 +59,10 @@ html_code = f"""
     }}
 
     .row-container {{
-        display: flex; flex-direction: row; gap: 8px; 
+        display: flex; flex-direction: row; gap: 6px; 
         perspective: 1000px; justify-content: center;
     }}
     
-    /* 翻板基礎樣式 */
     .flap-unit {{ position: relative; background: #000; border-radius: 4px; color: #fff; font-weight: 900; }}
 
     /* 第一排：大尺寸訊息 */
@@ -73,10 +71,10 @@ html_code = f"""
         width: var(--unit-w); height: var(--unit-h); font-size: calc(var(--unit-w) * 0.9); 
     }}
 
-    /* 第二、三排：固定小尺寸 */
+    /* 第二、三排：小尺寸翻板 */
     .small-unit {{ 
-        --unit-w: 24px; --unit-h: 34px; 
-        width: var(--unit-w); height: var(--unit-h); font-size: 18px; 
+        --unit-w: 22px; --unit-h: 32px; 
+        width: var(--unit-w); height: var(--unit-h); font-size: 16px; 
     }}
 
     .half {{ 
@@ -90,7 +88,7 @@ html_code = f"""
 
     .text {{ position: absolute; left: 0; width: 100%; text-align: center; }}
     .msg-unit .text {{ height: calc(var(--msg-w) * 1.4); line-height: calc(var(--msg-w) * 1.4); }}
-    .small-unit .text {{ height: 34px; line-height: 34px; }}
+    .small-unit .text {{ height: 32px; line-height: 32px; }}
     
     .top .text {{ top: 0; }}
     .bottom .text {{ bottom: 0; }}
@@ -106,7 +104,7 @@ html_code = f"""
 
     .flap-unit::before {{ content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: rgba(0,0,0,0.8); transform: translateY(-50%); z-index: 60; }}
 
-    .footer-note {{ margin-top: 25px; font-family: var(--font-family); font-size: 12px; color: rgba(255, 255, 255, 0.3); letter-spacing: 1px; }}
+    .footer-note {{ margin-top: 20px; font-family: var(--font-family); font-size: 11px; color: rgba(255, 255, 255, 0.3); letter-spacing: 1px; }}
 </style>
 </head>
 <body onclick="changeStyle()">
@@ -115,15 +113,12 @@ html_code = f"""
         <div class="screw" style="top:12px; right:12px;"></div>
         
         <div id="row-msg" class="row-container"></div>
-        
         <div id="row-date" class="row-container"></div>
-        
         <div id="row-clock" class="row-container"></div>
         
         <div class="screw" style="bottom:12px; left:12px;"></div>
         <div class="screw" style="bottom:12px; right:12px;"></div>
     </div>
-    
     <div class="footer-note">👋 點擊牆面切換風格 | 𓃥白六訊息告示牌</div>
 
 <script>
@@ -172,8 +167,8 @@ html_code = f"""
         const t = document.createElement('textarea'); t.innerHTML = d; return t.value;
     }})("{input_text_raw}");
     
-    // 第一排翻板數視字數決定 (最多 10 個)
-    const flapCount = Math.min(10, cleanText.length);
+    // 關鍵修正：翻板數 = 字數 / 2 (最多 10 個)
+    const flapCount = Math.min(10, Math.max(1, Math.floor(cleanText.length / 2)));
     let msgPages = [];
     for (let i = 0; i < cleanText.length; i += flapCount) {{
         msgPages.push(cleanText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
@@ -184,15 +179,11 @@ html_code = f"""
         const dateRow = document.getElementById('row-date');
         const clockRow = document.getElementById('row-clock');
         
-        // 初始化第一排 (大)
         msgRow.innerHTML = msgPages[0].map(c => createFlap(c, 'msg-unit')).join('');
         const w = Math.min(65, Math.max(35, Math.floor((window.innerWidth - 120) / flapCount)));
         document.documentElement.style.setProperty('--msg-w', w + 'px');
 
-        // 初始化第二排 (小) - 格式：DEC19 五
         dateRow.innerHTML = getDateString().split('').map(c => createFlap(c, 'small-unit')).join('');
-        
-        // 初始化第三排 (小) - 格式：11:20:45
         clockRow.innerHTML = getTimeString().split('').map(c => createFlap(c, 'small-unit')).join('');
     }}
 
@@ -206,19 +197,18 @@ html_code = f"""
 
     function getTimeString() {{
         const n = new Date();
-        return `${{String(n.getHours()).padStart(2,'0')}}:${{String(n.getMinutes()).padStart(2,'0')}}:${{String(n.getSeconds()).padStart(2,'0')}}`;
+        // 移除秒數，僅顯示 HH:mm
+        return `${{String(n.getHours()).padStart(2,'0')}}:${{String(n.getMinutes()).padStart(2,'0')}}`;
     }}
 
     let pIdx = 0;
     window.onload = () => {{
         init();
-        // 訊息輪播
         if (msgPages.length > 1) setInterval(() => {{
             pIdx = (pIdx + 1) % msgPages.length;
             document.querySelectorAll('#row-msg .flap-unit').forEach((u, i) => setTimeout(() => updateFlap(u, msgPages[pIdx][i]), i*50));
         }}, {stay_sec} * 1000);
         
-        // 時間更新
         setInterval(() => {{
             const dStr = getDateString();
             const tStr = getTimeString();

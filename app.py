@@ -25,7 +25,7 @@ if os.path.exists(img_filename):
 input_text = st.query_params.get("text", "HAPPY HOLIDAY")
 stay_sec = float(st.query_params.get("stay", 2.5))
 
-# --- 4. 核心 HTML ---
+# --- 4. 核心 HTML (調整為慢速且平滑的動作) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -34,7 +34,7 @@ html_code = f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     :root {{
-        --flip-speed: 0.55s;
+        --flip-speed: 0.85s; /* 慢速翻轉，增加重量感 */
     }}
     body {{ 
         background-color: #f0f0f0;
@@ -59,11 +59,9 @@ html_code = f"""
         color: #f0f0f0; text-align: center; font-weight: bold;
     }}
 
-    /* 尺寸差異化 */
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 1.0); }}
     .small-unit {{ width: var(--small-w); height: calc(var(--small-w) * 1.4); font-size: calc(var(--small-w) * 0.8); }}
 
-    /* 靜態層 */
     .top, .bottom {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #222; }}
     
     .msg-unit .top {{ top: 0; border-radius: 6px 6px 0 0; line-height: calc(var(--msg-w) * 1.5); border-bottom: 0.5px solid #000; z-index: 1; }}
@@ -72,11 +70,10 @@ html_code = f"""
     .small-unit .top {{ top: 0; border-radius: 4px 4px 0 0; line-height: calc(var(--small-w) * 1.4); border-bottom: 0.5px solid #000; z-index: 1; }}
     .small-unit .bottom {{ bottom: 0; border-radius: 0 0 4px 4px; line-height: 0px; z-index: 0; }}
 
-    /* 動態翻轉葉片 - 嚴格下翻邏輯 */
     .leaf {{
         position: absolute; top: 0; left: 0; width: 100%; height: 50%;
         z-index: 10; transform-origin: bottom; transform-style: preserve-3d;
-        transition: transform var(--flip-speed) ease-in;
+        transition: transform var(--flip-speed) cubic-bezier(0.4, 0, 0.2, 1);
     }}
 
     .leaf-front, .leaf-back {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; backface-visibility: hidden; background: #222; overflow: hidden; }}
@@ -132,22 +129,20 @@ html_code = f"""
         const oldVal = el.querySelector('.top').innerText;
         if (newVal === oldVal) return;
 
-        // 1. 初始化物理層級內容
-        el.querySelector('.top').innerText = newVal;    // 上半靜態層預備顯示新字
-        el.querySelector('.bottom').innerText = oldVal; // 下半靜態層維持舊字
-        el.querySelector('.leaf-front').innerText = oldVal; // 翻動層正面為舊字
-        el.querySelector('.leaf-back').innerText = newVal;  // 翻動層背面為新字
+        // 採用您的物理更新邏輯
+        el.querySelector('.top').innerText = newVal;    
+        el.querySelector('.bottom').innerText = oldVal; 
+        el.querySelector('.leaf-front').innerText = oldVal; 
+        el.querySelector('.leaf-back').innerText = newVal;  
 
-        // 2. 觸發下翻動畫
         el.classList.remove('flipping');
         void el.offsetWidth;
         el.classList.add('flipping');
 
-        // 3. 關鍵修正：動畫結束後，只更新底層 static-bottom，絕不觸發 leaf 內容重繪
+        // 當葉片完全覆蓋底板時，更新靜態底板為新字 (與 flip-speed 同步)
         setTimeout(() => {{
             el.querySelector('.bottom').innerText = newVal;
-            // 這裡不再重置 leaf 內容，避免產生「跳動」或「上翻」感
-        }}, 580); 
+        }}, 850); 
     }}
 
     function adjustSize() {{
@@ -181,7 +176,8 @@ html_code = f"""
         if (msgPages.length > 1) setInterval(() => {{
             pIdx = (pIdx + 1) % msgPages.length;
             document.querySelectorAll('#row-msg .flip-card').forEach((u, i) => {{
-                setTimeout(() => updateCard(u, msgPages[pIdx][i]), i * 65);
+                // 同樣給予訊息翻動一點隨機的微小延遲，增加機械韻律感
+                setTimeout(() => updateCard(u, msgPages[pIdx][i]), i * 100);
             }});
         }}, {stay_sec} * 1000);
     }};

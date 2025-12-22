@@ -2,18 +2,14 @@ import streamlit.components.v1 as components
 import base64
 import os
 
-def render_flip_board(text, stay_sec=4.0, flip_speed=80, img_path=None):
-    """
-    渲染 Banksy 風格的翻牌看板
-    """
-    # 圖片處理邏輯
+def render_flip_board(text, stay_sec=4.0, img_path=None):
+    # 圖片處理
     img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
     if img_path and os.path.exists(img_path):
         with open(img_path, "rb") as f:
             img_b64 = base64.b64encode(f.read()).decode()
             img_data = f"data:image/png;base64,{img_b64}"
 
-    # 核心 HTML/JS
     html_code = f"""
     <!DOCTYPE html>
     <html>
@@ -22,29 +18,24 @@ def render_flip_board(text, stay_sec=4.0, flip_speed=80, img_path=None):
     <style>
         * {{ box-sizing: border-box; }}
         body {{ 
-            background-color: #dcdcdc; 
-            background-image: url("{img_data}");
-            background-repeat: no-repeat;
-            background-position: right 10% bottom 35%; 
-            background-size: auto 30vh;
-            display: flex; justify-content: center; align-items: flex-start; 
-            height: 100vh; margin: 0; overflow: hidden;
+            background-color: #dcdcdc; background-image: url("{img_data}");
+            background-repeat: no-repeat; background-position: right 10% bottom 35%; 
+            background-size: auto 30vh; display: flex; justify-content: center; 
+            align-items: flex-start; height: 100vh; margin: 0; overflow: hidden;
             font-family: "Impact", "Microsoft JhengHei", sans-serif;
         }}
         .acrylic-board {{
             position: relative; width: 90vw; max-width: 820px;
             margin-top: 5vh; padding: 50px 30px;
-            background: rgba(255, 255, 255, 0.08); 
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); 
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            border-radius: 25px; box-shadow: 0 15px 40px rgba(0,0,0,0.08);
-            display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 10;
+            background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 25px;
+            display: flex; flex-direction: column; align-items: center; gap: 20px;
         }}
         .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
         .card {{ background: #1a1a1a; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
         .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
         .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
-        .separator {{ font-size: 32px; color: #444; font-weight: bold; align-self: center; line-height: 50px; padding: 0 2px; }}
+        .separator {{ font-size: 32px; color: #444; font-weight: bold; line-height: 50px; padding: 0 2px; }}
         .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
         .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; }}
         .bottom-p {{ bottom: 0; align-items: flex-start; }}
@@ -66,18 +57,16 @@ def render_flip_board(text, stay_sec=4.0, flip_speed=80, img_path=None):
         </div>
     <script>
         const fullText = "{text.upper()}";
-        const baseSpeed = {flip_speed};
+        const baseSpeed = 80;
         const flapCount = Math.min(10, Math.floor(fullText.length / 2) || 4);
         const charPool = Array.from(new Set(fullText.replace(/\\s/g, '').split('')));
-        
         let memory = {{}};
         let isBusy = {{}};
 
         function performFlip(id, nextVal, prevVal) {{
             const el = document.getElementById(id);
             if(!el) return;
-            const n = String(nextVal);
-            const p = String(prevVal);
+            const n = String(nextVal); const p = String(prevVal);
             el.innerHTML = "";
             el.classList.remove('flipping');
             el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
@@ -94,12 +83,10 @@ def render_flip_board(text, stay_sec=4.0, flip_speed=80, img_path=None):
             if (memory[id] === tStr || isBusy[id]) return;
             isBusy[id] = true;
             let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
-            
             if (/^[0-9]$/.test(tStr)) {{
                 let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
                 while (String(curN) !== tStr) {{
-                    let prev = String(curN);
-                    curN = (curN + 1) % 10;
+                    let prev = String(curN); curN = (curN + 1) % 10;
                     performFlip(id, String(curN), prev);
                     await new Promise(r => setTimeout(r, baseSpeed * 0.8));
                 }}
@@ -107,14 +94,12 @@ def render_flip_board(text, stay_sec=4.0, flip_speed=80, img_path=None):
                 const steps = isInitial ? 8 : 4; 
                 for (let i = 0; i < steps; i++) {{
                     let randChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : "X";
-                    performFlip(id, randChar, oldStr);
-                    oldStr = randChar;
+                    performFlip(id, randChar, oldStr); oldStr = randChar;
                     await new Promise(r => setTimeout(r, baseSpeed));
                 }}
                 performFlip(id, tStr, oldStr);
             }}
-            memory[id] = tStr; 
-            isBusy[id] = false;
+            memory[id] = tStr; isBusy[id] = false;
         }}
 
         function tick() {{
@@ -138,7 +123,6 @@ def render_flip_board(text, stay_sec=4.0, flip_speed=80, img_path=None):
             document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
             document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
             document.getElementById('row-clock').innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
-            
             const msgPages = [];
             for (let i = 0; i < fullText.length; i += flapCount) {{
                 msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
@@ -146,7 +130,7 @@ def render_flip_board(text, stay_sec=4.0, flip_speed=80, img_path=None):
             let pIdx = 0;
             const rotateMsg = (isFirst = false) => {{
                 if(msgPages.length === 0) return;
-                msgPages[pIdx].forEach((c, i) => {{ setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * (baseSpeed * 1.5)); }});
+                msgPages[pIdx].forEach((c, i) => {{ setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * 120); }});
                 pIdx = (pIdx + 1) % msgPages.length;
             }};
             setTimeout(() => rotateMsg(true), 500); 

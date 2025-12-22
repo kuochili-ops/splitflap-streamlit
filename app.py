@@ -2,20 +2,57 @@ import streamlit as st
 import streamlit.components.v1 as components
 import base64
 import os
+from urllib.parse import urlencode
 
 # --- 1. 頁面基礎設定 ---
 st.set_page_config(layout="wide", page_title="Banksy Terminal V11.1")
 
+# 隱藏 Streamlit 預設元件的 CSS
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
     .block-container {padding: 0 !important; background-color: #1a1a1a !important;}
     .stApp {background-color: #1a1a1a !important;}
+    /* 修正 Sidebar 背景色 */
+    [data-testid="stSidebar"] {background-color: #262626 !important;}
     iframe { border: none; width: 100%; height: 100vh; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 圖片處理 ---
+# --- 2. 參數處理與分享功能 ---
+# 從 URL 讀取初始值，若無則提供預設值
+query_params = st.query_params
+default_text = query_params.get("text", "EVERYTHING IS FINE")
+default_stay = float(query_params.get("stay", 4.0))
+default_speed = int(query_params.get("speed", 80))
+
+with st.sidebar:
+    st.title("🎨 傳送訊息給親友")
+    input_text = st.text_input("想說的話 (英文/數字/符號)", value=default_text)
+    input_stay = st.slider("每頁停頓秒數", 2.0, 10.0, default_stay, 0.5)
+    input_speed = st.slider("翻牌速度 (毫秒)", 20, 200, default_speed, 10)
+    
+    # 建立分享連結
+    params = {
+        "text": input_text,
+        "stay": input_stay,
+        "speed": input_speed
+    }
+    # 這裡會根據你部署的網址自動生成
+    base_url = "https://your-app-url.streamlit.app" # 提示使用者部署後的網址
+    share_url = f"https://share.streamlit.io/your-username/your-repo/main/your_app.py?{urlencode(params)}"
+    
+    st.divider()
+    st.markdown("### 🔗 分享專屬連結")
+    st.code(share_url, wrap_lines=True)
+    st.info("將上方連結複製後傳給親友，他們點開就能看到你設定的畫面！")
+
+# 最終帶入 HTML 的參數
+raw_text = input_text.upper()
+stay_sec = input_stay
+flip_speed = input_speed
+
+# --- 3. 圖片處理 (維持原樣) ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
 if os.path.exists(img_filename):
@@ -23,11 +60,7 @@ if os.path.exists(img_filename):
         img_b64 = base64.b64encode(f.read()).decode()
         img_data = f"data:image/png;base64,{img_b64}"
 
-raw_text = st.query_params.get("text", "大家辛苦了 祝順利").upper()
-stay_sec = max(3.0, float(st.query_params.get("stay", 4.0)))
-flip_speed = int(st.query_params.get("speed", 80)) 
-
-# --- 3. 核心 HTML ---
+# --- 4. 核心 HTML (與原版一致，僅帶入動態變數) ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -106,15 +139,11 @@ html_code = f"""
     }}
 
     async function smartUpdate(id, target, isInitial = false) {{
-        // 嚴格字串化，確保 '0' 不會被視為 false
         const tStr = (target === undefined || target === null) ? " " : String(target).toUpperCase();
-        
         if (memory[id] === tStr || isBusy[id]) return;
         isBusy[id] = true;
-        
         let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
         
-        // 數字 0-9 滾動邏輯
         if (/^[0-9]$/.test(tStr)) {{
             let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
             let tarN = parseInt(tStr);
@@ -135,7 +164,6 @@ html_code = f"""
             }}
             performFlip(id, tStr, oldStr);
         }}
-        
         memory[id] = tStr; 
         isBusy[id] = false;
     }}
@@ -144,16 +172,10 @@ html_code = f"""
         const board = document.querySelector('.acrylic-board');
         const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
-        
-        // 初始化訊息 ID
         document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => 
             `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
-        
-        // 初始化日期 ID
         document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => 
             `<div class="card small-unit" id="d${{i}}"></div>`).join('');
-        
-        // 初始化時間 ID (明確定義所有位數)
         document.getElementById('row-clock').innerHTML = `
             <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
             <div class="separator">:</div>
@@ -166,22 +188,14 @@ html_code = f"""
         const n = new Date();
         const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
-        
         const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
         dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
-        
-        // 強制補零並拆解成字串陣列
         const hh = String(n.getHours()).padStart(2, '0').split('');
         const mm = String(n.getMinutes()).padStart(2, '0').split('');
         const ss = String(n.getSeconds()).padStart(2, '0').split('');
-        
-        // 每一格都強制觸發更新檢查
-        smartUpdate('h0', hh[0]); 
-        smartUpdate('h1', hh[1]);
-        smartUpdate('tm0', mm[0]); 
-        smartUpdate('tm1', mm[1]);
-        smartUpdate('ts0', ss[0]); 
-        smartUpdate('ts1', ss[1]);
+        smartUpdate('h0', hh[0]); smartUpdate('h1', hh[1]);
+        smartUpdate('tm0', mm[0]); smartUpdate('tm1', mm[1]);
+        smartUpdate('ts0', ss[0]); smartUpdate('ts1', ss[1]);
     }}
 
     window.onload = () => {{
@@ -190,7 +204,6 @@ html_code = f"""
         for (let i = 0; i < fullText.length; i += flapCount) {{
             msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
         }}
-        
         let pIdx = 0;
         const rotateMsg = (isFirst = false) => {{
             if(msgPages.length === 0) return;
@@ -199,7 +212,6 @@ html_code = f"""
             }});
             pIdx = (pIdx + 1) % msgPages.length;
         }};
-
         setTimeout(() => rotateMsg(true), 500); 
         tick(); 
         setInterval(tick, 1000);

@@ -23,7 +23,7 @@ if os.path.exists(img_filename):
         img_b64 = base64.b64encode(f.read()).decode()
         img_data = f"data:image/png;base64,{img_b64}"
 
-input_text = st.query_params.get("text", "假日愉快 身體健康").upper()
+input_text = st.query_params.get("text", "大家工作愉快，身體健康賺大錢").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 4.0)))
 
 # --- 3. 整合 HTML ---

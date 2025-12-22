@@ -4,7 +4,7 @@ import base64
 import os
 
 # --- 1. 頁面基礎設定 ---
-st.set_page_config(layout="wide", page_title="Banksy Terminal V11")
+st.set_page_config(layout="wide", page_title="Banksy Terminal V11.1")
 
 st.markdown("""
     <style>
@@ -23,12 +23,11 @@ if os.path.exists(img_filename):
         img_b64 = base64.b64encode(f.read()).decode()
         img_data = f"data:image/png;base64,{img_b64}"
 
-# 取得 URL 參數
 raw_text = st.query_params.get("text", "大家辛苦了 祝順利").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 4.0)))
 flip_speed = int(st.query_params.get("speed", 80)) 
 
-# --- 3. 整合 HTML ---
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -56,7 +55,7 @@ html_code = f"""
         display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 10;
     }}
     .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
-    .card {{ background: #181818; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
+    .card {{ background: #1a1a1a; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
     .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
     .separator {{ font-size: 32px; color: #444; font-weight: bold; align-self: center; line-height: 50px; padding: 0 2px; }}
@@ -65,7 +64,7 @@ html_code = f"""
     .bottom-p {{ bottom: 0; align-items: flex-start; }}
     .text-node {{ position: absolute; width: 100%; height: 200%; display: flex; align-items: center; justify-content: center; line-height: 0; }}
     .top-p .text-node {{ bottom: -100%; }} .bottom-p .text-node {{ top: -100%; }}
-    .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.2s ease-in; transform-style: preserve-3d; }}
+    .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.3s ease-in; transform-style: preserve-3d; }}
     .leaf-side {{ position: absolute; inset: 0; backface-visibility: hidden; background: #1a1a1a; display: flex; justify-content: center; overflow: hidden; }}
     .side-back {{ transform: rotateX(-180deg); }}
     .flipping .leaf-node {{ transform: rotateX(-180deg); }}
@@ -84,28 +83,30 @@ html_code = f"""
     const baseSpeed = {flip_speed};
     const flapCount = Math.min(10, Math.floor(fullText.length / 2) || 4);
     const charPool = Array.from(new Set(fullText.replace(/\\s/g, '').split('')));
-    const fallbackChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
+    
     let memory = {{}};
     let isBusy = {{}};
 
     function performFlip(id, nextVal, prevVal) {{
         const el = document.getElementById(id);
         if(!el) return;
-        // 強制轉字串，避免 0 被判斷為 false
         const n = String(nextVal);
         const p = String(prevVal);
         
-        el.innerHTML = ""; el.classList.remove('flipping');
-        el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
+        el.innerHTML = "";
+        el.classList.remove('flipping');
+        el.innerHTML = `
+            <div class="panel top-p"><div class="text-node">${{n}}</div></div>
             <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
-            <div class="leaf-node"><div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
-            <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div></div>`;
+            <div class="leaf-node">
+                <div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
+                <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div>
+            </div>`;
         requestAnimationFrame(() => {{ void el.offsetWidth; el.classList.add('flipping'); }});
     }}
 
     async function smartUpdate(id, target, isInitial = false) {{
-        // 強制確保目標是字串且不為 undefined
+        // 嚴格字串化，確保 '0' 不會被視為 false
         const tStr = (target === undefined || target === null) ? " " : String(target).toUpperCase();
         
         if (memory[id] === tStr || isBusy[id]) return;
@@ -113,7 +114,7 @@ html_code = f"""
         
         let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
         
-        // 數字滾動邏輯 (時間與日期)
+        // 數字 0-9 滾動邏輯
         if (/^[0-9]$/.test(tStr)) {{
             let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
             let tarN = parseInt(tStr);
@@ -124,11 +125,10 @@ html_code = f"""
                 await new Promise(r => setTimeout(r, baseSpeed * 0.8));
             }}
         }} 
-        // 訊息文字/中文字邏輯
         else {{
-            const steps = isInitial ? 8 + Math.floor(Math.random()*5) : 4; 
+            const steps = isInitial ? 8 : 4; 
             for (let i = 0; i < steps; i++) {{
-                let randChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : fallbackChars[Math.floor(Math.random()*26)];
+                let randChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : "X";
                 performFlip(id, randChar, oldStr);
                 oldStr = randChar;
                 await new Promise(r => setTimeout(r, baseSpeed));
@@ -145,13 +145,15 @@ html_code = f"""
         const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
         
-        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => {{
-            const startChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : " ";
-            memory[`m${{i}}`] = startChar;
-            return `<div class="card msg-unit" id="m${{i}}">${{startChar}}</div>`;
-        }}).join('');
+        // 初始化訊息 ID
+        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => 
+            `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
         
-        document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
+        // 初始化日期 ID
+        document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => 
+            `<div class="card small-unit" id="d${{i}}"></div>`).join('');
+        
+        // 初始化時間 ID (明確定義所有位數)
         document.getElementById('row-clock').innerHTML = `
             <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
             <div class="separator">:</div>
@@ -168,11 +170,12 @@ html_code = f"""
         const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
         dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
         
-        // 核心修正：強制 split 確保 0 是獨立的字元
+        // 強制補零並拆解成字串陣列
         const hh = String(n.getHours()).padStart(2, '0').split('');
         const mm = String(n.getMinutes()).padStart(2, '0').split('');
         const ss = String(n.getSeconds()).padStart(2, '0').split('');
         
+        // 每一格都強制觸發更新檢查
         smartUpdate('h0', hh[0]); 
         smartUpdate('h1', hh[1]);
         smartUpdate('tm0', mm[0]); 
@@ -190,6 +193,7 @@ html_code = f"""
         
         let pIdx = 0;
         const rotateMsg = (isFirst = false) => {{
+            if(msgPages.length === 0) return;
             msgPages[pIdx].forEach((c, i) => {{ 
                 setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * (baseSpeed * 1.5)); 
             }});

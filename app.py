@@ -4,7 +4,7 @@ import base64
 import os
 
 # --- 1. 頁面基礎設定 ---
-st.set_page_config(layout="wide", page_title="Banksy Terminal V5")
+st.set_page_config(layout="wide", page_title="Banksy Terminal V6")
 
 st.markdown("""
     <style>
@@ -38,11 +38,12 @@ html_code = f"""
         background-color: #dcdcdc; 
         background-image: url("{img_data}");
         background-repeat: no-repeat;
-        background-position: right 10% bottom 10%; 
+        /* 調整塗鴉位置：從 bottom 10% 提升至 35%，使其更接近面板 */
+        background-position: right 10% bottom 35%; 
         background-size: auto 30vh;
         display: flex; 
         justify-content: center; 
-        align-items: flex-start; /* 改為靠頂部對齊 */
+        align-items: flex-start; 
         height: 100vh; margin: 0; overflow: hidden;
         font-family: "Impact", "Microsoft JhengHei", sans-serif;
     }}
@@ -50,13 +51,13 @@ html_code = f"""
     .acrylic-board {{
         position: relative; 
         width: 90vw; max-width: 820px;
-        margin-top: 5vh; /* 距離頂部 5% 的高度 */
+        margin-top: 5vh; 
         padding: 50px 30px;
-        background: rgba(255, 255, 255, 0.1); /* 降低透明度數值，提高透明感 */
-        backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); /* 略微降低模糊度增加通透感 */
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.08); /* 極致透明度 */
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); 
+        border: 1px solid rgba(255, 255, 255, 0.25);
         border-radius: 25px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.08);
         display: flex; flex-direction: column; align-items: center;
         gap: 20px; z-index: 10;
     }}
@@ -68,7 +69,6 @@ html_code = f"""
     .s-br {{ bottom: 20px; right: 20px; }}
 
     .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
-
     .card {{ background: #181818; border-radius: 4px; position: relative; overflow: hidden; color: white; }}
     
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}

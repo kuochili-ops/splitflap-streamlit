@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 # --- 1. 頁面基礎設定 ---
 st.set_page_config(layout="wide", page_title="Banksy Terminal V11.1")
 
-# 設定樣式：完全隱藏側邊欄與頁首，並設計底部懸浮控制台
+# 設定樣式：隱藏原生 UI，設計底部懸浮控制台
 st.markdown("""
     <style>
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
@@ -15,7 +15,6 @@ st.markdown("""
     .stApp {background-color: #1a1a1a !important;}
     [data-testid="stSidebar"] {display: none;}
     
-    /* 底部懸浮控制台容器 */
     .floating-console {
         position: fixed;
         bottom: 20px;
@@ -31,6 +30,12 @@ st.markdown("""
         z-index: 1000;
         box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
     }
+    .config-btn {
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        z-index: 1001;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -44,22 +49,20 @@ init_text = query_params.get("text", "EVERYTHING IS FINE")
 init_stay = float(query_params.get("stay", 4.0))
 init_speed = int(query_params.get("speed", 80))
 
-# --- 4. 底部懸浮輸入與分享區 ---
+# --- 4. 底部懸浮輸入區 ---
 if st.session_state.show_controls:
     with st.container():
         st.markdown('<div class="floating-console">', unsafe_allow_html=True)
-        
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            user_text = st.text_input("訊息內容", value=init_text, label_visibility="collapsed", placeholder="輸入想說的話...")
+            user_text = st.text_input("Message", value=init_text, label_visibility="collapsed", placeholder="輸入想說的話...")
         with col2:
-            user_stay = st.number_input("停頓(秒)", 2.0, 10.0, init_stay, 0.5, label_visibility="collapsed")
+            user_stay = st.number_input("Stay", 2.0, 10.0, init_stay, 0.5, label_visibility="collapsed")
         with col3:
-            if st.button("🚀 開始播放", use_container_width=True):
+            if st.button("🚀 PLAY", use_container_width=True):
                 st.session_state.show_controls = False
                 st.rerun()
 
-        # 分享功能區
         params = {"text": user_text, "stay": user_stay, "speed": init_speed}
         share_url = f"https://share.streamlit.io/your-app?{urlencode(params)}"
         
@@ -67,18 +70,16 @@ if st.session_state.show_controls:
         with scol1:
             st.code(share_url, wrap_lines=False)
         with scol2:
-            if st.button("🔗 分享", use_container_width=True):
-                st.toast("連結已生成，請長按上方代碼複製！")
-        
+            st.button("🔗 COPY", use_container_width=True, on_click=lambda: st.toast("請長按代碼複製"))
         st.markdown('</div>', unsafe_allow_html=True)
 else:
-    # 隱藏時顯示一個小小的「編輯」按鈕在角落
-    if st.button("⚙️", help="點擊開啟設定"):
+    st.markdown('<div class="config-btn">', unsafe_allow_html=True)
+    if st.button("⚙️"):
         st.session_state.show_controls = True
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 5. 核心 HTML 與 JS (維持翻牌邏輯，修正 0 顯示) ---
-# 圖片處理
+# --- 5. 核心 HTML 與 JS (已修正 f-string 雙大括號轉義) ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
 if os.path.exists(img_filename):
@@ -175,7 +176,7 @@ html_code = f"""
                 performFlip(id, String(curN), prev);
                 await new Promise(r => setTimeout(r, baseSpeed * 0.8));
             }}
-        } else {{
+        }} else {{
             const steps = isInitial ? 8 : 4; 
             for (let i = 0; i < steps; i++) {{
                 let randChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : "X";

@@ -4,7 +4,7 @@ import base64
 import os
 
 # --- 1. 頁面基礎設定 ---
-st.set_page_config(layout="wide", page_title="Banksy Terminal V6")
+st.set_page_config(layout="wide", page_title="Banksy Terminal V7")
 
 st.markdown("""
     <style>
@@ -38,7 +38,6 @@ html_code = f"""
         background-color: #dcdcdc; 
         background-image: url("{img_data}");
         background-repeat: no-repeat;
-        /* 調整塗鴉位置：從 bottom 10% 提升至 35%，使其更接近面板 */
         background-position: right 10% bottom 35%; 
         background-size: auto 30vh;
         display: flex; 
@@ -53,7 +52,7 @@ html_code = f"""
         width: 90vw; max-width: 820px;
         margin-top: 5vh; 
         padding: 50px 30px;
-        background: rgba(255, 255, 255, 0.08); /* 極致透明度 */
+        background: rgba(255, 255, 255, 0.08); 
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); 
         border: 1px solid rgba(255, 255, 255, 0.25);
         border-radius: 25px;
@@ -101,6 +100,7 @@ html_code = f"""
 <script>
     const fullText = "{input_text}";
     const flapCount = Math.min(10, Math.floor(fullText.length / 2) || 4);
+    const alphabet = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     
     let memory = {{}};
     let isBusy = {{}};
@@ -121,25 +121,41 @@ html_code = f"""
     }}
 
     async function smartUpdate(id, target) {{
-        const tStr = String(target);
+        const tStr = String(target).toUpperCase();
         if (memory[id] === tStr || isBusy[id]) return;
         isBusy[id] = true;
-        const oldStr = memory[id] || " ";
         
-        const isNumeric = /^[0-9]$/.test(tStr) && /^[0-9 ]$/.test(oldStr);
+        let oldStr = memory[id] || alphabet[Math.floor(Math.random()*alphabet.length)];
+        
+        // 滾動邏輯
+        const isNum = /^[0-9]$/.test(tStr);
+        const isAlpha = /^[A-Z ]$/.test(tStr);
 
-        if (isNumeric && oldStr !== " ") {{
-            let curN = parseInt(oldStr), tarN = parseInt(tStr);
+        if (isNum) {{
+            let curN = isNaN(parseInt(oldStr)) ? 0 : parseInt(oldStr);
+            let tarN = parseInt(tStr);
             while (curN !== tarN) {{
-                let prev = String(curN); 
+                let prev = String(curN);
                 curN = (curN + 1) % 10;
                 performFlip(id, String(curN), prev);
-                await new Promise(r => setTimeout(r, 100));
+                await new Promise(r => setTimeout(r, 80));
+            }}
+        }} else if (isAlpha) {{
+            let curIdx = alphabet.indexOf(oldStr);
+            if(curIdx === -1) curIdx = 0;
+            const tarIdx = alphabet.indexOf(tStr);
+            while (curIdx !== tarIdx) {{
+                let prev = alphabet[curIdx];
+                curIdx = (curIdx + 1) % alphabet.length;
+                performFlip(id, alphabet[curIdx], prev);
+                await new Promise(r => setTimeout(r, 50));
             }}
         }} else {{
             performFlip(id, tStr, oldStr);
         }}
-        memory[id] = tStr; isBusy[id] = false;
+        
+        memory[id] = tStr; 
+        isBusy[id] = false;
     }}
 
     function init() {{
@@ -147,8 +163,18 @@ html_code = f"""
         const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
         
-        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
-        document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
+        // 初始化時填入隨機字元
+        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => {{
+            const char = alphabet[Math.floor(Math.random()*alphabet.length)];
+            memory[`m${{i}}`] = char;
+            return `<div class="card msg-unit" id="m${{i}}">${{char}}</div>`;
+        }}).join('');
+        
+        document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => {{
+            const char = alphabet[Math.floor(Math.random()*alphabet.length)];
+            memory[`d${{i}}`] = char;
+            return `<div class="card small-unit" id="d${{i}}">${{char}}</div>`;
+        }}).join('');
         
         const clockRow = document.getElementById('row-clock');
         clockRow.innerHTML = `
@@ -158,6 +184,7 @@ html_code = f"""
             <div class="separator">:</div>
             <div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>
         `;
+        ['h0','h1','tm0','tm1','ts0','ts1'].forEach(id => memory[id] = "0");
     }}
 
     function tick() {{
@@ -166,7 +193,9 @@ html_code = f"""
         const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
         
         const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
-        dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
+        dStr.split('').forEach((c, i) => {{
+            setTimeout(() => smartUpdate(`d${{i}}`, c), i * 50);
+        }});
 
         const h = String(n.getHours()).padStart(2,'0');
         const m = String(n.getMinutes()).padStart(2,'0');
@@ -183,17 +212,24 @@ html_code = f"""
         for (let i = 0; i < fullText.length; i += flapCount) {{
             msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
         }}
+        
         let pIdx = 0;
         const rotateMsg = () => {{
             if (msgPages.length > 0) {{
                 msgPages[pIdx].forEach((c, i) => {{ 
-                    setTimeout(() => smartUpdate(`m${{i}}`, c), i * 100); 
+                    setTimeout(() => smartUpdate(`m${{i}}`, c), i * 150); 
                 }});
                 pIdx = (pIdx + 1) % msgPages.length;
             }}
         }};
-        rotateMsg(); tick();
-        setInterval(tick, 1000);
+
+        // 啟動過場：先執行一次訊息與時間更新
+        setTimeout(rotateMsg, 500);
+        setTimeout(() => {{
+            tick();
+            setInterval(tick, 1000);
+        }}, 800);
+
         if (msgPages.length > 1) setInterval(rotateMsg, {stay_sec} * 1000);
     }};
 </script>

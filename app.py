@@ -4,7 +4,7 @@ import base64
 import os
 
 # --- 1. 頁面基礎設定 ---
-st.set_page_config(layout="wide", page_title="Banksy Terminal V10")
+st.set_page_config(layout="wide", page_title="Banksy Terminal V11")
 
 st.markdown("""
     <style>
@@ -26,7 +26,6 @@ if os.path.exists(img_filename):
 # 取得 URL 參數
 raw_text = st.query_params.get("text", "大家辛苦了 祝順利").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 4.0)))
-# 新增 speed 參數，預設 80ms
 flip_speed = int(st.query_params.get("speed", 80)) 
 
 # --- 3. 整合 HTML ---
@@ -57,7 +56,7 @@ html_code = f"""
         display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 10;
     }}
     .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
-    .card {{ background: #181818; border-radius: 4px; position: relative; overflow: hidden; color: white; }}
+    .card {{ background: #181818; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
     .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
     .separator {{ font-size: 32px; color: #444; font-weight: bold; align-self: center; line-height: 50px; padding: 0 2px; }}
@@ -82,9 +81,8 @@ html_code = f"""
     </div>
 <script>
     const fullText = "{raw_text}";
-    const baseSpeed = {flip_speed}; // 從 Streamlit 傳入的速度參數
+    const baseSpeed = {flip_speed};
     const flapCount = Math.min(10, Math.floor(fullText.length / 2) || 4);
-    
     const charPool = Array.from(new Set(fullText.replace(/\\s/g, '').split('')));
     const fallbackChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -94,8 +92,11 @@ html_code = f"""
     function performFlip(id, nextVal, prevVal) {{
         const el = document.getElementById(id);
         if(!el) return;
+        // 強制轉字串，避免 0 被判斷為 false
+        const n = String(nextVal);
+        const p = String(prevVal);
+        
         el.innerHTML = ""; el.classList.remove('flipping');
-        const n = String(nextVal), p = String(prevVal);
         el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
             <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
             <div class="leaf-node"><div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
@@ -104,20 +105,27 @@ html_code = f"""
     }}
 
     async function smartUpdate(id, target, isInitial = false) {{
-        const tStr = String(target).toUpperCase();
+        // 強制確保目標是字串且不為 undefined
+        const tStr = (target === undefined || target === null) ? " " : String(target).toUpperCase();
+        
         if (memory[id] === tStr || isBusy[id]) return;
         isBusy[id] = true;
-        let oldStr = memory[id] || " ";
         
+        let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
+        
+        // 數字滾動邏輯 (時間與日期)
         if (/^[0-9]$/.test(tStr)) {{
             let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
             let tarN = parseInt(tStr);
             while (curN !== tarN) {{
-                let prev = String(curN); curN = (curN + 1) % 10;
+                let prev = String(curN);
+                curN = (curN + 1) % 10;
                 performFlip(id, String(curN), prev);
-                await new Promise(r => setTimeout(r, baseSpeed * 0.8)); // 數字滾動稍微快一點
+                await new Promise(r => setTimeout(r, baseSpeed * 0.8));
             }}
-        }} else {{
+        }} 
+        // 訊息文字/中文字邏輯
+        else {{
             const steps = isInitial ? 8 + Math.floor(Math.random()*5) : 4; 
             for (let i = 0; i < steps; i++) {{
                 let randChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : fallbackChars[Math.floor(Math.random()*26)];
@@ -127,7 +135,9 @@ html_code = f"""
             }}
             performFlip(id, tStr, oldStr);
         }}
-        memory[id] = tStr; isBusy[id] = false;
+        
+        memory[id] = tStr; 
+        isBusy[id] = false;
     }}
 
     function init() {{
@@ -142,23 +152,33 @@ html_code = f"""
         }}).join('');
         
         document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
-        document.getElementById('row-clock').innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
+        document.getElementById('row-clock').innerHTML = `
+            <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
+            <div class="separator">:</div>
+            <div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div>
+            <div class="separator">:</div>
+            <div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
     }}
 
     function tick() {{
         const n = new Date();
         const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+        
         const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
         dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
         
+        // 核心修正：強制 split 確保 0 是獨立的字元
         const hh = String(n.getHours()).padStart(2, '0').split('');
         const mm = String(n.getMinutes()).padStart(2, '0').split('');
         const ss = String(n.getSeconds()).padStart(2, '0').split('');
         
-        smartUpdate('h0', hh[0]); smartUpdate('h1', hh[1]);
-        smartUpdate('tm0', mm[0]); smartUpdate('tm1', mm[1]);
-        smartUpdate('ts0', ss[0]); smartUpdate('ts1', ss[1]);
+        smartUpdate('h0', hh[0]); 
+        smartUpdate('h1', hh[1]);
+        smartUpdate('tm0', mm[0]); 
+        smartUpdate('tm1', mm[1]);
+        smartUpdate('ts0', ss[0]); 
+        smartUpdate('ts1', ss[1]);
     }}
 
     window.onload = () => {{

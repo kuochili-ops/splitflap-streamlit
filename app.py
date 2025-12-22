@@ -4,7 +4,7 @@ import base64
 import os
 
 # --- 1. 頁面基礎設定 ---
-st.set_page_config(layout="wide", page_title="Banksy Terminal V9")
+st.set_page_config(layout="wide", page_title="Banksy Terminal V10")
 
 st.markdown("""
     <style>
@@ -23,9 +23,11 @@ if os.path.exists(img_filename):
         img_b64 = base64.b64encode(f.read()).decode()
         img_data = f"data:image/png;base64,{img_b64}"
 
-# 取得輸入訊息
-raw_text = st.query_params.get("text", "大家工作愉快 祝順利").upper()
+# 取得 URL 參數
+raw_text = st.query_params.get("text", "大家辛苦了 祝順利").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 4.0)))
+# 新增 speed 參數，預設 80ms
+flip_speed = int(st.query_params.get("speed", 80)) 
 
 # --- 3. 整合 HTML ---
 html_code = f"""
@@ -54,9 +56,6 @@ html_code = f"""
         border-radius: 25px; box-shadow: 0 15px 40px rgba(0,0,0,0.08);
         display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 10;
     }}
-    .screw {{ position: absolute; width: 15px; height: 15px; background: radial-gradient(circle at 35% 35%, #f0f0f0, #777); border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.4); }}
-    .s-tl {{ top: 20px; left: 20px; }} .s-tr {{ top: 20px; right: 20px; }}
-    .s-bl {{ bottom: 20px; left: 20px; }} .s-br {{ bottom: 20px; right: 20px; }}
     .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
     .card {{ background: #181818; border-radius: 4px; position: relative; overflow: hidden; color: white; }}
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
@@ -75,8 +74,6 @@ html_code = f"""
 </head>
 <body>
     <div class="acrylic-board">
-        <div class="screw s-tl"></div><div class="screw s-tr"></div>
-        <div class="screw s-bl"></div><div class="screw s-br"></div>
         <div id="row-msg" class="row-container"></div>
         <div id="row-info" style="display: flex; flex-direction: column; gap: 10px; width: 100%; align-items: center;">
             <div id="row-date" class="row-container"></div>
@@ -85,9 +82,9 @@ html_code = f"""
     </div>
 <script>
     const fullText = "{raw_text}";
+    const baseSpeed = {flip_speed}; // 從 Streamlit 傳入的速度參數
     const flapCount = Math.min(10, Math.floor(fullText.length / 2) || 4);
     
-    // 1. 動態建立字元池：只包含訊息中出現過的字
     const charPool = Array.from(new Set(fullText.replace(/\\s/g, '').split('')));
     const fallbackChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -110,32 +107,26 @@ html_code = f"""
         const tStr = String(target).toUpperCase();
         if (memory[id] === tStr || isBusy[id]) return;
         isBusy[id] = true;
-        
         let oldStr = memory[id] || " ";
         
-        // 數字滾動邏輯 (時間與日期使用)
         if (/^[0-9]$/.test(tStr)) {{
             let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
             let tarN = parseInt(tStr);
             while (curN !== tarN) {{
                 let prev = String(curN); curN = (curN + 1) % 10;
                 performFlip(id, String(curN), prev);
-                await new Promise(r => setTimeout(r, 60));
+                await new Promise(r => setTimeout(r, baseSpeed * 0.8)); // 數字滾動稍微快一點
             }}
-        }} 
-        // 訊息文字邏輯 (包含漢字/英文)：從池中隨機抽取字元進行過場
-        else {{
+        }} else {{
             const steps = isInitial ? 8 + Math.floor(Math.random()*5) : 4; 
             for (let i = 0; i < steps; i++) {{
-                // 從訊息字元池隨機選字
                 let randChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : fallbackChars[Math.floor(Math.random()*26)];
                 performFlip(id, randChar, oldStr);
                 oldStr = randChar;
-                await new Promise(r => setTimeout(r, 80));
+                await new Promise(r => setTimeout(r, baseSpeed));
             }}
             performFlip(id, tStr, oldStr);
         }}
-        
         memory[id] = tStr; isBusy[id] = false;
     }}
 
@@ -144,7 +135,6 @@ html_code = f"""
         const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
         
-        // 啟動時：訊息翻板隨機排列訊息池中的字元
         document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => {{
             const startChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : " ";
             memory[`m${{i}}`] = startChar;
@@ -181,15 +171,12 @@ html_code = f"""
         let pIdx = 0;
         const rotateMsg = (isFirst = false) => {{
             msgPages[pIdx].forEach((c, i) => {{ 
-                // 每個字元稍微錯開時間啟動
-                setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * 120); 
+                setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * (baseSpeed * 1.5)); 
             }});
             pIdx = (pIdx + 1) % msgPages.length;
         }};
 
-        // 第一次旋轉設定為 Initial 模式（更長的過場動畫）
         setTimeout(() => rotateMsg(true), 500); 
-        
         tick(); 
         setInterval(tick, 1000);
         if (msgPages.length > 1) setInterval(() => rotateMsg(false), {stay_sec} * 1000);

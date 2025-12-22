@@ -2,14 +2,10 @@ import streamlit.components.v1 as components
 import base64
 import os
 
-def render_flip_board(text, stay_sec=4.0, img_path=None):
-    # 圖片處理
+def render_flip_board(text, stay_sec=4.0):
+    # 預設背景圖邏輯
     img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
-    if img_path and os.path.exists(img_path):
-        with open(img_path, "rb") as f:
-            img_b64 = base64.b64encode(f.read()).decode()
-            img_data = f"data:image/png;base64,{img_b64}"
-
+    
     html_code = f"""
     <!DOCTYPE html>
     <html>
@@ -31,6 +27,7 @@ def render_flip_board(text, stay_sec=4.0, img_path=None):
             border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 25px;
             display: flex; flex-direction: column; align-items: center; gap: 20px;
         }}
+        /* 翻牌元件與 0 顯示邏輯修正 */
         .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
         .card {{ background: #1a1a1a; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
         .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
@@ -83,6 +80,7 @@ def render_flip_board(text, stay_sec=4.0, img_path=None):
             if (memory[id] === tStr || isBusy[id]) return;
             isBusy[id] = true;
             let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
+            
             if (/^[0-9]$/.test(tStr)) {{
                 let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
                 while (String(curN) !== tStr) {{

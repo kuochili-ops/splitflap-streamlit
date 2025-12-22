@@ -4,7 +4,7 @@ import base64
 import os
 
 # --- 1. 頁面基礎設定 ---
-st.set_page_config(layout="wide", page_title="Banksy Terminal V4")
+st.set_page_config(layout="wide", page_title="Banksy Terminal V5")
 
 st.markdown("""
     <style>
@@ -40,7 +40,9 @@ html_code = f"""
         background-repeat: no-repeat;
         background-position: right 10% bottom 10%; 
         background-size: auto 30vh;
-        display: flex; justify-content: center; align-items: center; 
+        display: flex; 
+        justify-content: center; 
+        align-items: flex-start; /* 改為靠頂部對齊 */
         height: 100vh; margin: 0; overflow: hidden;
         font-family: "Impact", "Microsoft JhengHei", sans-serif;
     }}
@@ -48,17 +50,17 @@ html_code = f"""
     .acrylic-board {{
         position: relative; 
         width: 90vw; max-width: 820px;
+        margin-top: 5vh; /* 距離頂部 5% 的高度 */
         padding: 50px 30px;
-        background: rgba(255, 255, 255, 0.25);
-        backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-        border: 1px solid rgba(255, 255, 255, 0.4);
+        background: rgba(255, 255, 255, 0.1); /* 降低透明度數值，提高透明感 */
+        backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); /* 略微降低模糊度增加通透感 */
+        border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 25px;
-        box-shadow: 0 30px 60px rgba(0,0,0,0.15);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.1);
         display: flex; flex-direction: column; align-items: center;
         gap: 20px; z-index: 10;
     }}
 
-    /* 確保只有四角有螺絲 */
     .screw {{ position: absolute; width: 15px; height: 15px; background: radial-gradient(circle at 35% 35%, #f0f0f0, #777); border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.4); }}
     .s-tl {{ top: 20px; left: 20px; }}
     .s-tr {{ top: 20px; right: 20px; }}
@@ -69,10 +71,7 @@ html_code = f"""
 
     .card {{ background: #181818; border-radius: 4px; position: relative; overflow: hidden; color: white; }}
     
-    /* 訊息列 (第一排) */
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
-
-    /* 日期與時間 (第二、三排) */
     .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
     .separator {{ font-size: 32px; color: #444; font-weight: bold; align-self: center; line-height: 50px; padding: 0 2px; }}
 
@@ -148,13 +147,9 @@ html_code = f"""
         const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
         
-        // 初始化訊息列
         document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
-        
-        // 初始化日期列 (d0-d9)
         document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
         
-        // 初始化時間列 (h0, h1, m0, m1, s0, s1)
         const clockRow = document.getElementById('row-clock');
         clockRow.innerHTML = `
             <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
@@ -177,7 +172,6 @@ html_code = f"""
         const m = String(n.getMinutes()).padStart(2,'0');
         const s = String(n.getSeconds()).padStart(2,'0');
         
-        // 修正 ID 名稱，避免衝突
         smartUpdate('h0', h[0]); smartUpdate('h1', h[1]);
         smartUpdate('tm0', m[0]); smartUpdate('tm1', m[1]);
         smartUpdate('ts0', s[0]); smartUpdate('ts1', s[1]);
@@ -198,8 +192,7 @@ html_code = f"""
                 pIdx = (pIdx + 1) % msgPages.length;
             }}
         }};
-        rotateMsg(); 
-        tick();
+        rotateMsg(); tick();
         setInterval(tick, 1000);
         if (msgPages.length > 1) setInterval(rotateMsg, {stay_sec} * 1000);
     }};

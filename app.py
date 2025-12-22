@@ -4,7 +4,7 @@ import base64
 import os
 
 # --- 1. 頁面基礎設定 ---
-st.set_page_config(layout="wide", page_title="Banksy Terminal V7.1")
+st.set_page_config(layout="wide", page_title="Banksy Terminal V7.2")
 
 st.markdown("""
     <style>
@@ -26,7 +26,7 @@ if os.path.exists(img_filename):
 input_text = st.query_params.get("text", "大家工作愉快").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 4.0)))
 
-# --- 3. 整合 HTML ---
+# --- 3. 核心 HTML ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -40,32 +40,24 @@ html_code = f"""
         background-repeat: no-repeat;
         background-position: right 10% bottom 35%; 
         background-size: auto 30vh;
-        display: flex; 
-        justify-content: center; 
-        align-items: flex-start; 
+        display: flex; justify-content: center; align-items: flex-start; 
         height: 100vh; margin: 0; overflow: hidden;
         font-family: "Impact", "Microsoft JhengHei", sans-serif;
     }}
 
     .acrylic-board {{
-        position: relative; 
-        width: 90vw; max-width: 820px;
-        margin-top: 5vh; 
-        padding: 50px 30px;
+        position: relative; width: 90vw; max-width: 820px;
+        margin-top: 5vh; padding: 50px 30px;
         background: rgba(255, 255, 255, 0.08); 
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); 
         border: 1px solid rgba(255, 255, 255, 0.25);
-        border-radius: 25px;
-        box-shadow: 0 15px 40px rgba(0,0,0,0.08);
-        display: flex; flex-direction: column; align-items: center;
-        gap: 20px; z-index: 10;
+        border-radius: 25px; box-shadow: 0 15px 40px rgba(0,0,0,0.08);
+        display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 10;
     }}
 
     .screw {{ position: absolute; width: 15px; height: 15px; background: radial-gradient(circle at 35% 35%, #f0f0f0, #777); border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.4); }}
-    .s-tl {{ top: 20px; left: 20px; }}
-    .s-tr {{ top: 20px; right: 20px; }}
-    .s-bl {{ bottom: 20px; left: 20px; }}
-    .s-br {{ bottom: 20px; right: 20px; }}
+    .s-tl {{ top: 20px; left: 20px; }} .s-tr {{ top: 20px; right: 20px; }}
+    .s-bl {{ bottom: 20px; left: 20px; }} .s-br {{ bottom: 20px; right: 20px; }}
 
     .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
     .card {{ background: #181818; border-radius: 4px; position: relative; overflow: hidden; color: white; }}
@@ -89,7 +81,6 @@ html_code = f"""
     <div class="acrylic-board">
         <div class="screw s-tl"></div><div class="screw s-tr"></div>
         <div class="screw s-bl"></div><div class="screw s-br"></div>
-        
         <div id="row-msg" class="row-container"></div>
         <div id="row-info" style="display: flex; flex-direction: column; gap: 10px; width: 100%; align-items: center;">
             <div id="row-date" class="row-container"></div>
@@ -109,7 +100,7 @@ html_code = f"""
         const el = document.getElementById(id);
         if(!el) return;
         el.innerHTML = ""; el.classList.remove('flipping');
-        const n = String(nextVal || " "), p = String(prevVal || " ");
+        const n = String(nextVal), p = String(prevVal);
         el.innerHTML = `
             <div class="panel top-p"><div class="text-node">${{n}}</div></div>
             <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
@@ -125,35 +116,22 @@ html_code = f"""
         if (memory[id] === tStr || isBusy[id]) return;
         isBusy[id] = true;
         
-        let oldStr = memory[id] || alphabet[Math.floor(Math.random()*alphabet.length)];
+        let oldStr = memory[id] || " ";
         const isNum = /^[0-9]$/.test(tStr);
-        const isAlpha = /^[A-Z ]$/.test(tStr);
 
         if (isNum) {{
-            let curN = isNaN(parseInt(oldStr)) ? 0 : parseInt(oldStr);
+            let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
             let tarN = parseInt(tStr);
             while (curN !== tarN) {{
                 let prev = String(curN);
                 curN = (curN + 1) % 10;
                 performFlip(id, String(curN), prev);
-                await new Promise(r => setTimeout(r, 60));
-            }}
-        }} else if (isAlpha) {{
-            let curIdx = alphabet.indexOf(oldStr);
-            if(curIdx === -1) curIdx = 0;
-            const tarIdx = alphabet.indexOf(tStr);
-            while (curIdx !== tarIdx) {{
-                let prev = alphabet[curIdx];
-                curIdx = (curIdx + 1) % alphabet.length;
-                performFlip(id, alphabet[curIdx], prev);
-                await new Promise(r => setTimeout(r, 40));
+                await new Promise(r => setTimeout(r, 70));
             }}
         }} else {{
             performFlip(id, tStr, oldStr);
         }}
-        
-        memory[id] = tStr; 
-        isBusy[id] = false;
+        memory[id] = tStr; isBusy[id] = false;
     }}
 
     function init() {{
@@ -161,28 +139,19 @@ html_code = f"""
         const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
         
-        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => {{
-            const char = alphabet[Math.floor(Math.random()*alphabet.length)];
-            memory[`m${{i}}`] = char;
-            return `<div class="card msg-unit" id="m${{i}}">${{char}}</div>`;
-        }}).join('');
+        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => 
+            `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
         
-        document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => {{
-            const char = alphabet[Math.floor(Math.random()*alphabet.length)];
-            memory[`d${{i}}`] = char;
-            return `<div class="card small-unit" id="d${{i}}">${{char}}</div>`;
-        }}).join('');
+        document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => 
+            `<div class="card small-unit" id="d${{i}}"></div>`).join('');
         
-        const clockRow = document.getElementById('row-clock');
-        // 明確定義 6 個時間翻位 ID
-        clockRow.innerHTML = `
+        document.getElementById('row-clock').innerHTML = `
             <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
             <div class="separator">:</div>
             <div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div>
             <div class="separator">:</div>
             <div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>
         `;
-        ['h0','h1','tm0','tm1','ts0','ts1'].forEach(id => memory[id] = "0");
     }}
 
     function tick() {{
@@ -190,20 +159,17 @@ html_code = f"""
         const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
         
-        // 日期更新
         const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
-        dStr.split('').forEach((c, i) => {{
-            setTimeout(() => smartUpdate(`d${{i}}`, c), i * 30);
-        }});
+        dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
 
-        // 時間更新：強制補零並精確對應 ID
-        const h = String(n.getHours()).padStart(2,'0');
-        const m = String(n.getMinutes()).padStart(2,'0');
-        const s = String(n.getSeconds()).padStart(2,'0');
+        // 關鍵修正：直接獲取字串並拆解
+        const hh = String(n.getHours()).padStart(2, '0').split('');
+        const mm = String(n.getMinutes()).padStart(2, '0').split('');
+        const ss = String(n.getSeconds()).padStart(2, '0').split('');
         
-        smartUpdate('h0', h[0]); smartUpdate('h1', h[1]);
-        smartUpdate('tm0', m[0]); smartUpdate('tm1', m[1]);
-        smartUpdate('ts0', s[0]); smartUpdate('ts1', s[1]);
+        smartUpdate('h0', hh[0]); smartUpdate('h1', hh[1]);
+        smartUpdate('tm0', mm[0]); smartUpdate('tm1', mm[1]);
+        smartUpdate('ts0', ss[0]); smartUpdate('ts1', ss[1]);
     }}
 
     window.onload = () => {{
@@ -215,20 +181,13 @@ html_code = f"""
         
         let pIdx = 0;
         const rotateMsg = () => {{
-            if (msgPages.length > 0) {{
-                msgPages[pIdx].forEach((c, i) => {{ 
-                    setTimeout(() => smartUpdate(`m${{i}}`, c), i * 100); 
-                }});
-                pIdx = (pIdx + 1) % msgPages.length;
-            }}
+            msgPages[pIdx].forEach((c, i) => {{ setTimeout(() => smartUpdate(`m${{i}}`, c), i * 100); }});
+            pIdx = (pIdx + 1) % msgPages.length;
         }};
 
-        setTimeout(rotateMsg, 300);
-        setTimeout(() => {{
-            tick();
-            setInterval(tick, 1000);
-        }}, 600);
-
+        rotateMsg();
+        tick();
+        setInterval(tick, 1000);
         if (msgPages.length > 1) setInterval(rotateMsg, {stay_sec} * 1000);
     }};
 </script>

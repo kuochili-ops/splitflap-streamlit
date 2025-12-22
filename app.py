@@ -7,79 +7,103 @@ from urllib.parse import urlencode
 # --- 1. 頁面基礎設定 ---
 st.set_page_config(layout="wide", page_title="Banksy Terminal V11.1")
 
-# 設定樣式：隱藏原生 UI，設計底部懸浮控制台
+# 自定義 CSS：實現底部感應區與懸浮面板
 st.markdown("""
     <style>
+    /* 隱藏預設元件 */
     header, [data-testid="stHeader"], #MainMenu, footer {visibility: hidden; display: none;}
     .block-container {padding: 0 !important; background-color: #1a1a1a !important;}
     .stApp {background-color: #1a1a1a !important;}
     [data-testid="stSidebar"] {display: none;}
-    
+
+    /* 底部感應區：平常是透明的，滑鼠靠近或觸碰時觸發 */
+    .footer-trigger {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 40px;
+        z-index: 999;
+        background: transparent;
+    }
+
+    /* 控制面板本體：預設隱藏在螢幕下方 */
     .floating-console {
         position: fixed;
-        bottom: 20px;
+        bottom: -250px; /* 隱藏在下方 */
         left: 50%;
         transform: translateX(-50%);
-        width: 90%;
-        max-width: 800px;
-        background: rgba(40, 40, 40, 0.9);
-        backdrop-filter: blur(10px);
+        width: 95%;
+        max-width: 850px;
+        background: rgba(30, 30, 30, 0.9);
+        backdrop-filter: blur(15px);
         padding: 20px;
-        border-radius: 20px;
-        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 20px 20px 0 0;
+        border: 1px solid rgba(255,255,255,0.15);
         z-index: 1000;
-        box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        transition: bottom 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
     }
-    .config-btn {
+
+    /* 當感應區被碰觸或面板被碰觸時，面板滑入 */
+    .footer-trigger:hover + .floating-console,
+    .floating-console:hover,
+    .floating-console:active {
+        bottom: 0;
+    }
+
+    /* 手機端優化：增加一個提示小點，讓使用者知道哪裡可以點 */
+    .hint-dot {
         position: fixed;
-        bottom: 10px;
-        left: 10px;
-        z-index: 1001;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 2px;
+        z-index: 998;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 狀態管理 ---
-if 'show_controls' not in st.session_state:
-    st.session_state.show_controls = True
-
-# --- 3. 參數處理 ---
+# --- 2. 參數與分享邏輯 ---
 query_params = st.query_params
-init_text = query_params.get("text", "EVERYTHING IS FINE")
+init_text = query_params.get("text", "KEEP GOING 2025")
 init_stay = float(query_params.get("stay", 4.0))
-init_speed = int(query_params.get("speed", 80))
 
-# --- 4. 底部懸浮輸入區 ---
-if st.session_state.show_controls:
-    with st.container():
-        st.markdown('<div class="floating-console">', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
-            user_text = st.text_input("Message", value=init_text, label_visibility="collapsed", placeholder="輸入想說的話...")
-        with col2:
-            user_stay = st.number_input("Stay", 2.0, 10.0, init_stay, 0.5, label_visibility="collapsed")
-        with col3:
-            if st.button("🚀 PLAY", use_container_width=True):
-                st.session_state.show_controls = False
-                st.rerun()
+# 渲染控制項
+st.markdown('<div class="footer-trigger"></div>', unsafe_allow_html=True)
+st.markdown('<div class="hint-dot"></div>', unsafe_allow_html=True)
 
-        params = {"text": user_text, "stay": user_stay, "speed": init_speed}
-        share_url = f"https://share.streamlit.io/your-app?{urlencode(params)}"
-        
-        scol1, scol2 = st.columns([3, 1])
-        with scol1:
-            st.code(share_url, wrap_lines=False)
-        with scol2:
-            st.button("🔗 COPY", use_container_width=True, on_click=lambda: st.toast("請長按代碼複製"))
-        st.markdown('</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="config-btn">', unsafe_allow_html=True)
-    if st.button("⚙️"):
-        st.session_state.show_controls = True
-        st.rerun()
+with st.container():
+    st.markdown('<div class="floating-console">', unsafe_allow_html=True)
+    
+    # 輸入列
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        user_text = st.text_input("Message", value=init_text, label_visibility="collapsed", placeholder="輸入訊息...")
+    with col2:
+        user_stay = st.number_input("Stay (s)", 2.0, 10.0, init_stay, 0.5, label_visibility="collapsed")
+    
+    # 分享列
+    params = {"text": user_text, "stay": user_stay, "speed": 80}
+    share_url = f"https://share.streamlit.io/your-app?{urlencode(params)}"
+    
+    scol1, scol2, scol3 = st.columns([3, 1, 1])
+    with scol1:
+        st.code(share_url, wrap_lines=False)
+    with scol2:
+        # 點擊按鈕後執行 st.rerun() 會讓面板因頁面整理而暫時收起
+        if st.button("🚀 UPDATE", use_container_width=True):
+            st.rerun()
+    with scol3:
+        if st.button("🔗 COPY", use_container_width=True):
+            st.toast("連結已生成，請手動複製代碼區")
+
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 5. 核心 HTML 與 JS (已修正 f-string 雙大括號轉義) ---
+# --- 3. 翻牌顯示核心 (修正 0 顯示與大括號轉義) ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
 if os.path.exists(img_filename):
@@ -95,29 +119,24 @@ html_code = f"""
 <style>
     * {{ box-sizing: border-box; }}
     body {{ 
-        background-color: #dcdcdc; 
-        background-image: url("{img_data}");
-        background-repeat: no-repeat;
-        background-position: right 10% bottom 35%; 
-        background-size: auto 30vh;
-        display: flex; justify-content: center; align-items: flex-start; 
-        height: 100vh; margin: 0; overflow: hidden;
+        background-color: #dcdcdc; background-image: url("{img_data}");
+        background-repeat: no-repeat; background-position: right 10% bottom 35%; 
+        background-size: auto 30vh; display: flex; justify-content: center; 
+        align-items: flex-start; height: 100vh; margin: 0; overflow: hidden;
         font-family: "Impact", "Microsoft JhengHei", sans-serif;
     }}
     .acrylic-board {{
         position: relative; width: 90vw; max-width: 820px;
         margin-top: 5vh; padding: 50px 30px;
-        background: rgba(255, 255, 255, 0.08); 
-        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); 
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        border-radius: 25px; box-shadow: 0 15px 40px rgba(0,0,0,0.08);
-        display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 10;
+        background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 25px;
+        display: flex; flex-direction: column; align-items: center; gap: 20px;
     }}
     .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
     .card {{ background: #1a1a1a; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
     .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
     .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
-    .separator {{ font-size: 32px; color: #444; font-weight: bold; align-self: center; line-height: 50px; padding: 0 2px; }}
+    .separator {{ font-size: 32px; color: #444; font-weight: bold; line-height: 50px; padding: 0 2px; }}
     .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
     .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; }}
     .bottom-p {{ bottom: 0; align-items: flex-start; }}
@@ -139,18 +158,16 @@ html_code = f"""
     </div>
 <script>
     const fullText = "{user_text.upper()}";
-    const baseSpeed = {init_speed};
+    const baseSpeed = 80;
     const flapCount = Math.min(10, Math.floor(fullText.length / 2) || 4);
     const charPool = Array.from(new Set(fullText.replace(/\\s/g, '').split('')));
-    
     let memory = {{}};
     let isBusy = {{}};
 
     function performFlip(id, nextVal, prevVal) {{
         const el = document.getElementById(id);
         if(!el) return;
-        const n = String(nextVal);
-        const p = String(prevVal);
+        const n = String(nextVal); const p = String(prevVal);
         el.innerHTML = "";
         el.classList.remove('flipping');
         el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
@@ -167,12 +184,10 @@ html_code = f"""
         if (memory[id] === tStr || isBusy[id]) return;
         isBusy[id] = true;
         let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
-        
         if (/^[0-9]$/.test(tStr)) {{
             let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
             while (String(curN) !== tStr) {{
-                let prev = String(curN);
-                curN = (curN + 1) % 10;
+                let prev = String(curN); curN = (curN + 1) % 10;
                 performFlip(id, String(curN), prev);
                 await new Promise(r => setTimeout(r, baseSpeed * 0.8));
             }}
@@ -180,23 +195,12 @@ html_code = f"""
             const steps = isInitial ? 8 : 4; 
             for (let i = 0; i < steps; i++) {{
                 let randChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : "X";
-                performFlip(id, randChar, oldStr);
-                oldStr = randChar;
+                performFlip(id, randChar, oldStr); oldStr = randChar;
                 await new Promise(r => setTimeout(r, baseSpeed));
             }}
             performFlip(id, tStr, oldStr);
         }}
-        memory[id] = tStr; 
-        isBusy[id] = false;
-    }}
-
-    function init() {{
-        const board = document.querySelector('.acrylic-board');
-        const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
-        document.documentElement.style.setProperty('--msg-w', msgW + 'px');
-        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
-        document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
-        document.getElementById('row-clock').innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
+        memory[id] = tStr; isBusy[id] = false;
     }}
 
     function tick() {{
@@ -214,7 +218,13 @@ html_code = f"""
     }}
 
     window.onload = () => {{
-        init();
+        const board = document.querySelector('.acrylic-board');
+        const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
+        document.documentElement.style.setProperty('--msg-w', msgW + 'px');
+        document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
+        document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
+        document.getElementById('row-clock').innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
+        
         const msgPages = [];
         for (let i = 0; i < fullText.length; i += flapCount) {{
             msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
@@ -222,7 +232,7 @@ html_code = f"""
         let pIdx = 0;
         const rotateMsg = (isFirst = false) => {{
             if(msgPages.length === 0) return;
-            msgPages[pIdx].forEach((c, i) => {{ setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * (baseSpeed * 1.5)); }});
+            msgPages[pIdx].forEach((c, i) => {{ setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * 120); }});
             pIdx = (pIdx + 1) % msgPages.length;
         }};
         setTimeout(() => rotateMsg(true), 500); 

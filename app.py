@@ -4,7 +4,7 @@ import base64
 import os
 
 # --- 1. 頁面基礎設定 ---
-st.set_page_config(layout="wide", page_title="Banksy Terminal V7")
+st.set_page_config(layout="wide", page_title="Banksy Terminal V7.1")
 
 st.markdown("""
     <style>
@@ -15,7 +15,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 圖片處理 (班克西女孩) ---
+# --- 2. 圖片處理 ---
 img_filename = "banksy-girl-with-balloon-logo-png_seeklogo-621871.png"
 img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
 if os.path.exists(img_filename):
@@ -23,7 +23,7 @@ if os.path.exists(img_filename):
         img_b64 = base64.b64encode(f.read()).decode()
         img_data = f"data:image/png;base64,{img_b64}"
 
-input_text = st.query_params.get("text", "大家工作愉快，身體健康賺大錢").upper()
+input_text = st.query_params.get("text", "大家工作愉快").upper()
 stay_sec = max(3.0, float(st.query_params.get("stay", 4.0)))
 
 # --- 3. 整合 HTML ---
@@ -126,8 +126,6 @@ html_code = f"""
         isBusy[id] = true;
         
         let oldStr = memory[id] || alphabet[Math.floor(Math.random()*alphabet.length)];
-        
-        // 滾動邏輯
         const isNum = /^[0-9]$/.test(tStr);
         const isAlpha = /^[A-Z ]$/.test(tStr);
 
@@ -138,7 +136,7 @@ html_code = f"""
                 let prev = String(curN);
                 curN = (curN + 1) % 10;
                 performFlip(id, String(curN), prev);
-                await new Promise(r => setTimeout(r, 80));
+                await new Promise(r => setTimeout(r, 60));
             }}
         }} else if (isAlpha) {{
             let curIdx = alphabet.indexOf(oldStr);
@@ -148,7 +146,7 @@ html_code = f"""
                 let prev = alphabet[curIdx];
                 curIdx = (curIdx + 1) % alphabet.length;
                 performFlip(id, alphabet[curIdx], prev);
-                await new Promise(r => setTimeout(r, 50));
+                await new Promise(r => setTimeout(r, 40));
             }}
         }} else {{
             performFlip(id, tStr, oldStr);
@@ -163,7 +161,6 @@ html_code = f"""
         const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
         
-        // 初始化時填入隨機字元
         document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => {{
             const char = alphabet[Math.floor(Math.random()*alphabet.length)];
             memory[`m${{i}}`] = char;
@@ -177,6 +174,7 @@ html_code = f"""
         }}).join('');
         
         const clockRow = document.getElementById('row-clock');
+        // 明確定義 6 個時間翻位 ID
         clockRow.innerHTML = `
             <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
             <div class="separator">:</div>
@@ -192,11 +190,13 @@ html_code = f"""
         const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
         
+        // 日期更新
         const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
         dStr.split('').forEach((c, i) => {{
-            setTimeout(() => smartUpdate(`d${{i}}`, c), i * 50);
+            setTimeout(() => smartUpdate(`d${{i}}`, c), i * 30);
         }});
 
+        // 時間更新：強制補零並精確對應 ID
         const h = String(n.getHours()).padStart(2,'0');
         const m = String(n.getMinutes()).padStart(2,'0');
         const s = String(n.getSeconds()).padStart(2,'0');
@@ -217,18 +217,17 @@ html_code = f"""
         const rotateMsg = () => {{
             if (msgPages.length > 0) {{
                 msgPages[pIdx].forEach((c, i) => {{ 
-                    setTimeout(() => smartUpdate(`m${{i}}`, c), i * 150); 
+                    setTimeout(() => smartUpdate(`m${{i}}`, c), i * 100); 
                 }});
                 pIdx = (pIdx + 1) % msgPages.length;
             }}
         }};
 
-        // 啟動過場：先執行一次訊息與時間更新
-        setTimeout(rotateMsg, 500);
+        setTimeout(rotateMsg, 300);
         setTimeout(() => {{
             tick();
             setInterval(tick, 1000);
-        }}, 800);
+        }}, 600);
 
         if (msgPages.length > 1) setInterval(rotateMsg, {stay_sec} * 1000);
     }};

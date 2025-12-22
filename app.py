@@ -4,7 +4,7 @@ import base64
 import os
 
 # --- 1. 頁面基礎設定 ---
-st.set_page_config(layout="wide", page_title="Banksy Terminal V3")
+st.set_page_config(layout="wide", page_title="Banksy Terminal V4")
 
 st.markdown("""
     <style>
@@ -39,7 +39,7 @@ html_code = f"""
         background-image: url("{img_data}");
         background-repeat: no-repeat;
         background-position: right 10% bottom 10%; 
-        background-size: auto 32vh;
+        background-size: auto 30vh;
         display: flex; justify-content: center; align-items: center; 
         height: 100vh; margin: 0; overflow: hidden;
         font-family: "Impact", "Microsoft JhengHei", sans-serif;
@@ -47,34 +47,34 @@ html_code = f"""
 
     .acrylic-board {{
         position: relative; 
-        width: 92vw; max-width: 850px;
-        padding: 55px 30px;
-        background: rgba(255, 255, 255, 0.2);
+        width: 90vw; max-width: 820px;
+        padding: 50px 30px;
+        background: rgba(255, 255, 255, 0.25);
         backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
         border: 1px solid rgba(255, 255, 255, 0.4);
-        border-radius: 20px;
-        box-shadow: 0 30px 70px rgba(0,0,0,0.2);
+        border-radius: 25px;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.15);
         display: flex; flex-direction: column; align-items: center;
-        gap: 25px; z-index: 10;
+        gap: 20px; z-index: 10;
     }}
 
-    /* 四角螺絲修正 */
-    .screw {{ position: absolute; width: 15px; height: 15px; background: radial-gradient(circle at 30% 30%, #eee, #666); border-radius: 50%; box-shadow: 1px 1px 3px rgba(0,0,0,0.3); }}
+    /* 確保只有四角有螺絲 */
+    .screw {{ position: absolute; width: 15px; height: 15px; background: radial-gradient(circle at 35% 35%, #f0f0f0, #777); border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.4); }}
     .s-tl {{ top: 20px; left: 20px; }}
     .s-tr {{ top: 20px; right: 20px; }}
     .s-bl {{ bottom: 20px; left: 20px; }}
     .s-br {{ bottom: 20px; right: 20px; }}
 
-    .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; flex-wrap: nowrap; }}
+    .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
 
-    .card {{ background: #151515; border-radius: 4px; position: relative; overflow: hidden; color: white; }}
+    .card {{ background: #181818; border-radius: 4px; position: relative; overflow: hidden; color: white; }}
     
-    /* 訊息翻板 (動態寬度) */
-    .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.9); }}
+    /* 訊息列 (第一排) */
+    .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
 
-    /* 時間日期 (固定尺寸) */
+    /* 日期與時間 (第二、三排) */
     .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
-    .separator {{ font-size: 30px; color: #444; font-weight: bold; align-self: center; line-height: 50px; }}
+    .separator {{ font-size: 32px; color: #444; font-weight: bold; align-self: center; line-height: 50px; padding: 0 2px; }}
 
     .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
     .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; }}
@@ -93,7 +93,7 @@ html_code = f"""
         <div class="screw s-bl"></div><div class="screw s-br"></div>
         
         <div id="row-msg" class="row-container"></div>
-        <div id="row-info" style="display: flex; flex-direction: column; gap: 8px; width: 100%; align-items: center;">
+        <div id="row-info" style="display: flex; flex-direction: column; gap: 10px; width: 100%; align-items: center;">
             <div id="row-date" class="row-container"></div>
             <div id="row-clock" class="row-container"></div>
         </div>
@@ -101,7 +101,6 @@ html_code = f"""
 
 <script>
     const fullText = "{input_text}";
-    // 規則：商數，上限 10
     const flapCount = Math.min(10, Math.floor(fullText.length / 2) || 4);
     
     let memory = {{}};
@@ -128,7 +127,6 @@ html_code = f"""
         isBusy[id] = true;
         const oldStr = memory[id] || " ";
         
-        // 嚴格判定：僅單一數字且舊值也是數字時滾動，解決 NaN 問題
         const isNumeric = /^[0-9]$/.test(tStr) && /^[0-9 ]$/.test(oldStr);
 
         if (isNumeric && oldStr !== " ") {{
@@ -147,22 +145,24 @@ html_code = f"""
 
     function init() {{
         const board = document.querySelector('.acrylic-board');
-        const msgW = Math.min(80, Math.floor((board.offsetWidth - 80) / flapCount));
+        const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
         document.documentElement.style.setProperty('--msg-w', msgW + 'px');
         
+        // 初始化訊息列
         document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
+        
+        // 初始化日期列 (d0-d9)
         document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
         
-        // 重新構建時間列，避免 ID 錯位導致 NaN
+        // 初始化時間列 (h0, h1, m0, m1, s0, s1)
         const clockRow = document.getElementById('row-clock');
-        clockRow.innerHTML = "";
-        ['h0','h1','sep1','m0','m1','sep2','s0','s1'].forEach(type => {{
-            if(type.startsWith('sep')) {{
-                const s = document.createElement('div'); s.className='separator'; s.innerText=':'; clockRow.appendChild(s);
-            }} else {{
-                const c = document.createElement('div'); c.className='card small-unit'; c.id = type; clockRow.appendChild(c);
-            }}
-        }});
+        clockRow.innerHTML = `
+            <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
+            <div class="separator">:</div>
+            <div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div>
+            <div class="separator">:</div>
+            <div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>
+        `;
     }}
 
     function tick() {{
@@ -170,18 +170,17 @@ html_code = f"""
         const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
         
-        // 日期處理
         const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
         dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
 
-        // 時間處理 (拆解避免 NaN)
         const h = String(n.getHours()).padStart(2,'0');
         const m = String(n.getMinutes()).padStart(2,'0');
         const s = String(n.getSeconds()).padStart(2,'0');
         
+        // 修正 ID 名稱，避免衝突
         smartUpdate('h0', h[0]); smartUpdate('h1', h[1]);
-        smartUpdate('m0', m[0]); smartUpdate('m1', m[1]);
-        smartUpdate('s0', s[0]); smartUpdate('s1', s[1]);
+        smartUpdate('tm0', m[0]); smartUpdate('tm1', m[1]);
+        smartUpdate('ts0', s[0]); smartUpdate('ts1', s[1]);
     }}
 
     window.onload = () => {{
@@ -192,10 +191,15 @@ html_code = f"""
         }}
         let pIdx = 0;
         const rotateMsg = () => {{
-            msgPages[pIdx].forEach((c, i) => {{ setTimeout(() => smartUpdate(`m${{i}}`, c), i * 100); }});
-            pIdx = (pIdx + 1) % msgPages.length;
+            if (msgPages.length > 0) {{
+                msgPages[pIdx].forEach((c, i) => {{ 
+                    setTimeout(() => smartUpdate(`m${{i}}`, c), i * 100); 
+                }});
+                pIdx = (pIdx + 1) % msgPages.length;
+            }}
         }};
-        rotateMsg(); tick();
+        rotateMsg(); 
+        tick();
         setInterval(tick, 1000);
         if (msgPages.length > 1) setInterval(rotateMsg, {stay_sec} * 1000);
     }};

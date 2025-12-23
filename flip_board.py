@@ -1,11 +1,9 @@
 import streamlit.components.v1 as components
-import base64
 
 def render_flip_board(text, stay_sec=4.0):
     # 預設背景圖邏輯
     img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
     
-    # 這裡完整保留妳修正後的完美 HTML/JS 邏輯
     html_code = f"""
     <!DOCTYPE html>
     <html>
@@ -39,6 +37,7 @@ def render_flip_board(text, stay_sec=4.0):
         .small-unit {{ width: 34px; height: 50px; font-size: 32px; }}
         .separator {{ font-size: 32px; color: #555; font-weight: bold; line-height: 50px; padding: 0 2px; }}
         
+        /* 翻牌結構修正：解決 0 不顯示的關鍵在於 line-height 與 transform */
         .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
         .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; border-radius: 6px 6px 0 0; }}
         .bottom-p {{ bottom: 0; align-items: flex-start; border-radius: 0 0 6px 6px; }}
@@ -46,7 +45,7 @@ def render_flip_board(text, stay_sec=4.0):
         .text-node {{ 
             position: absolute; width: 100%; height: 200%; 
             display: flex; align-items: center; justify-content: center; 
-            line-height: 1;
+            line-height: 1; /* 修正：避免 0 在 line-height 0 時縮死 */
         }}
         .top-p .text-node {{ bottom: -100%; transform: translateY(1px); }} 
         .bottom-p .text-node {{ top: -100%; transform: translateY(-1px); }}
@@ -74,10 +73,12 @@ def render_flip_board(text, stay_sec=4.0):
         let memory = {{}};
         let isBusy = {{}};
 
+        // 強制處理 0，確保不被判定為空值，避免 NaN
         function performFlip(id, nextVal, prevVal) {{
             const el = document.getElementById(id);
             if(!el) return;
             
+            // 修正：明確捕捉 0 確保顯示
             const n = (nextVal === 0 || nextVal === "0") ? "0" : (nextVal || "&nbsp;");
             const p = (prevVal === 0 || prevVal === "0") ? "0" : (prevVal || "&nbsp;");
             
@@ -100,8 +101,9 @@ def render_flip_board(text, stay_sec=4.0):
             isBusy[id] = true;
             let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
             
-            const isDigit = (s) => /^\\d$/.test(s.trim());
+            const isDigit = (s) => /^\d$/.test(s.trim());
 
+            // 只有當新舊值都是數字時才執行「連續滾動」，否則直接翻轉以避免 NaN
             if (isDigit(tStr) && (isDigit(oldStr) || oldStr === " ")) {{
                 let curN = isDigit(oldStr) ? parseInt(oldStr) : 0;
                 let tarN = parseInt(tStr);
@@ -113,6 +115,7 @@ def render_flip_board(text, stay_sec=4.0):
                     await new Promise(r => setTimeout(r, 80));
                 }}
             }} else {{
+                // 文字亂序滾動，增加機械質感
                 const steps = isInitial ? 5 : 2; 
                 for (let i = 0; i < steps; i++) {{
                     let randChar = charPool[Math.floor(Math.random() * charPool.length)];
@@ -131,6 +134,7 @@ def render_flip_board(text, stay_sec=4.0):
             const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
             const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
             
+            // 修正：padStart 確保日期和時間字串長度固定且包含 0
             const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
             dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
             
@@ -180,10 +184,4 @@ def render_flip_board(text, stay_sec=4.0):
     </body>
     </html>
     """
-    
-    # --- 關鍵修正：將字串轉換成二進位 Base64 避開 TypeError ---
-    b64_content = base64.b64encode(html_code.encode("utf-8")).decode("utf-8")
-    data_uri = f"data:text/html;base64,{b64_content}"
-    
-    # 使用 iframe 並給予固定 key，徹底解決閃爍問題
-    components.iframe(data_uri, height=850, scrolling=False, key="stable-split-flap-board")
+    components.html(html_code, height=850, scrolling=False)

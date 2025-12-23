@@ -11,9 +11,9 @@ def render_flip_board(text, stay_sec=4.0):
         <meta charset="UTF-8">
         <style>
             * {{ box-sizing: border-box; }}
-            html, body {{ height: 100vh; margin: 0; padding: 0; overflow: hidden; }}
+            html, body {{ height: 100vh; margin: 0; padding: 0; overflow: hidden; background-color: #dcdcdc; }}
+            
             body {{ 
-                background-color: #dcdcdc; 
                 display: flex; justify-content: center; align-items: flex-start;
                 font-family: "Impact", "Arial Black", "Microsoft JhengHei", sans-serif;
             }}
@@ -46,11 +46,8 @@ def render_flip_board(text, stay_sec=4.0):
             .row-container {{ display: flex; gap: 8px; perspective: 1000px; justify-content: center; width: 100%; }}
             .card {{ background: #1a1a1a; border-radius: 6px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
             
-            .msg-unit {{ 
-                width: var(--msg-w); 
-                height: calc(var(--msg-w) * 1.45); 
-                font-size: calc(var(--msg-w) * 0.9); 
-            }}
+            /* 訊息翻板大小由 JS 動態調整 */
+            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.4); font-size: calc(var(--msg-w) * 0.85); }}
             
             .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
             .separator {{ font-size: 30px; color: #444; font-weight: bold; line-height: 50px; padding: 0 3px; }}
@@ -83,44 +80,41 @@ def render_flip_board(text, stay_sec=4.0):
         const flipAudio = document.getElementById('flipSound');
         let memory = {{}}, isBusy = {{}};
 
-        // --- 核心分頁邏輯實作 ---
+        // --- 嚴格分頁邏輯實作 ---
         function getMsgPages(text) {{
             const len = text.length;
-            const max = 8;
+            if (len <= 1) return [text.split('')];
             
-            if (len <= max) return [text.split('')];
-            
-            // 規則：17字以上，每頁 8 字
+            let pages = [];
             if (len >= 17) {{
-                let pages = [];
-                for (let i = 0; i < len; i += max) {{
-                    pages.push(text.substring(i, i + max).split(''));
+                // 規則：17字以上，每頁固定 8 字
+                for (let i = 0; i < len; i += 8) {{
+                    pages.push(text.substring(i, i + 8).split(''));
                 }}
-                return pages;
+            }} else if (len > 8) {{
+                // 規則：9-16字，非對稱拆分 (例如 9->5+4)
+                const firstSize = Math.ceil(len / 2);
+                pages = [text.substring(0, firstSize).split(''), text.substring(firstSize).split('')];
+            }} else {{
+                // 規則：2-8字，依要求拆分 (例如 5->3+2, 3->2+1)
+                const firstSize = Math.ceil(len / 2);
+                pages = [text.substring(0, firstSize).split(''), text.substring(firstSize).split('')];
             }}
-            
-            // 規則：9->5+4, 11->6+5, 13->7+6, 15->8+7 (及偶數平分)
-            const firstPageSize = Math.ceil(len / 2);
-            return [
-                text.substring(0, firstPageSize).split(''),
-                text.substring(firstPageSize).split('')
-            ];
+            return pages;
         }}
 
         const msgPages = getMsgPages(rawText);
-        // 決定面板上翻板的總數 (取各頁中最長的長度，上限為 8)
-        const flapCount = Math.min(8, Math.max(...msgPages.map(p => p.length)));
-
-        function playFlipSound() {{
-            const s = flipAudio.cloneNode(); s.volume = 0.12; s.play().catch(()=>{{}});
-        }}
+        // 關鍵：翻板總數由該次分頁中「字數最多的那一頁」決定
+        const flapCount = Math.max(...msgPages.map(p => p.length));
 
         function performFlip(id, nVal, pVal) {{
             const el = document.getElementById(id);
             if(!el) return;
-            playFlipSound();
-            const n = (String(nVal).length > 0) ? nVal : "&nbsp;";
-            const p = (String(pVal).length > 0) ? pVal : "&nbsp;";
+            
+            // 修正 0 消失的邏輯：嚴格檢查字串化後的內容
+            const n = (nVal !== undefined && nVal !== null && String(nVal) !== "") ? nVal : "&nbsp;";
+            const p = (pVal !== undefined && pVal !== null && String(pVal) !== "") ? pVal : "&nbsp;";
+            
             el.innerHTML = ""; el.classList.remove('flipping');
             el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
                             <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
@@ -164,10 +158,11 @@ def render_flip_board(text, stay_sec=4.0):
 
         window.onload = () => {{
             const board = document.querySelector('.acrylic-board');
-            // 動態計算寬度：板子越少，板子越大。
-            const msgW = Math.min(100, Math.floor((board.offsetWidth - 120) / flapCount));
+            // 重新計算訊息翻板寬度
+            const msgW = Math.min(110, Math.floor((board.offsetWidth - 100) / flapCount));
             document.documentElement.style.setProperty('--msg-w', msgW + 'px');
             
+            // 動態生成 HTML 節點，不再固定 10 個
             document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
             document.getElementById('row-date').innerHTML = Array.from({{length: 11}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
             document.getElementById('row-clock').innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;

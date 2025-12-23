@@ -2,44 +2,33 @@ import streamlit as st
 import time
 from flip_board import render_flip_board
 
-st.set_page_config(layout="wide", page_title="Split Flap")
+st.set_page_config(layout="wide", page_title="Industrial Terminal")
 
-def get_clean_param(key, default):
-    try:
-        val = st.query_params.get(key, default)
-        return str(val[0]) if isinstance(val, list) else str(val)
-    except:
-        return str(default)
+# 清理參數
+def get_safe_param(key, default):
+    val = st.query_params.get(key, default)
+    return str(val[0] if isinstance(val, list) else val)
 
-text_param = get_clean_param("text", "STAY HUNGRY")
+t = get_safe_param("text", "SYSTEM ONLINE")
 try:
-    stay_param = float(get_clean_param("stay", "4.0"))
+    s = float(get_safe_param("stay", "4.0"))
 except:
-    stay_param = 4.0
+    s = 4.0
 
-st.markdown("""<style>
-    header, footer {visibility: hidden;}
-    .block-container {padding: 0 !important; background: #1a1a1a;}
-    .console {
-        position: fixed; bottom: -280px; left: 50%; transform: translateX(-50%);
-        width: 100%; max-width: 800px; background: rgba(30,30,30,0.9);
-        padding: 25px; border-radius: 20px 20px 0 0; transition: 0.5s;
-        border: 1px solid rgba(255,255,255,0.1); z-index: 100;
-    }
-    .console:hover, .console:focus-within { bottom: 0; }
-</style>""", unsafe_allow_html=True)
+# 隱藏 UI 雜訊
+st.markdown("<style>header, footer {visibility: hidden;} .block-container {padding:0; background:#1a1a1a;}</style>", unsafe_allow_html=True)
 
-render_flip_board(text=text_param, stay_sec=stay_param)
+# 顯示看板
+render_flip_board(text=t, stay_sec=s)
 
-with st.container():
-    st.markdown('<div class="console">', unsafe_allow_html=True)
+# 控制台 (位於底部)
+with st.expander("⚙️ 控制面板", expanded=False):
     c1, c2 = st.columns([3, 1])
     with c1:
-        nt = st.text_input("看板訊息", value=text_param)
+        new_t = st.text_input("看板訊息", value=t)
     with c2:
-        ns = st.number_input("停留秒數", 2.0, 10.0, stay_param)
-    if st.button("🚀 更新"):
-        st.query_params["text"] = nt
-        st.query_params["stay"] = str(ns)
+        new_s = st.number_input("停留秒數", 2.0, 10.0, s)
+    if st.button("更新看板", use_container_width=True):
+        st.query_params["text"] = new_t
+        st.query_params["stay"] = str(new_s)
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)

@@ -1,40 +1,47 @@
 import streamlit as st
-import time
 from flip_board import render_flip_board
 
-st.set_page_config(layout="wide", page_title="Industrial Terminal")
+st.set_page_config(layout="wide", page_title="Split-Flap Terminal")
 
-# 安全讀取參數
-def get_safe_param(key, default):
-    try:
-        val = st.query_params.get(key, default)
-        return str(val[0] if isinstance(val, list) else val)
-    except:
-        return str(default)
+# 1. 取得參數
+def get_params():
+    query = st.query_params
+    text = query.get("text", "STAY HUNGRY")
+    stay = query.get("stay", "4.0")
+    return str(text), float(stay)
 
-text_p = get_safe_param("text", "STAY HUNGRY")
-try:
-    stay_p = float(get_safe_param("stay", "4.0"))
-except:
-    stay_p = 4.0
+current_text, current_stay = get_params()
 
-# 隱藏原生組件邊距
-st.markdown("<style>header, footer {visibility: hidden;} .block-container {padding:0 !important; background:#1a1a1a;}</style>", unsafe_allow_html=True)
+# 2. 頁面樣式
+st.markdown("""
+<style>
+    header, footer {visibility: hidden;}
+    .block-container {padding: 2rem !important; background: #1a1a1a;}
+    .control-panel {
+        margin-top: 100px; padding: 20px; background: #262626; 
+        border-radius: 15px; border: 1px solid #333;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# 渲染看板
-render_flip_board(text=text_p, stay_sec=stay_p)
+# 3. 優先渲染頂部看板
+st.write("### 📢 目前顯示內容")
+render_flip_board(text=current_text, stay_sec=current_stay)
 
-# 控制台
+# 4. 將輸入欄放在頁面下方 (使用 Expander 或簡單 Container)
+st.write("---")
 with st.container():
-    st.markdown('<div style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:80%; max-width:600px; background:rgba(50,50,50,0.8); padding:20px; border-radius:15px; backdrop-filter:blur(10px); border:1px solid #444; z-index:999;">', unsafe_allow_html=True)
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        new_t = st.text_input("訊息", value=text_p, label_visibility="collapsed")
-    with c2:
-        new_s = st.number_input("停留", 2.0, 10.0, stay_p, label_visibility="collapsed")
+    st.markdown('<div class="control-panel">', unsafe_allow_html=True)
+    st.subheader("⚙️ 修改看板訊息")
     
-    if st.button("🚀 更新", use_container_width=True):
-        st.query_params["text"] = new_t
-        st.query_params["stay"] = str(new_s)
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        input_text = st.text_input("輸入新訊息 (ENTER 更新)", value=current_text)
+    with col2:
+        input_stay = st.number_input("停留時間", 1.0, 10.0, current_stay)
+    
+    if st.button("🚀 點此同步更新", use_container_width=True):
+        st.query_params["text"] = input_text
+        st.query_params["stay"] = str(input_stay)
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)

@@ -1,5 +1,6 @@
 import streamlit.components.v1 as components
 import time
+import base64
 
 def render_flip_board(text, stay_sec=4.0):
     # 1. 參數標準化
@@ -9,128 +10,91 @@ def render_flip_board(text, stay_sec=4.0):
     except:
         s_val = "4.0"
 
-    # 2. 定義 CSS (將 rotate 改為 transform 以增加相容性)
-    css_code = """
+    # 2. 定義完整的 HTML (不使用 f-string，避免大括號衝突)
+    html_content = """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
     <style>
-        * { box-sizing: border-box; }
-        body { background: #1a1a1a; margin: 0; padding: 20px; display: flex; justify-content: center; overflow: hidden; }
-        .acrylic-board {
+        body { background: #1a1a1a; margin: 0; padding: 20px; display: flex; justify-content: center; font-family: sans-serif; overflow: hidden; }
+        .board {
             position: relative; width: 92vw; max-width: 850px; padding: 60px 40px; 
-            background: rgba(40,40,40,0.5); backdrop-filter: blur(15px); 
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; 
+            background: #222; border-radius: 30px; border: 1px solid #444;
             display: flex; flex-direction: column; align-items: center; gap: 20px;
             box-shadow: 0 40px 100px rgba(0,0,0,0.5);
         }
-        .screw { position: absolute; width: 18px; height: 18px; background: #666; border-radius: 50%; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
-        .screw::before, .screw::after { content: ''; position: absolute; top: 50%; left: 50%; background: #333; transform: translate(-50%, -50%); }
-        .screw::before { width: 10px; height: 2px; } .screw::after { width: 2px; height: 10px; }
-        .tl { top: 20px; left: 20px; transform: rotate(15deg); }
-        .tr { top: 20px; right: 20px; transform: rotate(-10deg); }
-        .bl { bottom: 20px; left: 20px; transform: rotate(-20deg); }
-        .br { bottom: 20px; right: 20px; transform: rotate(45deg); }
+        .screw { position: absolute; width: 16px; height: 16px; background: #555; border-radius: 50%; }
+        .screw::before { content: '+'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #333; font-size: 14px; font-weight: bold; }
+        .tl { top: 20px; left: 20px; } .tr { top: 20px; right: 20px; }
+        .bl { bottom: 20px; left: 20px; } .br { bottom: 20px; right: 20px; }
 
-        .row-container { display: flex; gap: 8px; perspective: 1000px; justify-content: center; }
+        .row { display: flex; gap: 8px; justify-content: center; }
         .card { 
-            background: #050505; border-radius: 6px; position: relative; color: white; 
+            background: #000; border-radius: 6px; color: #fff; 
             display: flex; align-items: center; justify-content: center; 
-            width: var(--msg-w); height: calc(var(--msg-w) * 1.4); 
-            font-size: calc(var(--msg-w) * 0.9); font-weight: bold; font-family: sans-serif;
+            width: var(--w); height: calc(var(--w) * 1.4); 
+            font-size: calc(var(--w) * 0.9); font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .small-unit { width: 36px !important; height: 55px !important; font-size: 34px !important; }
-        .separator { font-size: 34px; color: #444; line-height: 55px; padding: 0 4px; }
-        
-        .panel { position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; display: flex; justify-content: center; background: #111; }
-        .top-p { top: 0; border-bottom: 1px solid #000; align-items: flex-end; border-radius: 6px 6px 0 0; }
-        .bottom-p { bottom: 0; align-items: flex-start; border-radius: 0 0 6px 6px; }
-        .text-node { position: absolute; width: 100%; height: 200%; display: flex; align-items: center; justify-content: center; line-height: 1; }
-        .top-p .text-node { bottom: -100%; } .bottom-p .text-node { top: -100%; }
-        
-        .leaf-node { position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.4s; transform-style: preserve-3d; }
-        .leaf-side { position: absolute; inset: 0; backface-visibility: hidden; display: flex; justify-content: center; overflow: hidden; }
-        .side-back { transform: rotateX(-180deg); background: #111; }
-        .flipping .leaf-node { transform: rotateX(-180deg); }
+        .small { width: 36px !important; height: 50px !important; font-size: 30px !important; }
+        .sep { font-size: 30px; color: #555; line-height: 50px; }
     </style>
-    """
-
-    # 3. 定義 JS (移除所有可能衝突的 `${}` 語法)
-    js_code = """
+</head>
+<body>
+    <div class="board">
+        <div class="screw tl"></div><div class="screw tr"></div>
+        <div class="screw bl"></div><div class="screw br"></div>
+        <div id="m-row" class="row"></div>
+        <div id="d-row" class="row" style="margin-top:20px"></div>
+        <div id="t-row" class="row" style="margin-top:10px"></div>
+    </div>
     <script>
-        var fullText = "REPLACE_TEXT";
-        var stayTime = REPLACE_STAY;
-        var memory = {};
-        
-        function flip(id, nV, pV) {
-            var el = document.getElementById(id);
-            if(!el) return;
-            var n = (nV === " " || !nV) ? "&nbsp;" : nV;
-            var p = (pV === " " || !pV) ? "&nbsp;" : pV;
-            el.innerHTML = '<div class="panel top-p"><div class="text-node">' + n + '</div></div>' +
-                           '<div class="panel bottom-p"><div class="text-node">' + p + '</div></div>' +
-                           '<div class="leaf-node">' +
-                           '<div class="leaf-side top-p"><div class="text-node">' + p + '</div></div>' +
-                           '<div class="leaf-side side-back bottom-p"><div class="text-node">' + n + '</div></div>' +
-                           '</div>';
-            el.classList.remove('flipping');
-            void el.offsetWidth;
-            el.classList.add('flipping');
-        }
+        var txt = "REPLACE_TEXT";
+        var stay = REPLACE_STAY;
+        var mem = {};
 
-        function update(id, target) {
-            if (memory[id] === target) return;
-            var old = memory[id] || " ";
-            flip(id, target, old);
-            memory[id] = target;
+        function update(id, val) {
+            var el = document.getElementById(id);
+            if (!el || mem[id] === val) return;
+            el.innerText = val === " " ? "\\u00A0" : val;
+            mem[id] = val;
         }
 
         function tick() {
             var n = new Date();
             var dStr = n.toLocaleDateString('en-US', {month:'short', day:'2-digit', weekday:'short'}).toUpperCase().replace(/,/g,'');
-            dStr.split('').forEach(function(c, i) { update('d' + i, c); });
+            dStr.split('').forEach((c, i) => update('d'+i, c));
             var h = n.getHours().toString().padStart(2,'0'), m = n.getMinutes().toString().padStart(2,'0'), s = n.getSeconds().toString().padStart(2,'0');
-            var timeStr = h + m + s;
-            ['h0','h1','tm0','tm1','ts0','ts1'].forEach(function(id, i) { update(id, timeStr[i]); });
+            (h+m+s).split('').forEach((c, i) => update('t'+i, c));
         }
 
         window.onload = function() {
-            var board = document.querySelector('.acrylic-board');
-            var fCount = Math.max(8, Math.min(12, fullText.length));
-            var msgW = Math.floor((board.offsetWidth - 100) / fCount);
-            document.documentElement.style.setProperty('--msg-w', msgW + 'px');
+            var count = Math.max(8, Math.min(12, txt.length));
+            document.documentElement.style.setProperty('--w', Math.floor(700/count) + 'px');
             
-            var msgHtml = ""; for(var i=0; i<fCount; i++) msgHtml += '<div class="card" id="m'+i+'"></div>';
-            document.getElementById('row-msg').innerHTML = msgHtml;
-            var dateHtml = ""; for(var j=0; j<11; j++) dateHtml += '<div class="card small-unit" id="d'+j+'"></div>';
-            document.getElementById('row-date').innerHTML = dateHtml;
-            document.getElementById('row-clock').innerHTML = '<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>';
+            document.getElementById('m-row').innerHTML = Array.from({length:count}, (_,i) => '<div class="card" id="m'+i+'"></div>').join('');
+            document.getElementById('d-row').innerHTML = Array.from({length:11}, (_,i) => '<div class="card small" id="d'+i+'"></div>').join('');
+            document.getElementById('t-row').innerHTML = '<div class="card small" id="t0"></div><div class="card small" id="t1"></div><div class="sep">:</div><div class="card small" id="t2"></div><div class="card small" id="t3"></div><div class="sep">:</div><div class="card small" id="t4"></div><div class="card small" id="t5"></div>';
             
             var pages = [];
-            for (var k = 0; k < fullText.length; k += fCount) pages.push(fullText.substring(k, k + fCount).padEnd(fCount, ' '));
-            if(pages.length === 0) pages.push(" ".repeat(fCount));
-
+            for (var k=0; k<txt.length; k+=count) pages.push(txt.substring(k, k+count).padEnd(count, ' '));
+            
             var pIdx = 0;
             var rot = function() {
-                pages[pIdx].split('').forEach(function(c, i) { setTimeout(function(){ update('m'+i, c); }, i*50); });
+                pages[pIdx].split('').forEach((c, i) => update('m'+i, c));
                 pIdx = (pIdx + 1) % pages.length;
             };
-            rot(); setInterval(tick, 1000);
-            if(pages.length > 1) setInterval(rot, stayTime * 1000);
+            rot(); tick(); setInterval(tick, 1000);
+            if(pages.length > 1) setInterval(rot, stay * 1000);
         };
     </script>
-    """
+</body>
+</html>"""
 
-    # 4. 手動組合與取代變數 (避開 f-string 解析 JS 大括號的風險)
-    html_final = """<!DOCTYPE html><html><head><meta charset="UTF-8">CSS_HOLDER</head><body>
-        <div class="acrylic-board">
-            <div class="screw tl"></div><div class="screw tr"></div><div class="screw bl"></div><div class="screw br"></div>
-            <div id="row-msg" class="row-container"></div>
-            <div id="row-date" class="row-container" style="margin-top:20px"></div>
-            <div id="row-clock" class="row-container" style="margin-top:10px"></div>
-        </div>
-        JS_HOLDER</body></html>"""
-    
-    html_final = html_final.replace("CSS_HOLDER", css_code)
-    html_final = html_final.replace("JS_HOLDER", js_code.replace("REPLACE_TEXT", t_val).replace("REPLACE_STAY", s_val))
+    # 3. 取代變數並進行 Base64 編碼
+    final_html = html_content.replace("REPLACE_TEXT", t_val).replace("REPLACE_STAY", s_val)
+    b64_html = base64.b64encode(final_html.encode('utf-8')).decode('utf-8')
+    data_uri = f"data:text/html;base64,{b64_html}"
 
-    # 5. 使用純字串 Key
-    comp_key = "flap_" + str(int(time.time()))
-    components.html(html_final, height=850, scrolling=False, key=comp_key)
+    # 4. 呼叫組件
+    components.iframe(data_uri, height=800, scrolling=False, key=f"f_{int(time.time())}")

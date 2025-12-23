@@ -13,24 +13,41 @@ def render_flip_board(text, stay_sec=4.0):
             * {{ box-sizing: border-box; }}
             html, body {{ height: 100vh; margin: 0; padding: 0; overflow: hidden; background-color: #dcdcdc; }}
             body {{ display: flex; justify-content: center; align-items: flex-start; font-family: "Impact", "Arial Black", "Microsoft JhengHei", sans-serif; }}
-            .graffiti-wall {{ position: fixed; bottom: 0; left: 0; width: 100%; height: 50vh; background-image: url("{bg_img}"); background-repeat: no-repeat; background-position: center bottom; background-size: contain; z-index: 1; }}
-            .acrylic-board {{ position: relative; width: 95vw; max-width: 850px; margin-top: 5vh; padding: 40px 25px; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; box-shadow: 0 30px 60px rgba(0,0,0,0.2); z-index: 10; }}
-            .screw {{ position: absolute; width: 16px; height: 16px; background: radial-gradient(circle at 30% 30%, #eee, #444); border-radius: 50%; border: 1px solid #333; }}
-            .s-tl {{ top: 15px; left: 15px; }} .s-tr {{ top: 15px; right: 15px; }} .s-bl {{ bottom: 15px; left: 15px; }} .s-br {{ bottom: 15px; right: 15px; }}
+            
+            .graffiti-wall {{ 
+                position: fixed; bottom: 0; left: 0; width: 100%; height: 50vh; 
+                background-image: url("{bg_img}"); background-repeat: no-repeat; 
+                background-position: center bottom; background-size: contain; z-index: 1; 
+            }}
+            
+            .acrylic-board {{ 
+                position: relative; width: 95vw; max-width: 850px; margin-top: 5vh; padding: 45px 25px; 
+                background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
+                border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 20px; 
+                display: flex; flex-direction: column; align-items: center; gap: 15px; 
+                box-shadow: 0 30px 60px rgba(0,0,0,0.2); z-index: 10; 
+            }}
+
             .row-container {{ display: flex; gap: 8px; perspective: 1000px; justify-content: center; width: 100%; }}
             .card {{ background: #1a1a1a; border-radius: 6px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
-            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.4); font-size: calc(var(--msg-w) * 0.85); }}
+            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.45); font-size: calc(var(--msg-w) * 0.9); }}
             .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
             .separator {{ font-size: 30px; color: #444; font-weight: bold; line-height: 50px; padding: 0 3px; }}
+            
+            /* 修正動畫：縮短過渡時間以適應快速翻轉 */
             .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
             .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.6); align-items: flex-end; }}
             .bottom-p {{ bottom: 0; align-items: flex-start; }}
             .text-node {{ position: absolute; width: 100%; height: 200%; display: flex; align-items: center; justify-content: center; line-height: 1; }}
             .top-p .text-node {{ bottom: -100%; }} .bottom-p .text-node {{ top: -100%; }}
-            .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 20; transform-origin: bottom; transition: transform 0.2s ease-in; transform-style: preserve-3d; }}
+            
+            .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 20; transform-origin: bottom; transition: transform 0.08s linear; transform-style: preserve-3d; }}
             .leaf-side {{ position: absolute; inset: 0; backface-visibility: hidden; background: #1a1a1a; display: flex; justify-content: center; overflow: hidden; }}
             .side-back {{ transform: rotateX(-180deg); }}
             .flipping .leaf-node {{ transform: rotateX(-180deg); }}
+            
+            .screw {{ position: absolute; width: 16px; height: 16px; background: radial-gradient(circle at 30% 30%, #eee, #444); border-radius: 50%; border: 1px solid #333; }}
+            .s-tl {{ top: 15px; left: 15px; }} .s-tr {{ top: 15px; right: 15px; }} .s-bl {{ bottom: 15px; left: 15px; }} .s-br {{ bottom: 15px; right: 15px; }}
         </style>
     </head>
     <body>
@@ -42,14 +59,13 @@ def render_flip_board(text, stay_sec=4.0):
             <div id="row-clock" class="row-container"></div>
             <div class="screw s-bl"></div><div class="screw s-br"></div>
         </div>
-        <audio id="flipSound" src="https://www.soundjay.com/buttons/button-29.mp3" preload="auto"></audio>
 
     <script>
         const rawText = "{text.upper()}";
-        // 建立中文字池：僅包含訊息中出現過的不重複中文字
-        const charPool_CN = [...new Set(rawText.replace(/[A-Z0-9\s]/g, '').split(''))];
-        const charPool_AZ = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
-        const charPool_Num = "0123456789".split('');
+        // 建立全域字池
+        const CN_CHARS = [...new Set(rawText.replace(/[A-Z0-9\s]/g, '').split(''))];
+        const AZ_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
+        const NUM_CHARS = "0123456789".split('');
         
         let memory = {{}}, isBusy = {{}};
 
@@ -67,61 +83,70 @@ def render_flip_board(text, stay_sec=4.0):
         const msgPages = getMsgPages(rawText);
         const flapCount = Math.min(8, Math.max(...msgPages.map(p => p.length)));
 
-        function performFlip(id, nVal, pVal) {{
+        function performFlip(id, nextVal, prevVal) {{
             const el = document.getElementById(id);
             if(!el) return;
-            const n = (String(nVal).length > 0) ? nVal : "&nbsp;";
-            const p = (String(pVal).length > 0) ? pVal : "&nbsp;";
-            el.innerHTML = ""; el.classList.remove('flipping');
+            const n = (String(nextVal).length > 0) ? nextVal : "&nbsp;";
+            const p = (String(prevVal).length > 0) ? prevVal : "&nbsp;";
+            
+            el.classList.remove('flipping');
             el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
                             <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
                             <div class="leaf-node">
                                 <div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
                                 <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div>
                             </div>`;
-            requestAnimationFrame(() => {{ void el.offsetWidth; el.classList.add('flipping'); }});
+            // 強制重繪觸發動畫
+            void el.offsetWidth; 
+            el.classList.add('flipping');
         }}
 
-        async function smartUpdate(id, target, mode = 'msg') {{
-            let tStr = (target === 0 || target === "0") ? "0" : (target ? String(target).toUpperCase() : " ");
+        async function smartUpdate(id, target, mode) {{
+            let tStr = String(target);
             if (memory[id] === tStr || isBusy[id]) return;
             isBusy[id] = true;
             
-            let curStr = (memory[id] === 0 || memory[id] === "0") ? "0" : (memory[id] || " ");
+            let curStr = memory[id] || " ";
             
-            // 決定使用的字池
-            let pool = charPool_AZ;
-            if (/[0-9]/.test(tStr)) pool = charPool_Num;
-            else if (/[\\u4E00-\\u9FFF]/.test(tStr)) pool = charPool_CN;
+            // 挑選字池
+            let pool = AZ_CHARS;
+            if (/[0-9]/.test(tStr)) pool = NUM_CHARS;
+            else if (/[\\u4E00-\\u9FFF]/.test(tStr)) pool = CN_CHARS;
 
             let curIdx = pool.indexOf(curStr);
             if (curIdx === -1) curIdx = 0;
+            
             let tarIdx = pool.indexOf(tStr);
-            if (tarIdx === -1) {{ // 如果目標字不在池中（例如特殊符號），直接翻轉
+            if (tarIdx === -1) {{
                 performFlip(id, tStr, curStr);
             }} else {{
-                // 循環滾動邏輯
+                // 執行逐字轉動效果
                 while (curStr !== tStr) {{
                     let prev = curStr;
                     curIdx = (curIdx + 1) % pool.length;
                     curStr = pool[curIdx];
                     performFlip(id, curStr, prev);
-                    await new Promise(r => setTimeout(r, 70)); // 滾動速度
+                    await new Promise(r => setTimeout(r, 90)); // 轉動速度
                 }}
             }}
-            memory[id] = tStr; isBusy[id] = false;
+            
+            memory[id] = tStr;
+            isBusy[id] = false;
         }}
 
         function tick() {{
             const n = new Date();
             const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
             const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
-            const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
-            dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c, 'msg'));
             
-            const hh = String(n.getHours()).padStart(2, '0'), mm = String(n.getMinutes()).padStart(2, '0'), ss = String(n.getSeconds()).padStart(2, '0');
-            const clock = hh + mm + ss;
-            ['h0','h1','tm0','tm1','ts0','ts1'].forEach((id, i) => smartUpdate(id, clock[i], 'clock'));
+            const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
+            dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c, 'clock'));
+            
+            const h = String(n.getHours()).padStart(2,'0');
+            const m = String(n.getMinutes()).padStart(2,'0');
+            const s = String(n.getSeconds()).padStart(2,'0');
+            const time = h + m + s;
+            ['h0','h1','tm0','tm1','ts0','ts1'].forEach((id, i) => smartUpdate(id, time[i], 'clock'));
         }}
 
         window.onload = () => {{
@@ -131,18 +156,23 @@ def render_flip_board(text, stay_sec=4.0):
             
             document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
             document.getElementById('row-date').innerHTML = Array.from({{length: 11}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
-            document.getElementById('row-clock').innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
+            document.getElementById('row-clock').innerHTML = `
+                <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div>
+                <div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div>
+                <div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
             
             let pIdx = 0;
             const rotateMsg = () => {{
-                const currentPage = msgPages[pIdx];
+                const page = msgPages[pIdx];
                 for(let i=0; i<flapCount; i++) {{
-                    const char = currentPage[i] || " ";
-                    setTimeout(() => smartUpdate(`m${{i}}`, char, 'msg'), i * 100);
+                    const char = page[i] || " ";
+                    setTimeout(() => smartUpdate(`m${{i}}`, char, 'msg'), i * 150);
                 }}
                 pIdx = (pIdx + 1) % msgPages.length;
             }};
-            rotateMsg(); tick(); setInterval(tick, 1000);
+            
+            rotateMsg(); tick();
+            setInterval(tick, 1000);
             if (msgPages.length > 1) setInterval(rotateMsg, {stay_sec} * 1000);
         }};
     </script>

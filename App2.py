@@ -4,51 +4,62 @@ import re
 import json
 from flip_board_2 import render_flip_board
 
-# 設定頁面：手機友善佈局
-st.set_page_config(page_title="CNA News Flip Clock", layout="centered")
+st.set_page_config(page_title="Multi-News Flip Clock", layout="centered")
 
-# 隱藏預設介面與調整頂部間距
-st.markdown("""
-    <style>
-    .stApp { margin-top: -60px; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
-    """, unsafe_allow_html=True)
+# 隱藏預設介面
+st.markdown("""<style>.stApp { margin-top: -60px; } #MainMenu, footer, header {visibility: hidden;}</style>""", unsafe_allow_html=True)
 
-def get_cna_news_list():
-    """抓取中央社最新 10 則新聞標題"""
-    rss_url = "https://feeds.feedburner.com/cnaFirstNews"
-    try:
-        feed = feedparser.parse(rss_url)
-        titles = []
-        for entry in feed.entries[:10]:
-            # 過濾標題：僅留中英數，轉大寫
-            clean_title = re.sub(r'[^\u4e00-\u9fa5A-Z0-9\s]', '', entry.title).upper()
-            titles.append(clean_title)
-        return titles if titles else ["WAITING FOR NEWS"]
-    except:
-        return ["NEWS CONNECTION ERROR"]
+# 定義新聞來源字典
+NEWS_SOURCES = {
+    "中央社-即時": "https://feeds.feedburner.com/cnaFirstNews",
+    "中央社-產經": "https://feeds.feedburner.com/cnaBusiness",
+    "中央社-國際": "https://feeds.feedburner.com/cnaIntl",
+    "中央社-社會": "https://feeds.feedburner.com/cnaSocial",
+    "中央社-政治": "https://feeds.feedburner.com/cnaPolitics"
+}
+
+def get_combined_news(selected_sources):
+    """抓取多個來源的新聞並合併"""
+    all_titles = []
+    for name in selected_sources:
+        url = NEWS_SOURCES[name]
+        try:
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:5]: # 每個來源抓 5 則以防過長
+                clean_title = re.sub(r'[^\u4e00-\u9fa5A-Z0-9\s]', '', entry.title).upper()
+                # 加上來源標籤，例如 [產經] 標題文字
+                tag = f"[{name.split('-')[1]}] "
+                all_titles.append(tag + clean_title)
+        except:
+            continue
+    return all_titles if all_titles else ["WAITING FOR NEWS"]
 
 # --- 頂部控制面板 ---
-with st.expander("⚙️ 點擊設定顯示內容", expanded=False):
-    mode = st.radio("模式選擇", ["中央社即時新聞", "自定義訊息"], horizontal=True)
+with st.expander("⚙️ 點擊設定新聞來源", expanded=False):
+    mode = st.radio("模式選擇", ["新聞輪播", "自定義訊息"], horizontal=True)
     
-    if mode == "中央社即時新聞":
-        @st.cache_data(ttl=300) # 5分鐘更新一次新聞
-        def fetch_news():
-            return get_cna_news_list()
+    if mode == "新聞輪播":
+        selected = st.multiselect(
+            "選擇新聞頻道 (可多選)", 
+            options=list(NEWS_SOURCES.keys()),
+            default=["中央社-即時"]
+        )
         
-        news_list = fetch_news()
-        display_content = json.dumps(news_list) 
-        st.caption(f"📢 已載入 {len(news_list)} 則即時新聞輪播中")
-        if st.button("🔄 立即更新新聞"):
+        @st.cache_data(ttl=300)
+        def fetch_selected_news(sources_tuple):
+            return get_combined_news(list(sources_tuple))
+        
+        # multiselect 回傳列表，轉換成 tuple 才能作為 cache 的 key
+        news_list = fetch_selected_news(tuple(selected))
+        display_content = json.dumps(news_list)
+        st.caption(f"📢 已載入來自 {len(selected)} 個頻道共 {len(news_list)} 則新聞")
+        
+        if st.button("🔄 立即更新所有新聞"):
             st.cache_data.clear()
             st.rerun()
     else:
         user_input = st.text_input("輸入自定義訊息", "HELLO TAIWAN")
         display_content = json.dumps([user_input])
 
-# 呼叫翻板組件 (stay_sec 設為 7秒 以利閱讀新聞)
+# 渲染翻板
 render_flip_board(display_content, stay_sec=7.0)

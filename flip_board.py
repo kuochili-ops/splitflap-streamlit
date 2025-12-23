@@ -2,7 +2,7 @@ import streamlit.components.v1 as components
 import base64
 
 def render_flip_board(text, stay_sec=4.0):
-    # 使用維基百科的高清原圖網址，確保連結穩定
+    # 使用女孩與氣球圖片
     bg_img = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
     
     html_code = f"""
@@ -13,73 +13,47 @@ def render_flip_board(text, stay_sec=4.0):
         <style>
             * {{ box-sizing: border-box; }}
             html, body {{ height: 100%; margin: 0; padding: 0; }}
-            
             body {{ 
                 background-color: #dcdcdc; 
-                /* 強化塗鴉出現的關鍵設定 */
                 background-image: url("{bg_img}");
                 background-repeat: no-repeat; 
-                background-position: center bottom; /* 改為正中央底部 */
-                background-size: contain; /* 確保整張圖完整顯示 */
+                background-position: center bottom; 
+                background-size: auto 50vh; 
                 background-attachment: fixed;
-                
-                display: flex; 
-                justify-content: center; 
-                align-items: flex-start; 
+                display: flex; justify-content: center; align-items: flex-start; 
                 overflow: hidden;
                 font-family: "Impact", "Arial Black", "Microsoft JhengHei", sans-serif;
             }}
             
-            /* 壓克力面板 */
             .acrylic-board {{
-                position: relative; 
-                width: 90vw; 
-                max-width: 800px;
-                margin-top: 5vh; /* 面板往上提，留空間給下方塗鴉 */
-                padding: 50px 30px;
-                background: rgba(255, 255, 255, 0.1); 
-                backdrop-filter: blur(15px);
-                -webkit-backdrop-filter: blur(15px);
-                border: 1px solid rgba(255, 255, 255, 0.3); 
-                border-radius: 15px;
-                display: flex; 
-                flex-direction: column; 
-                align-items: center; 
-                gap: 20px;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-                z-index: 5;
+                position: relative; width: 95vw; max-width: 850px;
+                margin-top: 5vh; padding: 50px 35px;
+                background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(15px);
+                border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px;
+                display: flex; flex-direction: column; align-items: center; gap: 12px;
+                box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+                z-index: 10;
             }}
             
-            /* 面板四角螺絲 */
             .screw {{ 
                 position: absolute; width: 14px; height: 14px; 
                 background: radial-gradient(circle at 30% 30%, #eee, #666); 
                 border-radius: 50%; border: 1px solid #444;
-                box-shadow: 1px 1px 2px rgba(0,0,0,0.4);
             }}
-            .screw::after {{
-                content: ''; position: absolute; top: 6px; left: 1px; width: 10px; height: 2px; 
-                background: rgba(0,0,0,0.3); transform: rotate(45deg);
-            }}
-            .s-tl {{ top: 15px; left: 15px; }}
-            .s-tr {{ top: 15px; right: 15px; }}
-            .s-bl {{ bottom: 15px; left: 15px; }}
-            .s-br {{ bottom: 15px; right: 15px; }}
+            .s-tl {{ top: 15px; left: 15px; }} .s-tr {{ top: 15px; right: 15px; }}
+            .s-bl {{ bottom: 15px; left: 15px; }} .s-br {{ bottom: 15px; right: 15px; }}
 
-            /* 翻牌容器 */
             .row-container {{ display: flex; gap: 5px; perspective: 1000px; justify-content: center; width: 100%; }}
             .card {{ background: #1a1a1a; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
-            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.4); font-size: calc(var(--msg-w) * 0.85); }}
-            .small-unit {{ width: 36px; height: 52px; font-size: 34px; }}
-            .separator {{ font-size: 34px; color: #666; font-weight: bold; line-height: 52px; padding: 0 4px; }}
+            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.45); font-size: calc(var(--msg-w) * 0.85); }}
+            .small-unit {{ width: 34px; height: 50px; font-size: 32px; }}
+            .separator {{ font-size: 32px; color: #555; font-weight: bold; line-height: 50px; padding: 0 2px; }}
             
-            /* 動態翻牌結構 */
             .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
             .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; }}
             .bottom-p {{ bottom: 0; align-items: flex-start; }}
             .text-node {{ position: absolute; width: 100%; height: 200%; display: flex; align-items: center; justify-content: center; line-height: 1; }}
-            .top-p .text-node {{ bottom: -100%; }} 
-            .bottom-p .text-node {{ top: -100%; }}
+            .top-p .text-node {{ bottom: -100%; }} .bottom-p .text-node {{ top: -100%; }}
             .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.3s ease-in; transform-style: preserve-3d; }}
             .leaf-side {{ position: absolute; inset: 0; backface-visibility: hidden; background: #1a1a1a; display: flex; justify-content: center; overflow: hidden; }}
             .side-back {{ transform: rotateX(-180deg); }}
@@ -92,6 +66,7 @@ def render_flip_board(text, stay_sec=4.0):
             <div class="screw s-bl"></div><div class="screw s-br"></div>
             
             <div id="row-msg" class="row-container"></div>
+            <div id="row-date" class="row-container" style="margin-top: 10px;"></div>
             <div id="row-clock" class="row-container"></div>
         </div>
 
@@ -112,12 +87,15 @@ def render_flip_board(text, stay_sec=4.0):
             s.play().catch(()=>{{}});
         }}
 
+        // 核心修正：明確判斷 0，避免被當成 false 略過
         function performFlip(id, nVal, pVal) {{
             const el = document.getElementById(id);
             if(!el) return;
             playFlipSound();
-            const n = (nVal === 0 || nVal === "0") ? "0" : (nVal || "&nbsp;");
-            const p = (pVal === 0 || pVal === "0") ? "0" : (pVal || "&nbsp;");
+            
+            const n = (nVal !== undefined && nVal !== null && nVal !== "") ? nVal : "&nbsp;";
+            const p = (pVal !== undefined && pVal !== null && pVal !== "") ? pVal : "&nbsp;";
+            
             el.innerHTML = ""; el.classList.remove('flipping');
             el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
                             <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
@@ -129,34 +107,38 @@ def render_flip_board(text, stay_sec=4.0):
         }}
 
         async function smartUpdate(id, target, mode = 'msg') {{
+            // 明確轉換 target 為字串，處理 0 的問題
             const tStr = (target === 0 || target === "0") ? "0" : (target ? String(target).toUpperCase() : " ");
             if (memory[id] === tStr || isBusy[id]) return;
             isBusy[id] = true;
-            let curStr = memory[id] || " ";
+            let curStr = (memory[id] === 0 || memory[id] === "0") ? "0" : (memory[id] || " ");
 
             if (mode === 'clock' && /^\d$/.test(tStr)) {{
                 let curN = /^\d$/.test(curStr) ? parseInt(curStr) : 0;
                 let tarN = parseInt(tStr);
                 while (curN !== tarN) {{
-                    let prev = String(curN); curN = (curN + 1) % 10;
+                    let prev = String(curN); 
+                    curN = (curN + 1) % 10;
                     performFlip(id, String(curN), prev);
                     await new Promise(r => setTimeout(r, 80));
                 }}
-            }} else if (/^[A-Z ]$/.test(tStr)) {{
-                let curIdx = charPool_AZ.indexOf(curStr);
+            }} else if (/^[A-Z0-9 ]$/.test(tStr)) {{
+                // 字母與日期數字循序滾動
+                let pool = /^\d$/.test(tStr) ? "0123456789 ".split('') : charPool_AZ;
+                let curIdx = pool.indexOf(curStr);
                 if (curIdx === -1) curIdx = 0;
-                let tarIdx = charPool_AZ.indexOf(tStr);
+                let tarIdx = pool.indexOf(tStr);
                 while (curIdx !== tarIdx) {{
-                    let prev = charPool_AZ[curIdx];
-                    curIdx = (curIdx + 1) % charPool_AZ.length;
-                    performFlip(id, charPool_AZ[curIdx], prev);
-                    await new Promise(r => setTimeout(r, 50));
+                    let prev = pool[curIdx];
+                    curIdx = (curIdx + 1) % pool.length;
+                    performFlip(id, pool[curIdx], prev);
+                    await new Promise(r => setTimeout(r, 60));
                 }}
             }} else {{
                 for (let i = 0; i < 4; i++) {{
                     let rand = charPool_CN.length > 0 ? charPool_CN[Math.floor(Math.random()*charPool_CN.length)] : "?";
                     performFlip(id, rand, curStr); curStr = rand;
-                    await new Promise(r => setTimeout(r, 90));
+                    await new Promise(r => setTimeout(r, 100));
                 }}
                 performFlip(id, tStr, curStr);
             }}
@@ -165,6 +147,14 @@ def render_flip_board(text, stay_sec=4.0):
 
         function tick() {{
             const n = new Date();
+            const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+            const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+            
+            // 更新日期排
+            const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
+            dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c, 'clock'));
+            
+            // 更新時鐘排
             const hh = String(n.getHours()).padStart(2, '0'), 
                   mm = String(n.getMinutes()).padStart(2, '0'), 
                   ss = String(n.getSeconds()).padStart(2, '0');
@@ -176,10 +166,11 @@ def render_flip_board(text, stay_sec=4.0):
         window.onload = () => {{
             const flapCount = 10;
             const board = document.querySelector('.acrylic-board');
-            const msgW = Math.min(70, Math.floor((board.offsetWidth - 70) / flapCount));
+            const msgW = Math.min(70, Math.floor((board.offsetWidth - 80) / flapCount));
             document.documentElement.style.setProperty('--msg-w', msgW + 'px');
             
             document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
+            document.getElementById('row-date').innerHTML = Array.from({{length: 11}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
             document.getElementById('row-clock').innerHTML = `
                 <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
                 <div class="separator">:</div>
@@ -191,7 +182,7 @@ def render_flip_board(text, stay_sec=4.0):
             for (let i = 0; i < fullText.length; i += flapCount) msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
             let pIdx = 0;
             const rotateMsg = () => {{
-                msgPages[pIdx].forEach((c, i) => setTimeout(() => smartUpdate(`m${{i}}`, c, 'msg'), i * 110));
+                msgPages[pIdx].forEach((c, i) => setTimeout(() => smartUpdate(`m${{i}}`, c, 'msg'), i * 120));
                 pIdx = (pIdx + 1) % msgPages.length;
             }};
             rotateMsg(); tick(); setInterval(tick, 1000);
@@ -202,4 +193,4 @@ def render_flip_board(text, stay_sec=4.0):
     </html>
     """
     b64_html = base64.b64encode(html_code.encode("utf-8")).decode("utf-8")
-    components.iframe(f"data:text/html;base64,{b64_html}", height=850, scrolling=False)
+    components.iframe(f"data:text/html;base64,{b64_html}", height=900, scrolling=False)

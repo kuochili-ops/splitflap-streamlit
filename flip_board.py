@@ -3,14 +3,14 @@ import time
 import base64
 
 def render_flip_board(text, stay_sec=4.0):
-    # 1. 參數標準化
+    # 參數清理
     t_val = str(text).upper()
     try:
         s_val = str(float(stay_sec))
     except:
         s_val = "4.0"
 
-    # 2. 定義完整的 HTML (不使用 f-string，避免大括號衝突)
+    # 定義純粹的 HTML 模板 (不使用 f-string，避免大括號衝突)
     html_content = """<!DOCTYPE html>
 <html>
 <head>
@@ -23,7 +23,8 @@ def render_flip_board(text, stay_sec=4.0):
             display: flex; flex-direction: column; align-items: center; gap: 20px;
             box-shadow: 0 40px 100px rgba(0,0,0,0.5);
         }
-        .screw { position: absolute; width: 16px; height: 16px; background: #555; border-radius: 50%; }
+        /* 十字螺絲設計 */
+        .screw { position: absolute; width: 16px; height: 16px; background: #555; border-radius: 50%; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
         .screw::before { content: '+'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #333; font-size: 14px; font-weight: bold; }
         .tl { top: 20px; left: 20px; } .tr { top: 20px; right: 20px; }
         .bl { bottom: 20px; left: 20px; } .br { bottom: 20px; right: 20px; }
@@ -34,7 +35,6 @@ def render_flip_board(text, stay_sec=4.0):
             display: flex; align-items: center; justify-content: center; 
             width: var(--w); height: calc(var(--w) * 1.4); 
             font-size: calc(var(--w) * 0.9); font-weight: bold;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         .small { width: 36px !important; height: 50px !important; font-size: 30px !important; }
         .sep { font-size: 30px; color: #555; line-height: 50px; }
@@ -73,6 +73,7 @@ def render_flip_board(text, stay_sec=4.0):
             document.documentElement.style.setProperty('--w', Math.floor(700/count) + 'px');
             
             document.getElementById('m-row').innerHTML = Array.from({length:count}, (_,i) => '<div class="card" id="m'+i+'"></div>').join('');
+            document.getElementById('row-msg'); // 佔位
             document.getElementById('d-row').innerHTML = Array.from({length:11}, (_,i) => '<div class="card small" id="d'+i+'"></div>').join('');
             document.getElementById('t-row').innerHTML = '<div class="card small" id="t0"></div><div class="card small" id="t1"></div><div class="sep">:</div><div class="card small" id="t2"></div><div class="card small" id="t3"></div><div class="sep">:</div><div class="card small" id="t4"></div><div class="card small" id="t5"></div>';
             
@@ -81,8 +82,10 @@ def render_flip_board(text, stay_sec=4.0):
             
             var pIdx = 0;
             var rot = function() {
-                pages[pIdx].split('').forEach((c, i) => update('m'+i, c));
-                pIdx = (pIdx + 1) % pages.length;
+                if(pages.length > 0) {
+                    pages[pIdx].split('').forEach((c, i) => update('m'+i, c));
+                    pIdx = (pIdx + 1) % pages.length;
+                }
             };
             rot(); tick(); setInterval(tick, 1000);
             if(pages.length > 1) setInterval(rot, stay * 1000);
@@ -91,10 +94,10 @@ def render_flip_board(text, stay_sec=4.0):
 </body>
 </html>"""
 
-    # 3. 取代變數並進行 Base64 編碼
+    # 取代佔位符並編碼
     final_html = html_content.replace("REPLACE_TEXT", t_val).replace("REPLACE_STAY", s_val)
     b64_html = base64.b64encode(final_html.encode('utf-8')).decode('utf-8')
     data_uri = f"data:text/html;base64,{b64_html}"
 
-    # 4. 呼叫組件
-    components.iframe(data_uri, height=800, scrolling=False, key=f"f_{int(time.time())}")
+    # 使用 iframe 渲染，避免 Streamlit 檢查內容字串
+    components.iframe(data_uri, height=850, scrolling=False, key=f"f_{int(time.time())}")

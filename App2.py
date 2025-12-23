@@ -2,6 +2,7 @@ import streamlit as st
 import feedparser
 import re
 import json
+import time # 加入延遲功能
 from flip_board_2 import render_flip_board
 
 st.set_page_config(page_title="Multi-News Flip Clock", layout="centered")
@@ -18,20 +19,39 @@ NEWS_SOURCES = {
 }
 
 def get_combined_news(selected_sources):
-    """抓取多個來源的新聞並合併成一個單一清單"""
+    """抓取多個來源的新聞並合併"""
     all_titles = []
+    
+    if not selected_sources:
+        return ["請選擇新聞來源"]
+
     for name in selected_sources:
         url = NEWS_SOURCES[name]
         try:
-            # 使用 non-cache 方式抓取以確保最新
+            # 隨機等待 0.2 秒，避免請求過快
+            time.sleep(0.2)
             feed = feedparser.parse(url)
-            source_tag = name.split('-')[1] # 取得 "即時", "產經" 等字樣
-            for entry in feed.entries[:5]: # 每個來源取 5 則
+            
+            # 檢查是否有抓到內容
+            if not feed.entries:
+                continue
+                
+            source_tag = name.split('-')[1]
+            # 抓取該分類前 5 則
+            count = 0
+            for entry in feed.entries:
+                if count >= 5: break
+                
+                # 清洗標題
                 clean_title = re.sub(r'[^\u4e00-\u9fa5A-Z0-9\s]', '', entry.title).upper()
-                all_titles.append(f"[{source_tag}] {clean_title}")
-        except:
+                if clean_title:
+                    all_titles.append(f"[{source_tag}] {clean_title}")
+                    count += 1
+        except Exception as e:
+            print(f"Error fetching {name}: {e}")
             continue
-    return all_titles if all_titles else ["暫無新聞資料"]
+            
+    return all_titles if all_titles else ["暫無新聞資料，請稍後再試"]
 
 # --- 頂部控制面板 ---
 with st.expander("⚙️ 設定顯示內容", expanded=False):
@@ -44,18 +64,23 @@ with st.expander("⚙️ 設定顯示內容", expanded=False):
             default=["中央社-即時"]
         )
         
-        # 這裡不使用 st.cache_data，直接抓取以避免複選時抓到舊資料
-        # 或者確保 cache key 包含所有選中的來源
-        news_list = get_combined_news(selected)
+        # 使用 cache 提升效能，但將選中的來源當作 key，確保選擇改變時會重新抓取
+        @st.cache_data(ttl=600) # 10 分鐘更新一次
+        def fetch_multi_news(sources):
+            return get_combined_news(sources)
+        
+        # 執行抓取
+        news_list = fetch_multi_news(selected)
         display_content = json.dumps(news_list)
         
-        st.caption(f"📢 已載入 {len(news_list)} 則新聞 (來自: {', '.join(selected)})")
-        if st.button("🔄 強制刷新新聞"):
+        st.info(f"📋 已載入 {len(news_list)} 則新聞來自 {len(selected)} 個來源")
+        
+        if st.button("🔄 立即更新所有新聞"):
+            st.cache_data.clear()
             st.rerun()
     else:
         user_input = st.text_input("輸入自定義訊息", "HELLO TAIWAN")
         display_content = json.dumps([user_input])
 
 # 渲染翻板
-# 注意：這段程式碼會將所有選中的新聞標題一次性傳給 JavaScript
 render_flip_board(display_content, stay_sec=7.0)

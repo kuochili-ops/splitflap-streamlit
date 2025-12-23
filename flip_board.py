@@ -10,6 +10,7 @@ def render_flip_board(text, stay_sec=4.0):
     <head>
         <meta charset="UTF-8">
         <style>
+            /* 這裡保留妳最完美的 CSS 結構 */
             * {{ box-sizing: border-box; }}
             body {{ 
                 background-color: #dcdcdc; background-image: url("{img_data}");
@@ -55,7 +56,7 @@ def render_flip_board(text, stay_sec=4.0):
         const fullText = "{text.upper()}";
         const charPool_AZ = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
         const charPool_Num = "0123456789".split('');
-        // 提取訊息中的不重複中文字作為隨機池
+        // 僅從訊息中提取中文字作為隨機池
         const charPool_CN = [...new Set(fullText.replace(/[A-Z0-9\s]/g, '').split(''))];
         
         let memory = {{}};
@@ -74,7 +75,8 @@ def render_flip_board(text, stay_sec=4.0):
             requestAnimationFrame(() => {{ void el.offsetWidth; el.classList.add('flipping'); }});
         }}
 
-        async function smartUpdate(id, target) {{
+        // 分離邏輯：mode 用來區分是「時鐘/日期」還是「訊息」
+        async function smartUpdate(id, target, mode = 'msg') {{
             const tStr = (target === 0 || target === "0") ? "0" : (target ? String(target).toUpperCase() : " ");
             if (memory[id] === tStr || isBusy[id]) return;
             isBusy[id] = true;
@@ -83,8 +85,8 @@ def render_flip_board(text, stay_sec=4.0):
             const isDigit = (s) => /^\d$/.test(s.trim());
             const isAlpha = (s) => /^[A-Z]$/.test(s.trim());
 
-            if (isDigit(tStr)) {{
-                // 數字次序滾動 0-9
+            // 1. 如果是時鐘或日期中的數字，強制執行 0-9 循序翻動 (不受訊息影響)
+            if (mode === 'clock' && isDigit(tStr)) {{
                 let curN = isDigit(curStr) ? parseInt(curStr) : 0;
                 let tarN = parseInt(tStr);
                 while (curN !== tarN) {{
@@ -92,8 +94,9 @@ def render_flip_board(text, stay_sec=4.0):
                     performFlip(id, String(curN), prev);
                     await new Promise(r => setTimeout(r, 80));
                 }}
-            }} else if (isAlpha(tStr)) {{
-                // 字母次序滾動 A-Z
+            }} 
+            // 2. 如果是英文字母，執行 A-Z 循序翻動
+            else if (isAlpha(tStr)) {{
                 let curIdx = charPool_AZ.indexOf(curStr);
                 if (curIdx === -1) curIdx = 0;
                 let tarIdx = charPool_AZ.indexOf(tStr);
@@ -103,8 +106,9 @@ def render_flip_board(text, stay_sec=4.0):
                     performFlip(id, charPool_AZ[curIdx], prev);
                     await new Promise(r => setTimeout(r, 60));
                 }}
-            }} else {{
-                // 中文字：隨機轉動後定格
+            }} 
+            // 3. 如果是中文字，從訊息池中隨機跳動後定格
+            else {{
                 const steps = 6;
                 for (let i = 0; i < steps; i++) {{
                     let rand = charPool_CN.length > 0 ? charPool_CN[Math.floor(Math.random()*charPool_CN.length)] : "?";
@@ -120,12 +124,15 @@ def render_flip_board(text, stay_sec=4.0):
             const n = new Date();
             const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
             const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+            
+            // 日期與時間標記為 'clock' 模式
             const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
-            dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
+            dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c, 'clock'));
+            
             const hh = String(n.getHours()).padStart(2, '0'), mm = String(n.getMinutes()).padStart(2, '0'), ss = String(n.getSeconds()).padStart(2, '0');
-            smartUpdate('h0', hh[0]); smartUpdate('h1', hh[1]);
-            smartUpdate('tm0', mm[0]); smartUpdate('tm1', mm[1]);
-            smartUpdate('ts0', ss[0]); smartUpdate('ts1', ss[1]);
+            smartUpdate('h0', hh[0], 'clock'); smartUpdate('h1', hh[1], 'clock');
+            smartUpdate('tm0', mm[0], 'clock'); smartUpdate('tm1', mm[1], 'clock');
+            smartUpdate('ts0', ss[0], 'clock'); smartUpdate('ts1', ss[1], 'clock');
         }}
 
         window.onload = () => {{
@@ -141,7 +148,7 @@ def render_flip_board(text, stay_sec=4.0):
             for (let i = 0; i < fullText.length; i += flapCount) msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
             let pIdx = 0;
             const rotateMsg = () => {{
-                msgPages[pIdx].forEach((c, i) => setTimeout(() => smartUpdate(`m${{i}}`, c), i * 150));
+                msgPages[pIdx].forEach((c, i) => setTimeout(() => smartUpdate(`m${{i}}`, c, 'msg'), i * 150));
                 pIdx = (pIdx + 1) % msgPages.length;
             }};
             rotateMsg(); tick(); setInterval(tick, 1000);
@@ -151,6 +158,8 @@ def render_flip_board(text, stay_sec=4.0):
     </body>
     </html>
     """
-    # 關鍵：使用 Base64 避開 Python 3.13 的 TypeError
+    
+    # 最終使用 Base64 封裝，保證不噴 TypeError，且維持所有機械動畫
+    import base64
     b64_html = base64.b64encode(html_code.encode("utf-8")).decode("utf-8")
     components.iframe(f"data:text/html;base64,{b64_html}", height=850, scrolling=False)

@@ -1,7 +1,7 @@
 import streamlit.components.v1 as components
 
 def render_flip_board(text, stay_sec=4.0):
-    # 預設背景圖邏輯
+    # 背景圖邏輯
     img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
     
     html_code = f"""
@@ -16,29 +16,43 @@ def render_flip_board(text, stay_sec=4.0):
             background-repeat: no-repeat; background-position: right 10% bottom 35%; 
             background-size: auto 30vh; display: flex; justify-content: center; 
             align-items: flex-start; height: 100vh; margin: 0; overflow: hidden;
-            font-family: "Impact", "Microsoft JhengHei", sans-serif;
+            font-family: "Impact", "Arial Black", "Microsoft JhengHei", sans-serif;
         }}
         .acrylic-board {{
-            position: relative; width: 90vw; max-width: 820px;
-            margin-top: 5vh; padding: 50px 30px;
+            position: relative; width: 95vw; max-width: 850px;
+            margin-top: 5vh; padding: 45px 30px;
             background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 25px;
-            display: flex; flex-direction: column; align-items: center; gap: 20px;
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
         }}
-        .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
-        .card {{ background: #1a1a1a; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
-        .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
-        .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
+        .row-container {{ display: flex; gap: 5px; perspective: 1000px; justify-content: center; width: 100%; }}
+        
+        /* 核心卡片結構 */
+        .card {{ 
+            background: #1a1a1a; border-radius: 6px; position: relative; 
+            overflow: hidden; color: white; display: flex; 
+            align-items: center; justify-content: center;
+        }}
+        .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.45); font-size: calc(var(--msg-w) * 0.9); }}
+        .small-unit {{ width: 34px; height: 50px; font-size: 32px; }}
         .separator {{ font-size: 32px; color: #444; font-weight: bold; line-height: 50px; padding: 0 2px; }}
         
-        /* 翻牌結構 */
+        /* 翻牌結構 - 解決 0 不顯示的關鍵在於 line-height 與 transform */
         .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
-        .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; }}
-        .bottom-p {{ bottom: 0; align-items: flex-start; }}
-        .text-node {{ position: absolute; width: 100%; height: 200%; display: flex; align-items: center; justify-content: center; line-height: 0; }}
-        .top-p .text-node {{ bottom: -100%; }} .bottom-p .text-node {{ top: -100%; }}
+        .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.6); align-items: flex-end; border-radius: 6px 6px 0 0; }}
+        .bottom-p {{ bottom: 0; align-items: flex-start; border-radius: 0 0 6px 6px; }}
         
-        .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.3s ease-in; transform-style: preserve-3d; }}
+        .text-node {{ 
+            position: absolute; width: 100%; height: 200%; 
+            display: flex; align-items: center; justify-content: center; 
+            line-height: 1; 
+        }}
+        /* 微調 0-9 在上下面板的對齊位移 */
+        .top-p .text-node {{ bottom: -100%; transform: translateY(1px); }} 
+        .bottom-p .text-node {{ top: -100%; transform: translateY(-1px); }}
+        
+        .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.35s ease-in; transform-style: preserve-3d; }}
         .leaf-side {{ position: absolute; inset: 0; backface-visibility: hidden; background: #1a1a1a; display: flex; justify-content: center; overflow: hidden; }}
         .side-back {{ transform: rotateX(-180deg); }}
         .flipping .leaf-node {{ transform: rotateX(-180deg); }}
@@ -54,21 +68,21 @@ def render_flip_board(text, stay_sec=4.0):
         </div>
     <script>
         const fullText = "{text.upper()}";
-        const baseSpeed = 80;
-        // 計算每頁翻牌數，最少 4 格
-        const flapCount = Math.max(4, Math.min(10, fullText.length)); 
-        const charPool = Array.from(new Set(fullText.replace(/\s/g, '').split('')));
+        const baseSpeed = 100;
+        const flapCount = Math.max(6, Math.min(10, fullText.length)); 
+        const charPool = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split('');
+        
         let memory = {{}};
         let isBusy = {{}};
 
-        // 核心修正：明確判斷 undefined/null，允許 "0" 通過
+        // 強力修正：確保 0 被正確處理
         function performFlip(id, nextVal, prevVal) {{
             const el = document.getElementById(id);
             if(!el) return;
             
-            // 修正點：避免使用 (val || " ")，因為 0 || " " 會變成 " "
-            const n = (nextVal !== undefined && nextVal !== null) ? String(nextVal) : " ";
-            const p = (prevVal !== undefined && prevVal !== null) ? String(prevVal) : " ";
+            // 確保如果是數字 0，不會被誤判為空字串
+            const n = (nextVal === 0 || nextVal === "0") ? "0" : (nextVal || " ");
+            const p = (prevVal === 0 || prevVal === "0") ? "0" : (prevVal || " ");
             
             el.innerHTML = "";
             el.classList.remove('flipping');
@@ -83,27 +97,32 @@ def render_flip_board(text, stay_sec=4.0):
         }}
 
         async function smartUpdate(id, target, isInitial = false) {{
-            // 修正點：確保 target 為 0 時不被轉成空格
-            const tStr = (target === undefined || target === null) ? " " : String(target).toUpperCase();
+            // 確保 target 0 變成字串 "0"
+            const tStr = (target === 0 || target === "0") ? "0" : (target ? String(target).toUpperCase() : " ");
             if (memory[id] === tStr || isBusy[id]) return;
-            isBusy[id] = true;
             
+            isBusy[id] = true;
             let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
             
-            if (/^[0-9]$/.test(tStr)) {{
-                // 數字滾動邏輯
-                let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
-                while (String(curN) !== tStr) {{
+            // 判定是否為 0-9 的數字，執行滾動效果
+            const isDigit = (s) => /^\d$/.test(s.trim());
+
+            if (isDigit(tStr) && (isDigit(oldStr) || oldStr === " ")) {{
+                let curN = isDigit(oldStr) ? parseInt(oldStr) : 0;
+                let tarN = parseInt(tStr);
+                
+                // 數字連續滾動循環
+                while (curN !== tarN) {{
                     let prev = String(curN); 
                     curN = (curN + 1) % 10;
                     performFlip(id, String(curN), prev);
-                    await new Promise(r => setTimeout(r, baseSpeed * 0.8));
+                    await new Promise(r => setTimeout(r, 120));
                 }}
             }} else {{
-                // 文字亂序滾動邏輯
-                const steps = isInitial ? 8 : 4; 
+                // 文字亂序滾動
+                const steps = isInitial ? 5 : 2; 
                 for (let i = 0; i < steps; i++) {{
-                    let randChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : "X";
+                    let randChar = charPool[Math.floor(Math.random() * charPool.length)];
                     performFlip(id, randChar, oldStr); 
                     oldStr = randChar;
                     await new Promise(r => setTimeout(r, baseSpeed));
@@ -119,14 +138,12 @@ def render_flip_board(text, stay_sec=4.0):
             const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
             const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
             
-            // 日期更新
             const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
             dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
             
-            // 時鐘更新 (確保 padStart 補齊 0)
-            const hh = String(n.getHours()).padStart(2, '0').split('');
-            const mm = String(n.getMinutes()).padStart(2, '0').split('');
-            const ss = String(n.getSeconds()).padStart(2, '0').split('');
+            const hh = String(n.getHours()).padStart(2, '0');
+            const mm = String(n.getMinutes()).padStart(2, '0');
+            const ss = String(n.getSeconds()).padStart(2, '0');
             
             smartUpdate('h0', hh[0]); smartUpdate('h1', hh[1]);
             smartUpdate('tm0', mm[0]); smartUpdate('tm1', mm[1]);
@@ -135,12 +152,11 @@ def render_flip_board(text, stay_sec=4.0):
 
         window.onload = () => {{
             const board = document.querySelector('.acrylic-board');
-            const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
+            const msgW = Math.min(75, Math.floor((board.offsetWidth - 60) / flapCount));
             document.documentElement.style.setProperty('--msg-w', msgW + 'px');
             
-            // 初始化結構
             document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
-            document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
+            document.getElementById('row-date').innerHTML = Array.from({{length: 11}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
             document.getElementById('row-clock').innerHTML = `
                 <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
                 <div class="separator">:</div>
@@ -148,7 +164,6 @@ def render_flip_board(text, stay_sec=4.0):
                 <div class="separator">:</div>
                 <div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
             
-            // 分頁邏輯
             const msgPages = [];
             for (let i = 0; i < fullText.length; i += flapCount) {{
                 msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
@@ -158,7 +173,7 @@ def render_flip_board(text, stay_sec=4.0):
             let pIdx = 0;
             const rotateMsg = (isFirst = false) => {{
                 msgPages[pIdx].forEach((c, i) => {{ 
-                    setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * 80); 
+                    setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * 100); 
                 }});
                 pIdx = (pIdx + 1) % msgPages.length;
             }};

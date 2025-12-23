@@ -2,7 +2,7 @@ import streamlit.components.v1 as components
 import base64
 
 def render_flip_board(text, stay_sec=4.0):
-    # 使用女孩與氣球圖片
+    # 使用維基百科的高清原圖網址，確保連結穩定
     bg_img = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
     
     html_code = f"""
@@ -12,37 +12,53 @@ def render_flip_board(text, stay_sec=4.0):
         <meta charset="UTF-8">
         <style>
             * {{ box-sizing: border-box; }}
+            html, body {{ height: 100%; margin: 0; padding: 0; }}
+            
             body {{ 
                 background-color: #dcdcdc; 
+                /* 強化塗鴉出現的關鍵設定 */
                 background-image: url("{bg_img}");
                 background-repeat: no-repeat; 
-                background-position: center bottom 10%; 
-                background-size: auto 45vh; 
-                display: flex; justify-content: center; 
-                align-items: flex-start; height: 100vh; margin: 0; overflow: hidden;
+                background-position: center bottom; /* 改為正中央底部 */
+                background-size: contain; /* 確保整張圖完整顯示 */
+                background-attachment: fixed;
+                
+                display: flex; 
+                justify-content: center; 
+                align-items: flex-start; 
+                overflow: hidden;
                 font-family: "Impact", "Arial Black", "Microsoft JhengHei", sans-serif;
             }}
             
             /* 壓克力面板 */
             .acrylic-board {{
-                position: relative; width: 95vw; max-width: 850px;
-                margin-top: 10vh; padding: 60px 40px;
-                background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(20px);
-                border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px;
-                display: flex; flex-direction: column; align-items: center; gap: 20px;
-                box-shadow: 0 30px 60px rgba(0,0,0,0.2);
-                z-index: 10;
+                position: relative; 
+                width: 90vw; 
+                max-width: 800px;
+                margin-top: 5vh; /* 面板往上提，留空間給下方塗鴉 */
+                padding: 50px 30px;
+                background: rgba(255, 255, 255, 0.1); 
+                backdrop-filter: blur(15px);
+                -webkit-backdrop-filter: blur(15px);
+                border: 1px solid rgba(255, 255, 255, 0.3); 
+                border-radius: 15px;
+                display: flex; 
+                flex-direction: column; 
+                align-items: center; 
+                gap: 20px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                z-index: 5;
             }}
             
             /* 面板四角螺絲 */
             .screw {{ 
-                position: absolute; width: 16px; height: 16px; 
-                background: radial-gradient(circle at 30% 30%, #bbb, #444); 
-                border-radius: 50%; border: 1px solid #333;
-                box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+                position: absolute; width: 14px; height: 14px; 
+                background: radial-gradient(circle at 30% 30%, #eee, #666); 
+                border-radius: 50%; border: 1px solid #444;
+                box-shadow: 1px 1px 2px rgba(0,0,0,0.4);
             }}
             .screw::after {{
-                content: ''; position: absolute; top: 7px; left: 2px; width: 12px; height: 2px; 
+                content: ''; position: absolute; top: 6px; left: 1px; width: 10px; height: 2px; 
                 background: rgba(0,0,0,0.3); transform: rotate(45deg);
             }}
             .s-tl {{ top: 15px; left: 15px; }}
@@ -50,20 +66,21 @@ def render_flip_board(text, stay_sec=4.0):
             .s-bl {{ bottom: 15px; left: 15px; }}
             .s-br {{ bottom: 15px; right: 15px; }}
 
-            .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
+            /* 翻牌容器 */
+            .row-container {{ display: flex; gap: 5px; perspective: 1000px; justify-content: center; width: 100%; }}
             .card {{ background: #1a1a1a; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
-            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.5); font-size: calc(var(--msg-w) * 0.9); }}
-            .small-unit {{ width: 38px; height: 56px; font-size: 36px; }}
-            .separator {{ font-size: 36px; color: #444; font-weight: bold; line-height: 56px; padding: 0 5px; }}
+            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.4); font-size: calc(var(--msg-w) * 0.85); }}
+            .small-unit {{ width: 36px; height: 52px; font-size: 34px; }}
+            .separator {{ font-size: 34px; color: #666; font-weight: bold; line-height: 52px; padding: 0 4px; }}
             
-            /* 翻牌動畫 */
+            /* 動態翻牌結構 */
             .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
-            .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.6); align-items: flex-end; }}
+            .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; }}
             .bottom-p {{ bottom: 0; align-items: flex-start; }}
             .text-node {{ position: absolute; width: 100%; height: 200%; display: flex; align-items: center; justify-content: center; line-height: 1; }}
             .top-p .text-node {{ bottom: -100%; }} 
             .bottom-p .text-node {{ top: -100%; }}
-            .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.35s ease-in; transform-style: preserve-3d; }}
+            .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.3s ease-in; transform-style: preserve-3d; }}
             .leaf-side {{ position: absolute; inset: 0; backface-visibility: hidden; background: #1a1a1a; display: flex; justify-content: center; overflow: hidden; }}
             .side-back {{ transform: rotateX(-180deg); }}
             .flipping .leaf-node {{ transform: rotateX(-180deg); }}
@@ -75,7 +92,7 @@ def render_flip_board(text, stay_sec=4.0):
             <div class="screw s-bl"></div><div class="screw s-br"></div>
             
             <div id="row-msg" class="row-container"></div>
-            <div id="row-clock" class="row-container" style="margin-top: 15px;"></div>
+            <div id="row-clock" class="row-container"></div>
         </div>
 
         <audio id="flipSound" src="https://www.soundjay.com/buttons/button-29.mp3" preload="auto"></audio>
@@ -91,7 +108,7 @@ def render_flip_board(text, stay_sec=4.0):
 
         function playFlipSound() {{
             const s = flipAudio.cloneNode();
-            s.volume = 0.12;
+            s.volume = 0.1;
             s.play().catch(()=>{{}});
         }}
 
@@ -133,13 +150,13 @@ def render_flip_board(text, stay_sec=4.0):
                     let prev = charPool_AZ[curIdx];
                     curIdx = (curIdx + 1) % charPool_AZ.length;
                     performFlip(id, charPool_AZ[curIdx], prev);
-                    await new Promise(r => setTimeout(r, 60));
+                    await new Promise(r => setTimeout(r, 50));
                 }}
             }} else {{
-                for (let i = 0; i < 5; i++) {{
+                for (let i = 0; i < 4; i++) {{
                     let rand = charPool_CN.length > 0 ? charPool_CN[Math.floor(Math.random()*charPool_CN.length)] : "?";
                     performFlip(id, rand, curStr); curStr = rand;
-                    await new Promise(r => setTimeout(r, 100));
+                    await new Promise(r => setTimeout(r, 90));
                 }}
                 performFlip(id, tStr, curStr);
             }}
@@ -159,7 +176,7 @@ def render_flip_board(text, stay_sec=4.0):
         window.onload = () => {{
             const flapCount = 10;
             const board = document.querySelector('.acrylic-board');
-            const msgW = Math.min(75, Math.floor((board.offsetWidth - 80) / flapCount));
+            const msgW = Math.min(70, Math.floor((board.offsetWidth - 70) / flapCount));
             document.documentElement.style.setProperty('--msg-w', msgW + 'px');
             
             document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
@@ -174,7 +191,7 @@ def render_flip_board(text, stay_sec=4.0):
             for (let i = 0; i < fullText.length; i += flapCount) msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
             let pIdx = 0;
             const rotateMsg = () => {{
-                msgPages[pIdx].forEach((c, i) => setTimeout(() => smartUpdate(`m${{i}}`, c, 'msg'), i * 120));
+                msgPages[pIdx].forEach((c, i) => setTimeout(() => smartUpdate(`m${{i}}`, c, 'msg'), i * 110));
                 pIdx = (pIdx + 1) % msgPages.length;
             }};
             rotateMsg(); tick(); setInterval(tick, 1000);
@@ -185,4 +202,4 @@ def render_flip_board(text, stay_sec=4.0):
     </html>
     """
     b64_html = base64.b64encode(html_code.encode("utf-8")).decode("utf-8")
-    components.iframe(f"data:text/html;base64,{b64_html}", height=800, scrolling=False)
+    components.iframe(f"data:text/html;base64,{b64_html}", height=850, scrolling=False)

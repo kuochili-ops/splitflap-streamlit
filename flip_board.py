@@ -1,54 +1,83 @@
 import streamlit.components.v1 as components
 
 def render_flip_board(text, stay_sec=4.0):
-    # 確保參數是純粹的型別
+    # 1. 確保傳入值為純淨的字串與浮點數
     clean_text = str(text).upper()
-    clean_stay = str(float(stay_sec))
+    try:
+        clean_stay = str(float(stay_sec))
+    except:
+        clean_stay = "4.0"
 
-    # 使用完全靜態的字串
-    html_code = """
+    # 2. 定義 HTML 模板 (使用 REPLACE_ 標記，避開 Python 的 {} 語法)
+    html_template = """
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
         <style>
-            body { background-color: #1a1a1a; margin: 0; padding: 20px; display: flex; justify-content: center; font-family: monospace; }
-            .board-container {
-                position: relative; background: #222; padding: 50px 30px; border-radius: 20px;
-                border: 2px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center;
+            body { 
+                background-color: #1a1a1a; 
+                margin: 0; 
+                padding: 20px; 
+                display: flex; 
+                justify-content: center; 
+                font-family: "Courier New", Courier, monospace;
             }
-            .card {
-                background: #000; color: #fff; font-size: 45px; padding: 10px;
-                margin: 3px; border-radius: 5px; display: inline-block; min-width: 45px;
-                border: 1px solid #444;
+            .board-frame {
+                position: relative; 
+                background: linear-gradient(145deg, #222, #111);
+                padding: 60px 40px; 
+                border-radius: 25px;
+                border: 2px solid #333; 
+                box-shadow: 0 30px 60px rgba(0,0,0,0.7); 
+                text-align: center;
+                max-width: 90vw;
             }
-            .screw { position: absolute; width: 15px; height: 15px; background: #444; border-radius: 50%; }
+            /* 工業風螺絲 */
+            .screw { 
+                position: absolute; width: 14px; height: 14px; 
+                background: radial-gradient(circle at 30% 30%, #555, #222); 
+                border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            }
+            .screw::before { 
+                content: '+'; position: absolute; top: 50%; left: 50%; 
+                transform: translate(-50%, -50%); color: rgba(0,0,0,0.5); 
+                font-size: 12px; font-weight: bold; 
+            }
             .tl { top: 15px; left: 15px; } .tr { top: 15px; right: 15px; }
             .bl { bottom: 15px; left: 15px; } .br { bottom: 15px; right: 15px; }
+
+            .card-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+            .card {
+                background: #050505; color: #ffffff; font-size: 48px; 
+                font-weight: bold; width: 50px; height: 70px;
+                line-height: 70px; border-radius: 6px; 
+                border: 1px solid #333; box-shadow: inset 0 0 10px rgba(255,255,255,0.05);
+            }
         </style>
     </head>
     <body>
-        <div class="board-container">
+        <div class="board-frame">
             <div class="screw tl"></div><div class="screw tr"></div>
             <div class="screw bl"></div><div class="screw br"></div>
-            <div id="display"></div>
+            <div id="display" class="card-row"></div>
         </div>
         <script>
             var content = "REPLACE_TEXT";
-            var target = document.getElementById("display");
-            var html = "";
+            var container = document.getElementById("display");
+            var output = "";
             for(var i=0; i<content.length; i++) {
-                var char = content[i] === " " ? "&nbsp;" : content[i];
-                html += '<div class="card">' + char + '</div>';
+                var c = content[i] === " " ? "&nbsp;" : content[i];
+                output += '<div class="card">' + c + '</div>';
             }
-            target.innerHTML = html;
+            container.innerHTML = output;
         </script>
     </body>
     </html>
     """
     
-    # 進行最終取代
-    final_render = html_code.replace("REPLACE_TEXT", clean_text)
+    # 3. 執行字串替換
+    final_render = html_template.replace("REPLACE_TEXT", clean_text)
     
-    # 固定 Key 值，減少 Rerun 時的組件重建壓力
-    components.html(final_render, height=350, scrolling=False, key="main_board_display")
+    # 4. 固定高寬與 Key
+    components.html(final_render, height=350, scrolling=False, key="flip_v5_stable")

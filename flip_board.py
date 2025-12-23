@@ -19,7 +19,7 @@ def render_flip_board(text, stay_sec=4.0):
             }}
 
             .graffiti-wall {{
-                position: fixed; bottom: 0; left: 0; width: 100%; height: 55vh;
+                position: fixed; bottom: 0; left: 0; width: 100%; height: 50vh;
                 background-image: url("{bg_img}");
                 background-repeat: no-repeat; background-position: center bottom;
                 background-size: contain; z-index: 1;
@@ -46,14 +46,12 @@ def render_flip_board(text, stay_sec=4.0):
             .row-container {{ display: flex; gap: 8px; perspective: 1000px; justify-content: center; width: 100%; }}
             .card {{ background: #1a1a1a; border-radius: 6px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
             
-            /* 動態訊息板尺寸 */
             .msg-unit {{ 
                 width: var(--msg-w); 
-                height: calc(var(--msg-w) * 1.4); 
-                font-size: calc(var(--msg-w) * 0.85); 
+                height: calc(var(--msg-w) * 1.45); 
+                font-size: calc(var(--msg-w) * 0.9); 
             }}
             
-            /* 日期與時間維持精緻小尺寸 */
             .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
             .separator {{ font-size: 30px; color: #444; font-weight: bold; line-height: 50px; padding: 0 3px; }}
             
@@ -85,20 +83,22 @@ def render_flip_board(text, stay_sec=4.0):
         const flipAudio = document.getElementById('flipSound');
         let memory = {{}}, isBusy = {{}};
 
-        // --- 分頁與佈局邏輯 ---
+        // --- 修正後的非對稱分頁邏輯 ---
         function getMsgPages(text) {{
-            const max = 8;
-            if (text.length <= max) return [text.split('')];
-            // 超過 8 個字，切成兩份
-            const mid = Math.ceil(text.length / 2);
+            const len = text.length;
+            if (len <= 1) return [text.split('')];
+            
+            // 根據妳的要求：3->2+1, 5->3+2, 7->4+3
+            // 邏輯即為：第一頁取 Math.ceil(len / 2)
+            const firstPageSize = Math.ceil(len / 2);
             return [
-                text.substring(0, mid).split(''),
-                text.substring(mid).split('')
+                text.substring(0, firstPageSize).split(''),
+                text.substring(firstPageSize).split('')
             ];
         }}
 
         const msgPages = getMsgPages(rawText);
-        // 找出最大的板數 (最多 8)
+        // 翻板總數由字數較多的那一頁決定（最多就是 4 個，因為 8 個字拆 4+4）
         const flapCount = Math.max(...msgPages.map(p => p.length));
 
         function playFlipSound() {{
@@ -109,8 +109,11 @@ def render_flip_board(text, stay_sec=4.0):
             const el = document.getElementById(id);
             if(!el) return;
             playFlipSound();
-            const n = (String(nVal).length > 0) ? nVal : "&nbsp;";
-            const p = (String(pVal).length > 0) ? pVal : "&nbsp;";
+            
+            // 確保 0 變成字串顯示
+            const n = (nVal !== undefined && nVal !== null && String(nVal).length > 0) ? nVal : "&nbsp;";
+            const p = (pVal !== undefined && pVal !== null && String(pVal).length > 0) ? pVal : "&nbsp;";
+            
             el.innerHTML = ""; el.classList.remove('flipping');
             el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
                             <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
@@ -125,13 +128,15 @@ def render_flip_board(text, stay_sec=4.0):
             let tStr = (target === 0 || target === "0") ? "0" : (target ? String(target).toUpperCase() : " ");
             if (memory[id] === tStr || isBusy[id]) return;
             isBusy[id] = true;
+            
             let curStr = (memory[id] === 0 || memory[id] === "0") ? "0" : (memory[id] || " ");
 
             if (mode === 'clock' && /^\d$/.test(tStr)) {{
                 let curN = /^\d$/.test(curStr) ? parseInt(curStr) : 0;
                 let tarN = parseInt(tStr);
                 while (curN !== tarN) {{
-                    let prev = String(curN); curN = (curN + 1) % 10;
+                    let prev = String(curN); 
+                    curN = (curN + 1) % 10;
                     performFlip(id, String(curN), prev);
                     await new Promise(r => setTimeout(r, 80));
                 }}
@@ -147,26 +152,36 @@ def render_flip_board(text, stay_sec=4.0):
             const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
             const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
             dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c, 'clock'));
-            const hh = String(n.getHours()).padStart(2, '0'), mm = String(n.getMinutes()).padStart(2, '0'), ss = String(n.getSeconds()).padStart(2, '0');
-            ['h0','h1','tm0','tm1','ts0','ts1'].forEach((id,idx) => smartUpdate(id, (hh+mm+ss)[idx], 'clock'));
+            
+            const hh = String(n.getHours()).padStart(2, '0'), 
+                  mm = String(n.getMinutes()).padStart(2, '0'), 
+                  ss = String(n.getSeconds()).padStart(2, '0');
+            const fullClock = hh + mm + ss;
+            ['h0','h1','tm0','tm1','ts0','ts1'].forEach((id, idx) => {{
+                smartUpdate(id, fullClock[idx], 'clock');
+            }});
         }}
 
         window.onload = () => {{
             const board = document.querySelector('.acrylic-board');
-            // 動態計算寬度：板數越少，板子越寬
-            const msgW = Math.min(95, Math.floor((board.offsetWidth - 100) / flapCount));
+            // 計算寬度，讓板子隨字數變大
+            const msgW = Math.min(120, Math.floor((board.offsetWidth - 100) / flapCount));
             document.documentElement.style.setProperty('--msg-w', msgW + 'px');
             
             document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
             document.getElementById('row-date').innerHTML = Array.from({{length: 11}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
-            document.getElementById('row-clock').innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
+            document.getElementById('row-clock').innerHTML = `
+                <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
+                <div class="separator">:</div>
+                <div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div>
+                <div class="separator">:</div>
+                <div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
             
             let pIdx = 0;
             const rotateMsg = () => {{
                 const currentPage = msgPages[pIdx];
-                // 清空未使用的板子，填入當前頁內容
                 for(let i=0; i<flapCount; i++) {{
-                    const char = currentPage[i] || " ";
+                    const char = currentPage[i] || " "; // 若該頁較短則顯示空白
                     setTimeout(() => smartUpdate(`m${{i}}`, char, 'msg'), i * 100);
                 }}
                 pIdx = (pIdx + 1) % msgPages.length;

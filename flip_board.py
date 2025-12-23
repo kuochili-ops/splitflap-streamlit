@@ -1,10 +1,12 @@
 import streamlit.components.v1 as components
+import base64
 
 def render_flip_board(text, stay_sec=4.0):
     # 預設背景圖邏輯
     img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
     
-    html_code = f"""
+    # 這裡保持您修正後的 HTML/JS 邏輯
+    html_template = f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -27,7 +29,6 @@ def render_flip_board(text, stay_sec=4.0):
             box-shadow: 0 20px 50px rgba(0,0,0,0.15);
         }}
         .row-container {{ display: flex; gap: 5px; perspective: 1000px; justify-content: center; width: 100%; }}
-        
         .card {{ 
             background: #1a1a1a; border-radius: 6px; position: relative; 
             overflow: hidden; color: white; display: flex; 
@@ -37,7 +38,6 @@ def render_flip_board(text, stay_sec=4.0):
         .small-unit {{ width: 34px; height: 50px; font-size: 32px; }}
         .separator {{ font-size: 32px; color: #555; font-weight: bold; line-height: 50px; padding: 0 2px; }}
         
-        /* 翻牌結構修正：解決 0 不顯示的關鍵在於 line-height 與 transform */
         .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
         .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; border-radius: 6px 6px 0 0; }}
         .bottom-p {{ bottom: 0; align-items: flex-start; border-radius: 0 0 6px 6px; }}
@@ -45,7 +45,7 @@ def render_flip_board(text, stay_sec=4.0):
         .text-node {{ 
             position: absolute; width: 100%; height: 200%; 
             display: flex; align-items: center; justify-content: center; 
-            line-height: 1; /* 修正：避免 0 在 line-height 0 時縮死 */
+            line-height: 1; 
         }}
         .top-p .text-node {{ bottom: -100%; transform: translateY(1px); }} 
         .bottom-p .text-node {{ top: -100%; transform: translateY(-1px); }}
@@ -66,19 +66,15 @@ def render_flip_board(text, stay_sec=4.0):
         </div>
     <script>
         const fullText = "{text.upper()}";
-        const baseSpeed = 100;
         const flapCount = Math.max(6, Math.min(10, fullText.length)); 
         const charPool = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split('');
         
         let memory = {{}};
         let isBusy = {{}};
 
-        // 強制處理 0，確保不被判定為空值，避免 NaN
         function performFlip(id, nextVal, prevVal) {{
             const el = document.getElementById(id);
             if(!el) return;
-            
-            // 修正：明確捕捉 0 確保顯示
             const n = (nextVal === 0 || nextVal === "0") ? "0" : (nextVal || "&nbsp;");
             const p = (prevVal === 0 || prevVal === "0") ? "0" : (prevVal || "&nbsp;");
             
@@ -97,17 +93,13 @@ def render_flip_board(text, stay_sec=4.0):
         async function smartUpdate(id, target, isInitial = false) {{
             const tStr = (target === 0 || target === "0") ? "0" : (target ? String(target).toUpperCase() : " ");
             if (memory[id] === tStr || isBusy[id]) return;
-            
             isBusy[id] = true;
             let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
-            
-            const isDigit = (s) => /^\d$/.test(s.trim());
+            const isDigit = (s) => /^\\d$/.test(s.trim());
 
-            // 只有當新舊值都是數字時才執行「連續滾動」，否則直接翻轉以避免 NaN
             if (isDigit(tStr) && (isDigit(oldStr) || oldStr === " ")) {{
                 let curN = isDigit(oldStr) ? parseInt(oldStr) : 0;
                 let tarN = parseInt(tStr);
-                
                 while (curN !== tarN) {{
                     let prev = String(curN); 
                     curN = (curN + 1) % 10;
@@ -115,13 +107,12 @@ def render_flip_board(text, stay_sec=4.0):
                     await new Promise(r => setTimeout(r, 80));
                 }}
             }} else {{
-                // 文字亂序滾動，增加機械質感
-                const steps = isInitial ? 5 : 2; 
+                const steps = isInitial ? 5 : 1; 
                 for (let i = 0; i < steps; i++) {{
                     let randChar = charPool[Math.floor(Math.random() * charPool.length)];
                     performFlip(id, randChar, oldStr); 
                     oldStr = randChar;
-                    await new Promise(r => setTimeout(r, baseSpeed));
+                    await new Promise(r => setTimeout(r, 100));
                 }}
                 performFlip(id, tStr, oldStr);
             }}
@@ -133,8 +124,6 @@ def render_flip_board(text, stay_sec=4.0):
             const n = new Date();
             const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
             const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
-            
-            // 修正：padStart 確保日期和時間字串長度固定且包含 0
             const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
             dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
             
@@ -184,5 +173,9 @@ def render_flip_board(text, stay_sec=4.0):
     </body>
     </html>
     """
-    components.html(html_code, height=850, scrolling=False)
+    # 核心優化：Base64 編碼並使用 Data URI
+    b64_html = base64.b64encode(html_template.encode("utf-8")).decode("utf-8")
+    data_uri = f"data:text/html;base64,{b64_html}"
     
+    # 使用固定 Key 防止 Streamlit 銷毀 iframe
+    components.html(html_template, height=850, scrolling=False, key="main-flip-board")

@@ -1,6 +1,4 @@
 import streamlit.components.v1 as components
-import base64
-import os
 
 def render_flip_board(text, stay_sec=4.0):
     # 預設背景圖邏輯
@@ -27,17 +25,19 @@ def render_flip_board(text, stay_sec=4.0):
             border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 25px;
             display: flex; flex-direction: column; align-items: center; gap: 20px;
         }}
-        /* 翻牌元件與 0 顯示邏輯修正 */
         .row-container {{ display: flex; gap: 6px; perspective: 1000px; justify-content: center; width: 100%; }}
         .card {{ background: #1a1a1a; border-radius: 4px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
         .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.35); font-size: calc(var(--msg-w) * 0.85); }}
         .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
         .separator {{ font-size: 32px; color: #444; font-weight: bold; line-height: 50px; padding: 0 2px; }}
+        
+        /* 翻牌結構 */
         .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
         .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; }}
         .bottom-p {{ bottom: 0; align-items: flex-start; }}
         .text-node {{ position: absolute; width: 100%; height: 200%; display: flex; align-items: center; justify-content: center; line-height: 0; }}
         .top-p .text-node {{ bottom: -100%; }} .bottom-p .text-node {{ top: -100%; }}
+        
         .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.3s ease-in; transform-style: preserve-3d; }}
         .leaf-side {{ position: absolute; inset: 0; backface-visibility: hidden; background: #1a1a1a; display: flex; justify-content: center; overflow: hidden; }}
         .side-back {{ transform: rotateX(-180deg); }}
@@ -55,60 +55,79 @@ def render_flip_board(text, stay_sec=4.0):
     <script>
         const fullText = "{text.upper()}";
         const baseSpeed = 80;
-        const flapCount = Math.min(10, Math.floor(fullText.length / 2) || 4);
-        const charPool = Array.from(new Set(fullText.replace(/\\s/g, '').split('')));
+        // 計算每頁翻牌數，最少 4 格
+        const flapCount = Math.max(4, Math.min(10, fullText.length)); 
+        const charPool = Array.from(new Set(fullText.replace(/\s/g, '').split('')));
         let memory = {{}};
         let isBusy = {{}};
 
+        // 核心修正：明確判斷 undefined/null，允許 "0" 通過
         function performFlip(id, nextVal, prevVal) {{
             const el = document.getElementById(id);
             if(!el) return;
-            const n = String(nextVal); const p = String(prevVal);
+            
+            // 修正點：避免使用 (val || " ")，因為 0 || " " 會變成 " "
+            const n = (nextVal !== undefined && nextVal !== null) ? String(nextVal) : " ";
+            const p = (prevVal !== undefined && prevVal !== null) ? String(prevVal) : " ";
+            
             el.innerHTML = "";
             el.classList.remove('flipping');
-            el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
-                            <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
-                            <div class="leaf-node">
-                                <div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
-                                <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div>
-                            </div>`;
+            el.innerHTML = `
+                <div class="panel top-p"><div class="text-node">${{n}}</div></div>
+                <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
+                <div class="leaf-node">
+                    <div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
+                    <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div>
+                </div>`;
             requestAnimationFrame(() => {{ void el.offsetWidth; el.classList.add('flipping'); }});
         }}
 
         async function smartUpdate(id, target, isInitial = false) {{
+            // 修正點：確保 target 為 0 時不被轉成空格
             const tStr = (target === undefined || target === null) ? " " : String(target).toUpperCase();
             if (memory[id] === tStr || isBusy[id]) return;
             isBusy[id] = true;
+            
             let oldStr = (memory[id] === undefined) ? " " : String(memory[id]);
             
             if (/^[0-9]$/.test(tStr)) {{
+                // 數字滾動邏輯
                 let curN = /^[0-9]$/.test(oldStr) ? parseInt(oldStr) : 0;
                 while (String(curN) !== tStr) {{
-                    let prev = String(curN); curN = (curN + 1) % 10;
+                    let prev = String(curN); 
+                    curN = (curN + 1) % 10;
                     performFlip(id, String(curN), prev);
                     await new Promise(r => setTimeout(r, baseSpeed * 0.8));
                 }}
             }} else {{
+                // 文字亂序滾動邏輯
                 const steps = isInitial ? 8 : 4; 
                 for (let i = 0; i < steps; i++) {{
                     let randChar = charPool.length > 0 ? charPool[Math.floor(Math.random() * charPool.length)] : "X";
-                    performFlip(id, randChar, oldStr); oldStr = randChar;
+                    performFlip(id, randChar, oldStr); 
+                    oldStr = randChar;
                     await new Promise(r => setTimeout(r, baseSpeed));
                 }}
                 performFlip(id, tStr, oldStr);
             }}
-            memory[id] = tStr; isBusy[id] = false;
+            memory[id] = tStr; 
+            isBusy[id] = false;
         }}
 
         function tick() {{
             const n = new Date();
             const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
             const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+            
+            // 日期更新
             const dStr = months[n.getMonth()] + " " + String(n.getDate()).padStart(2,'0') + " " + days[n.getDay()];
             dStr.split('').forEach((c, i) => smartUpdate(`d${{i}}`, c));
+            
+            // 時鐘更新 (確保 padStart 補齊 0)
             const hh = String(n.getHours()).padStart(2, '0').split('');
             const mm = String(n.getMinutes()).padStart(2, '0').split('');
             const ss = String(n.getSeconds()).padStart(2, '0').split('');
+            
             smartUpdate('h0', hh[0]); smartUpdate('h1', hh[1]);
             smartUpdate('tm0', mm[0]); smartUpdate('tm1', mm[1]);
             smartUpdate('ts0', ss[0]); smartUpdate('ts1', ss[1]);
@@ -118,21 +137,35 @@ def render_flip_board(text, stay_sec=4.0):
             const board = document.querySelector('.acrylic-board');
             const msgW = Math.min(80, Math.floor((board.offsetWidth - 60) / flapCount));
             document.documentElement.style.setProperty('--msg-w', msgW + 'px');
+            
+            // 初始化結構
             document.getElementById('row-msg').innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
             document.getElementById('row-date').innerHTML = Array.from({{length: 10}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
-            document.getElementById('row-clock').innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
+            document.getElementById('row-clock').innerHTML = `
+                <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
+                <div class="separator">:</div>
+                <div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div>
+                <div class="separator">:</div>
+                <div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
+            
+            // 分頁邏輯
             const msgPages = [];
             for (let i = 0; i < fullText.length; i += flapCount) {{
                 msgPages.push(fullText.substring(i, i + flapCount).padEnd(flapCount, ' ').split(''));
             }}
+            if (msgPages.length === 0) msgPages.push(Array(flapCount).fill(' '));
+
             let pIdx = 0;
             const rotateMsg = (isFirst = false) => {{
-                if(msgPages.length === 0) return;
-                msgPages[pIdx].forEach((c, i) => {{ setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * 120); }});
+                msgPages[pIdx].forEach((c, i) => {{ 
+                    setTimeout(() => smartUpdate(`m${{i}}`, c, isFirst), i * 80); 
+                }});
                 pIdx = (pIdx + 1) % msgPages.length;
             }};
-            setTimeout(() => rotateMsg(true), 500); 
-            tick(); setInterval(tick, 1000);
+
+            setTimeout(() => rotateMsg(true), 300); 
+            tick(); 
+            setInterval(tick, 1000);
             if (msgPages.length > 1) setInterval(() => rotateMsg(false), {stay_sec} * 1000);
         }};
     </script>

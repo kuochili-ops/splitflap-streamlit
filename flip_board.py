@@ -1,83 +1,51 @@
 import streamlit.components.v1 as components
 
 def render_flip_board(text, stay_sec=4.0):
-    # 1. 確保傳入值為純淨的字串與浮點數
-    clean_text = str(text).upper()
-    try:
-        clean_stay = str(float(stay_sec))
-    except:
-        clean_stay = "4.0"
-
-    # 2. 定義 HTML 模板 (使用 REPLACE_ 標記，避開 Python 的 {} 語法)
-    html_template = """
-    <!DOCTYPE html>
+    # 確保輸入是標準字串
+    t_val = str(text).upper()
+    
+    # 使用最基礎的 HTML 結構，減少解析壓力
+    # 我們將 CSS 和 JS 分開處理
+    css = """
+    <style>
+        body { background: #1a1a1a; color: white; font-family: monospace; display: flex; justify-content: center; margin: 0; padding: 20px; }
+        .board { background: #222; padding: 40px; border-radius: 20px; border: 2px solid #333; position: relative; }
+        .card { background: #000; color: #fff; font-size: 40px; padding: 10px; margin: 2px; border-radius: 5px; display: inline-block; min-width: 40px; text-align: center; border: 1px solid #444; }
+        .screw { position: absolute; width: 12px; height: 12px; background: #444; border-radius: 50%; }
+        .tl { top: 10px; left: 10px; } .tr { top: 10px; right: 10px; }
+        .bl { bottom: 10px; left: 10px; } .br { bottom: 10px; right: 10px; }
+    </style>
+    """
+    
+    # JS 部分：直接在 JavaScript 內部處理文字，避免 Python 替換大括號出錯
+    js_code = f"""
+    <script>
+        window.onload = function() {{
+            var text = "{t_val}";
+            var container = document.getElementById("m");
+            var html = "";
+            for(var i=0; i<text.length; i++) {{
+                var c = text[i] === " " ? "&nbsp;" : text[i];
+                html += '<div class="card">' + c + '</div>';
+            }}
+            container.innerHTML = html;
+        }};
+    </script>
+    """
+    
+    full_html = f"""
     <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body { 
-                background-color: #1a1a1a; 
-                margin: 0; 
-                padding: 20px; 
-                display: flex; 
-                justify-content: center; 
-                font-family: "Courier New", Courier, monospace;
-            }
-            .board-frame {
-                position: relative; 
-                background: linear-gradient(145deg, #222, #111);
-                padding: 60px 40px; 
-                border-radius: 25px;
-                border: 2px solid #333; 
-                box-shadow: 0 30px 60px rgba(0,0,0,0.7); 
-                text-align: center;
-                max-width: 90vw;
-            }
-            /* 工業風螺絲 */
-            .screw { 
-                position: absolute; width: 14px; height: 14px; 
-                background: radial-gradient(circle at 30% 30%, #555, #222); 
-                border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-            }
-            .screw::before { 
-                content: '+'; position: absolute; top: 50%; left: 50%; 
-                transform: translate(-50%, -50%); color: rgba(0,0,0,0.5); 
-                font-size: 12px; font-weight: bold; 
-            }
-            .tl { top: 15px; left: 15px; } .tr { top: 15px; right: 15px; }
-            .bl { bottom: 15px; left: 15px; } .br { bottom: 15px; right: 15px; }
-
-            .card-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-            .card {
-                background: #050505; color: #ffffff; font-size: 48px; 
-                font-weight: bold; width: 50px; height: 70px;
-                line-height: 70px; border-radius: 6px; 
-                border: 1px solid #333; box-shadow: inset 0 0 10px rgba(255,255,255,0.05);
-            }
-        </style>
-    </head>
+    <head>{css}</head>
     <body>
-        <div class="board-frame">
+        <div class="board">
             <div class="screw tl"></div><div class="screw tr"></div>
             <div class="screw bl"></div><div class="screw br"></div>
-            <div id="display" class="card-row"></div>
+            <div id="m"></div>
         </div>
-        <script>
-            var content = "REPLACE_TEXT";
-            var container = document.getElementById("display");
-            var output = "";
-            for(var i=0; i<content.length; i++) {
-                var c = content[i] === " " ? "&nbsp;" : content[i];
-                output += '<div class="card">' + c + '</div>';
-            }
-            container.innerHTML = output;
-        </script>
+        {js_code}
     </body>
     </html>
     """
     
-    # 3. 執行字串替換
-    final_render = html_template.replace("REPLACE_TEXT", clean_text)
-    
-    # 4. 固定高寬與 Key
-    components.html(final_render, height=350, scrolling=False, key="flip_v5_stable")
+    # 這裡使用固定的 key，防止重新渲染時重複創建 iframe
+    components.html(full_html, height=300, key="flip_stable_v1")

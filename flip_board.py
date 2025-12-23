@@ -4,14 +4,12 @@ import base64
 def render_flip_board(text, stay_sec=4.0):
     img_data = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
     
-    # 這裡將 text 傳入 JS，JS 會自動分析其中的中文字作為隨機池
     html_code = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
         <style>
-            /* ... (妳原本所有的 CSS 邏輯，包含 .text-node 和 .leaf-node) ... */
             * {{ box-sizing: border-box; }}
             body {{ 
                 background-color: #dcdcdc; background-image: url("{img_data}");
@@ -26,11 +24,13 @@ def render_flip_board(text, stay_sec=4.0):
                 background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(15px);
                 border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 25px;
                 display: flex; flex-direction: column; align-items: center; gap: 15px;
+                box-shadow: 0 20px 50px rgba(0,0,0,0.15);
             }}
             .row-container {{ display: flex; gap: 5px; perspective: 1000px; justify-content: center; width: 100%; }}
             .card {{ background: #1a1a1a; border-radius: 6px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
-            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.45); font-size: calc(var(--msg-w) * 0.7); }}
+            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.45); font-size: calc(var(--msg-w) * 0.8); }}
             .small-unit {{ width: 34px; height: 50px; font-size: 32px; }}
+            .separator {{ font-size: 32px; color: #555; font-weight: bold; line-height: 50px; padding: 0 2px; }}
             .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
             .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.5); align-items: flex-end; border-radius: 6px 6px 0 0; }}
             .bottom-p {{ bottom: 0; align-items: flex-start; border-radius: 0 0 6px 6px; }}
@@ -53,50 +53,69 @@ def render_flip_board(text, stay_sec=4.0):
         </div>
     <script>
         const fullText = "{text.upper()}";
-        // 核心邏輯：從訊息中提取所有不重複的中文字/字元作為隨機池
-        const charPool = [...new Set(fullText.replace(/\s/g, '').split(''))];
-        if (charPool.length < 5) charPool.push(...'ABCDE12345'.split(''));
-
+        const charPool_AZ = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
+        const charPool_Num = "0123456789".split('');
+        // 提取訊息中的不重複中文字作為隨機池
+        const charPool_CN = [...new Set(fullText.replace(/[A-Z0-9\s]/g, '').split(''))];
+        
         let memory = {{}};
         let isBusy = {{}};
 
-        function performFlip(id, nextVal, prevVal) {{
+        function performFlip(id, nVal, pVal) {{
             const el = document.getElementById(id);
             if(!el) return;
-            const n = (nextVal === 0 || nextVal === "0") ? "0" : (nextVal || "&nbsp;");
-            const p = (prevVal === 0 || prevVal === "0") ? "0" : (prevVal || "&nbsp;");
-            
+            const n = (nVal === 0 || nVal === "0") ? "0" : (nVal || "&nbsp;");
+            const p = (pVal === 0 || pVal === "0") ? "0" : (pVal || "&nbsp;");
+            el.innerHTML = ""; el.classList.remove('flipping');
             el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
                             <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
-                            <div class="leaf-node">
-                                <div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
-                                <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div>
-                            </div>`;
+                            <div class="leaf-node"><div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
+                            <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div></div>`;
             requestAnimationFrame(() => {{ void el.offsetWidth; el.classList.add('flipping'); }});
         }}
 
-        async function smartUpdate(id, target, isInitial = false) {{
-            const tStr = (target === 0 || target === "0") ? "0" : (target ? String(target) : " ");
+        async function smartUpdate(id, target) {{
+            const tStr = (target === 0 || target === "0") ? "0" : (target ? String(target).toUpperCase() : " ");
             if (memory[id] === tStr || isBusy[id]) return;
-            
             isBusy[id] = true;
-            let oldStr = memory[id] || " ";
-            
-            // 轉動動畫：從 charPool 隨機挑字滾動
-            const steps = isInitial ? 8 : 4; 
-            for (let i = 0; i < steps; i++) {{
-                let randChar = charPool[Math.floor(Math.random() * charPool.length)];
-                performFlip(id, randChar, oldStr);
-                oldStr = randChar;
-                await new Promise(r => setTimeout(r, 120));
+            let curStr = memory[id] || " ";
+
+            const isDigit = (s) => /^\d$/.test(s.trim());
+            const isAlpha = (s) => /^[A-Z]$/.test(s.trim());
+
+            if (isDigit(tStr)) {{
+                // 數字次序滾動 0-9
+                let curN = isDigit(curStr) ? parseInt(curStr) : 0;
+                let tarN = parseInt(tStr);
+                while (curN !== tarN) {{
+                    let prev = String(curN); curN = (curN + 1) % 10;
+                    performFlip(id, String(curN), prev);
+                    await new Promise(r => setTimeout(r, 80));
+                }}
+            }} else if (isAlpha(tStr)) {{
+                // 字母次序滾動 A-Z
+                let curIdx = charPool_AZ.indexOf(curStr);
+                if (curIdx === -1) curIdx = 0;
+                let tarIdx = charPool_AZ.indexOf(tStr);
+                while (curIdx !== tarIdx) {{
+                    let prev = charPool_AZ[curIdx];
+                    curIdx = (curIdx + 1) % 26;
+                    performFlip(id, charPool_AZ[curIdx], prev);
+                    await new Promise(r => setTimeout(r, 60));
+                }}
+            }} else {{
+                // 中文字：隨機轉動後定格
+                const steps = 6;
+                for (let i = 0; i < steps; i++) {{
+                    let rand = charPool_CN.length > 0 ? charPool_CN[Math.floor(Math.random()*charPool_CN.length)] : "?";
+                    performFlip(id, rand, curStr); curStr = rand;
+                    await new Promise(r => setTimeout(r, 100));
+                }}
+                performFlip(id, tStr, curStr);
             }}
-            
-            performFlip(id, tStr, oldStr);
-            memory[id] = tStr;
-            isBusy[id] = false;
+            memory[id] = tStr; isBusy[id] = false;
         }}
 
-        // ... (這裡保留妳原本的 tick()、rotateMsg() 和 window.onload 邏輯) ...
         function tick() {{
             const n = new Date();
             const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
@@ -110,7 +129,7 @@ def render_flip_board(text, stay_sec=4.0):
         }}
 
         window.onload = () => {{
-            const flapCount = 10; // 假設每行固定 10 格
+            const flapCount = 10;
             const board = document.querySelector('.acrylic-board');
             const msgW = Math.min(75, Math.floor((board.offsetWidth - 70) / flapCount));
             document.documentElement.style.setProperty('--msg-w', msgW + 'px');
@@ -132,7 +151,6 @@ def render_flip_board(text, stay_sec=4.0):
     </body>
     </html>
     """
-
-    # --- 關鍵修正：透過 Base64 避開 TypeError ---
+    # 關鍵：使用 Base64 避開 Python 3.13 的 TypeError
     b64_html = base64.b64encode(html_code.encode("utf-8")).decode("utf-8")
     components.iframe(f"data:text/html;base64,{b64_html}", height=850, scrolling=False)

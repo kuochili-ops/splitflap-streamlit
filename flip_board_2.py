@@ -39,7 +39,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
     <script>
         (function() {{
             const newsArray = {json_text_list};
-            let memory = {{}}, isBusy = {{}}, curNewsIdx = 0, curPageIdx = 0, pagesOfCurrentNews = [];
+            let memory = {{}}, curNewsIdx = 0, curPageIdx = 0, pagesOfCurrentNews = [];
             const NUM_POOL = "0123456789 ".split(""), EN_POOL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
             let CN_POOL = [];
 
@@ -84,8 +84,8 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             function preparePages() {{
                 const rawText = newsArray[curNewsIdx];
                 const len = rawText.length;
-                let fCount = (len <= 16) ? Math.max(Math.ceil(len / 2), 4) : 8;
-                if (curNewsIdx === 0) fCount = 11; // 第0則固定11板
+                // 標題 (Idx 0) 固定 11 板，新聞固定 8 板或動態
+                let fCount = (curNewsIdx === 0) ? 11 : (len <= 16 ? Math.max(Math.ceil(len / 2), 4) : 8);
                 
                 let pageData = [];
                 if (len <= fCount) {{
@@ -101,26 +101,34 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             }}
 
             async function showNextPage() {{
+                // 如果目前分頁播完了
                 if (curPageIdx >= pagesOfCurrentNews.length) {{
-                    curNewsIdx = (curNewsIdx + 1) % newsArray.length;
+                    // 更新索引：如果是標題(0)，播完後跳到 1；如果已經在循環中，播完後重置回 1 而不是 0
+                    if (curNewsIdx === 0) {{
+                        curNewsIdx = 1;
+                    }} else {{
+                        curNewsIdx = (curNewsIdx + 1);
+                        if (curNewsIdx >= newsArray.length) curNewsIdx = 1; // 這裡強迫跳過第 0 則
+                    }}
                     preparePages();
                 }}
                 const text = pagesOfCurrentNews[curPageIdx];
-                const count = pagesOfCurrentNews[0].length; // 根據當前分頁板數
                 text.split("").forEach((char, i) => setTimeout(() => smartUpdate(`m-{uid}-${{i}}`, char), i * 100));
                 curPageIdx++;
             }}
 
-            // 啟動
             window.addEventListener('load', () => {{
-                // 初始化日期時鐘...
+                // 初始化日期時鐘
                 const rowDate = document.getElementById("row-date-{uid}");
                 for(let i=0; i<11; i++) rowDate.innerHTML += `<div class="card small-unit" id="d-{uid}-${{i}}"></div>`;
                 document.getElementById("row-clock-{uid}").innerHTML = `<div class="card small-unit" id="h-{uid}-0"></div><div class="card small-unit" id="h-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="m-{uid}-0"></div><div class="card small-unit" id="m-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="s-{uid}-0"></div><div class="card small-unit" id="s-{uid}-1"></div>`;
                 
-                // 開始循環：第0則會立即顯示，停留 stay_sec 後轉到第1則
+                // 初次顯示第 0 則 (標題)
+                curNewsIdx = 0;
                 preparePages();
                 showNextPage();
+                
+                // 設定循環
                 setInterval(showNextPage, {stay_sec} * 1000);
                 
                 setInterval(() => {{

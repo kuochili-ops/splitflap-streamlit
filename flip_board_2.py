@@ -1,12 +1,11 @@
 import streamlit.components.v1 as components
 import base64
-from string import Template
 
 def render_flip_board(json_text_list, stay_sec=7.0):
     bg_img = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
     
-    # 使用 Template 避免 Python f-string 誤判 JS 的括號
-    html_code = Template("""
+    # 1. 準備 HTML 骨架
+    html_start = """
     <!DOCTYPE html>
     <html>
     <head>
@@ -15,13 +14,11 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             * { box-sizing: border-box; }
             html, body { height: 100vh; margin: 0; padding: 0; overflow: hidden; background-color: #dcdcdc; }
             body { display: flex; justify-content: center; align-items: flex-start; font-family: "Impact", sans-serif; }
-            
             .graffiti-wall { 
                 position: fixed; bottom: 0; left: 0; width: 100%; height: 50vh; 
-                background-image: url("$BG_URL"); background-repeat: no-repeat; 
+                background-image: url('""" + bg_img + """'); background-repeat: no-repeat; 
                 background-position: center bottom; background-size: contain; z-index: 1; 
             }
-            
             .acrylic-board { 
                 position: relative; width: 95vw; max-width: 900px; margin-top: 5vh; padding: 45px 25px; 
                 background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
@@ -29,24 +26,20 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 display: flex; flex-direction: column; align-items: center; gap: 20px; 
                 box-shadow: 0 30px 60px rgba(0,0,0,0.2); z-index: 10; 
             }
-
             .row-container { display: flex; gap: 15px; perspective: 1000px; justify-content: center; width: 100%; }
             .card { background: #1a1a1a; border-radius: 8px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }
-            .msg-unit { width: var(--msg-w); height: calc(var(--msg-w) * 1.4); font-size: calc(var(--msg-w) * 0.9); transition: width 0.3s ease; }
+            .msg-unit { width: var(--msg-w); height: calc(var(--msg-w) * 1.4); font-size: calc(var(--msg-w) * 0.9); }
             .small-unit { width: 34px; height: 50px; font-size: 30px; }
             .separator { font-size: 30px; color: #444; font-weight: bold; line-height: 50px; padding: 0 3px; }
-            
             .panel { position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }
             .top-p { top: 0; border-bottom: 1px solid rgba(0,0,0,0.6); align-items: flex-end; }
             .bottom-p { bottom: 0; align-items: flex-start; }
             .text-node { position: absolute; width: 100%; height: 200%; display: flex; align-items: center; justify-content: center; line-height: 1; }
             .top-p .text-node { bottom: -100%; } .bottom-p .text-node { top: -100%; }
-            
             .leaf-node { position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 20; transform-origin: bottom; transition: transform 0.08s linear; transform-style: preserve-3d; }
             .leaf-side { position: absolute; inset: 0; backface-visibility: hidden; background: #1a1a1a; display: flex; justify-content: center; overflow: hidden; }
             .side-back { transform: rotateX(-180deg); }
             .flipping .leaf-node { transform: rotateX(-180deg); }
-            
             .screw { position: absolute; width: 16px; height: 16px; background: radial-gradient(circle at 30% 30%, #eee, #444); border-radius: 50%; border: 1px solid #333; }
             .s-tl { top: 15px; left: 15px; } .s-tr { top: 15px; right: 15px; } .s-bl { bottom: 15px; left: 15px; } .s-br { bottom: 15px; right: 15px; }
         </style>
@@ -60,18 +53,25 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             <div id="row-clock" class="row-container"></div>
             <div class="screw s-bl"></div><div class="screw s-br"></div>
         </div>
+        <script>
+    """
 
-    <script>
-        const newsArray = JSON.parse('$JSON_DATA');
+    # 2. 注入變數 (這部分最危險，所以單獨處理)
+    js_variables = f"""
+        const newsArray = JSON.parse({json.dumps(json_text_list)});
+        const staySec = {float(stay_sec)};
+    """
+
+    # 3. 準備 JavaScript 邏輯
+    js_logic = """
         let currentNewsIdx = 0;
         let currentPageIdx = -1;
         let currentPages = [];
-        let currentFlapCount = 0; 
+        let currentFlapCount = 0;
         let CN_POOL = [];
         const AZ_POOL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const NUM_POOL = "0123456789".split("");
-        
-        let memory = {}; 
+        let memory = {};
         let isBusy = {};
 
         function getMsgPages(text) {
@@ -92,7 +92,6 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             const availableWidth = board.offsetWidth - 120;
             const calculatedW = Math.min(180, Math.floor(availableWidth / flapCount) - 10);
             document.documentElement.style.setProperty("--msg-w", calculatedW + "px");
-            
             const msgRow = document.getElementById("row-msg");
             msgRow.innerHTML = "";
             for(let i=0; i<flapCount; i++) {
@@ -101,7 +100,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 div.id = "m" + i;
                 msgRow.appendChild(div);
             }
-            memory = {}; 
+            memory = {};
         }
 
         function performFlip(id, nVal, pVal) {
@@ -114,7 +113,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                            '<div class="panel bottom-p"><div class="text-node">' + p + '</div></div>' +
                            '<div class="leaf-node"><div class="leaf-side top-p"><div class="text-node">' + p + '</div></div>' +
                            '<div class="leaf-side side-back bottom-p"><div class="text-node">' + n + '</div></div></div>';
-            void el.offsetWidth; 
+            void el.offsetWidth;
             el.classList.add("flipping");
         }
 
@@ -126,11 +125,9 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             let pool = AZ_POOL;
             if (/[0-9]/.test(tStr)) pool = NUM_POOL;
             else if (/[\\u4E00-\\u9FFF]/.test(tStr)) pool = CN_POOL;
-
             let curIdx = pool.indexOf(curStr);
             if (curIdx === -1) curIdx = 0;
             let tarIdx = pool.indexOf(tStr);
-
             if (tarIdx === -1) {
                 performFlip(id, tStr, curStr);
             } else {
@@ -176,8 +173,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 dateRow.appendChild(div);
             }
             document.getElementById("row-clock").innerHTML = '<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>';
-            
-            rotateLogic(); 
+            rotateLogic();
             setInterval(() => {
                 const n = new Date();
                 const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
@@ -187,19 +183,16 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 const time = String(n.getHours()).padStart(2,"0") + String(n.getMinutes()).padStart(2,"0") + String(n.getSeconds()).padStart(2,"0");
                 ["h0","h1","tm0","tm1","ts0","ts1"].forEach((id, i) => smartUpdate(id, time[i]));
             }, 1000);
-            setInterval(rotateLogic, $STAY_SEC * 1000);
+            setInterval(rotateLogic, staySec * 1000);
         };
-    </script>
+        </script>
     </body>
     </html>
-    """)
+    """
+
+    # 4. 組合最終程式碼
+    final_html = html_start + js_variables + js_logic
     
-    # 使用 safe_substitute 安全替換變數
-    final_html = html_code.safe_substitute(
-        BG_URL=bg_img, 
-        JSON_DATA=json_text_list, 
-        STAY_SEC=str(stay_sec)
-    )
-    
+    # 5. 編碼並渲染
     b64_html = base64.b64encode(final_html.encode("utf-8")).decode("utf-8")
     components.iframe(f"data:text/html;base64,{b64_html}", height=1000, scrolling=False)

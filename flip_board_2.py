@@ -4,8 +4,8 @@ import base64
 def render_flip_board(json_text_list, stay_sec=7.0):
     bg_img = "https://upload.wikimedia.org/wikipedia/en/2/21/Girl_with_Balloon.jpg"
     
-    # 注意：Python f-string 內部的 JS 花括號必須寫成 {{ }}
-    html_code = f"""
+    # 這裡使用雙大括號 {{ }} 來轉義，確保 Python 不會誤判為變數
+    html_template = """
     <!DOCTYPE html>
     <html>
     <head>
@@ -17,7 +17,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             
             .graffiti-wall {{ 
                 position: fixed; bottom: 0; left: 0; width: 100%; height: 50vh; 
-                background-image: url("{bg_img}"); background-repeat: no-repeat; 
+                background-image: url("{BG_URL}"); background-repeat: no-repeat; 
                 background-position: center bottom; background-size: contain; z-index: 1; 
             }}
             
@@ -31,7 +31,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
 
             .row-container {{ display: flex; gap: 15px; perspective: 1000px; justify-content: center; width: 100%; flex-wrap: nowrap; }}
             .card {{ background: #1a1a1a; border-radius: 8px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
-            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.4); font-size: calc(var(--msg-w) * 0.9); }}
+            .msg-unit {{ width: var(--msg-w); height: calc(var(--msg-w) * 1.4); font-size: calc(var(--msg-w) * 0.9); transition: width 0.3s ease; }}
             .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
             .separator {{ font-size: 30px; color: #444; font-weight: bold; line-height: 50px; padding: 0 3px; }}
             .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
@@ -58,14 +58,14 @@ def render_flip_board(json_text_list, stay_sec=7.0):
         </div>
 
     <script>
-        const newsArray = JSON.parse('{json_text_list}');
+        const newsArray = JSON.parse('{JSON_DATA}');
         let currentNewsIdx = 0;
         let currentPageIdx = -1;
         let currentPages = [];
         let currentFlapCount = 0; 
         let CN_POOL = [];
-        const AZ_POOL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
-        const NUM_POOL = "0123456789".split('');
+        const AZ_POOL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const NUM_POOL = "0123456789".split("");
         
         let memory = {{}}; 
         let isBusy = {{}};
@@ -74,41 +74,45 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             const len = text.length;
             if (len <= 16) {{
                 const flapCount = Math.ceil(len / 2);
-                let p1 = text.substring(0, flapCount).split('');
-                let p2 = text.substring(flapCount).split('');
+                let p1 = text.substring(0, flapCount).split("");
+                let p2 = text.substring(flapCount).split("");
                 return [p1, p2];
             }}
             let p = [];
             for (let i = 0; i < len; i += 8) {{
-                p.push(text.substring(i, i + 8).split(''));
+                p.push(text.substring(i, i + 8).split(""));
             }}
             return p;
         }}
 
         function updateLayout(flapCount) {{
-            const board = document.querySelector('.acrylic-board');
+            const board = document.querySelector(".acrylic-board");
             const availableWidth = board.offsetWidth - 120;
             const calculatedW = Math.min(180, Math.floor(availableWidth / flapCount) - 10);
-            document.documentElement.style.setProperty('--msg-w', calculatedW + 'px');
+            document.documentElement.style.setProperty("--msg-w", calculatedW + "px");
             
-            const msgRow = document.getElementById('row-msg');
-            msgRow.innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
+            const msgRow = document.getElementById("row-msg");
+            msgRow.innerHTML = "";
+            for(let i=0; i<flapCount; i++) {{
+                const div = document.createElement("div");
+                div.className = "card msg-unit";
+                div.id = "m" + i;
+                msgRow.appendChild(div);
+            }}
             memory = {{}}; 
         }}
 
         function performFlip(id, nVal, pVal) {{
             const el = document.getElementById(id);
             if(!el) return;
-            const n = (String(nVal).length > 0) ? nVal : "&nbsp;";
-            const p = (String(pVal).length > 0) ? pVal : "&nbsp;";
-            el.classList.remove('flipping');
-            el.innerHTML = '<div class="panel top-p"><div class="text-node">' + n + '</div></div>' +
-                            '<div class="panel bottom-p"><div class="text-node">' + p + '</div></div>' +
-                            '<div class="leaf-node">' +
-                            '<div class="leaf-side top-p"><div class="text-node">' + p + '</div></div>' +
-                            '<div class="leaf-side side-back bottom-p"><div class="text-node">' + n + '</div></div>' +
-                            '</div>';
-            void el.offsetWidth; el.classList.add('flipping');
+            const n = nVal || "&nbsp;";
+            const p = pVal || "&nbsp;";
+            el.classList.remove("flipping");
+            el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>` +
+                           `<div class="panel bottom-p"><div class="text-node">${{p}}</div></div>` +
+                           `<div class="leaf-node"><div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>` +
+                           `<div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div></div>`;
+            void el.offsetWidth; el.classList.add("flipping");
         }}
 
         async function smartUpdate(id, target, mode) {{
@@ -146,28 +150,30 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 currentPageIdx = 0;
                 const fullText = newsArray[currentNewsIdx];
                 currentPages = getMsgPages(fullText);
-                
                 const newFlapCount = Math.max(...currentPages.map(p => p.length));
                 if (newFlapCount !== currentFlapCount) {{
                     currentFlapCount = newFlapCount;
                     updateLayout(currentFlapCount);
                 }}
-                CN_POOL = [...new Set(fullText.replace(/[A-Z0-9\\s]/g, '').split(''))];
+                CN_POOL = [...new Set(fullText.replace(/[A-Z0-9\\s]/g, "").split(""))];
             }}
-            
             const page = currentPages[currentPageIdx];
             for(let i=0; i < currentFlapCount; i++) {{
                 const char = page[i] || " ";
-                const flapId = "m" + i;
-                setTimeout(() => smartUpdate(flapId, char, 'msg'), i * 150);
+                setTimeout(() => smartUpdate("m" + i, char, "msg"), i * 150);
             }}
         }};
 
         window.onload = () => {{
-            const dateRow = document.getElementById('row-date');
-            dateRow.innerHTML = Array.from({{length: 11}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
-            document.getElementById('row-clock').innerHTML = '<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>';
-            
+            const dateRow = document.getElementById("row-date");
+            dateRow.innerHTML = "";
+            for(let i=0; i<11; i++) {{
+                const div = document.createElement("div");
+                div.className = "card small-unit";
+                div.id = "d" + i;
+                dateRow.appendChild(div);
+            }}
+            document.getElementById("row-clock").innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
             rotateLogic(); 
             setInterval(() => {{
                 const n = new Date();
@@ -178,12 +184,12 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 const time = String(n.getHours()).padStart(2,"0") + String(n.getMinutes()).padStart(2,"0") + String(n.getSeconds()).padStart(2,"0");
                 ["h0","h1","tm0","tm1","ts0","ts1"].forEach((id, i) => smartUpdate(id, time[i], "clock"));
             }}, 1000);
-            
-            setInterval(rotateLogic, {stay_sec} * 1000);
+            setInterval(rotateLogic, {STAY_SEC} * 1000);
         }};
     </script>
     </body>
     </html>
-    """
-    b64_html = base64.b64encode(html_code.encode("utf-8")).decode("utf-8")
+    """.replace("{BG_URL}", bg_img).replace("{JSON_DATA}", json_text_list).replace("{STAY_SEC}", str(stay_sec))
+    
+    b64_html = base64.b64encode(html_template.encode("utf-8")).decode("utf-8")
     components.iframe(f"data:text/html;base64,{b64_html}", height=1000, scrolling=False)

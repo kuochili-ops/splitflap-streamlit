@@ -28,18 +28,15 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 box-shadow: 0 30px 60px rgba(0,0,0,0.2); z-index: 10; 
             }}
 
-            .row-container {{ display: flex; gap: 10px; perspective: 1000px; justify-content: center; width: 100%; flex-wrap: nowrap; }}
+            .row-container {{ display: flex; gap: 15px; perspective: 1000px; justify-content: center; width: 100%; flex-wrap: nowrap; }}
             
-            /* 訊息翻板：寬度由 JS 動態設定 */
             .card {{ background: #1a1a1a; border-radius: 8px; position: relative; overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; }}
             .msg-unit {{ 
                 width: var(--msg-w); 
                 height: calc(var(--msg-w) * 1.4); 
                 font-size: calc(var(--msg-w) * 0.9); 
-                transition: width 0.5s ease;
             }}
             
-            /* 時鐘翻板：固定大小 */
             .small-unit {{ width: 34px; height: 50px; font-size: 30px; }}
             .separator {{ font-size: 30px; color: #444; font-weight: bold; line-height: 50px; padding: 0 3px; }}
             
@@ -73,21 +70,22 @@ def render_flip_board(json_text_list, stay_sec=7.0):
         let currentNewsIdx = 0;
         let currentPageIdx = -1;
         let currentPages = [];
-        let currentFlapCount = 8; // 預設 8 個
+        let currentFlapCount = 0; 
         let CN_POOL = [];
         const AZ_POOL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
         const NUM_POOL = "0123456789".split('');
         
         let memory = {{}}, isBusy = {{}};
 
+        // 規則核心：<=16字則依商數拆分
         function getMsgPages(text) {{
             const len = text.length;
-            // 規則：長度 <= 16，商數分頁 (例如 10字 -> 5+5)
             if (len <= 16) {{
-                const half = Math.ceil(len / 2);
-                return [text.substring(0, half).split(''), text.substring(half).split('')];
+                const flapCount = Math.ceil(len / 2);
+                let p1 = text.substring(0, flapCount).split('');
+                let p2 = text.substring(flapCount).split('');
+                return [p1, p2];
             }}
-            // 規則：長度 > 17，每 8 個字一頁
             let p = [];
             for (let i = 0; i < len; i += 8) {{
                 p.push(text.substring(i, i + 8).split(''));
@@ -97,16 +95,14 @@ def render_flip_board(json_text_list, stay_sec=7.0):
 
         function updateLayout(flapCount) {{
             const board = document.querySelector('.acrylic-board');
-            // 動態調整翻板寬度：如果翻板少，寬度就大 (最高 160px)
-            const availableWidth = board.offsetWidth - 100;
-            const calculatedW = Math.min(160, Math.floor(availableWidth / flapCount) - 10);
+            // 寬度計算：根據板數動態分配，最高 180px
+            const availableWidth = board.offsetWidth - 120;
+            const calculatedW = Math.min(180, Math.floor(availableWidth / flapCount) - 10);
             document.documentElement.style.setProperty('--msg-w', calculatedW + 'px');
             
-            // 重建翻板 HTML
             const msgRow = document.getElementById('row-msg');
             msgRow.innerHTML = Array.from({{length: flapCount}}, (_, i) => `<div class="card msg-unit" id="m${{i}}"></div>`).join('');
-            // 清除舊記憶防止對不上
-            memory = {{}}; 
+            memory = {{}}; // 重置記憶以觸發新一輪翻牌
         }}
 
         function performFlip(id, nVal, pVal) {{
@@ -155,13 +151,12 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 const fullText = newsArray[currentNewsIdx];
                 currentPages = getMsgPages(fullText);
                 
-                // 核心：根據目前新聞分頁中最長的字數來決定板數
+                // 檢查板數是否需要變動
                 const newFlapCount = Math.max(...currentPages.map(p => p.length));
                 if (newFlapCount !== currentFlapCount) {{
                     currentFlapCount = newFlapCount;
                     updateLayout(currentFlapCount);
                 }}
-                
                 CN_POOL = [...new Set(fullText.replace(/[A-Z0-9\s]/g, '').split(''))];
             }}
             
@@ -173,7 +168,6 @@ def render_flip_board(json_text_list, stay_sec=7.0):
         }};
 
         window.onload = () => {{
-            updateLayout(8); // 初始化
             const dateRow = document.getElementById('row-date');
             dateRow.innerHTML = Array.from({{length: 11}}, (_, i) => `<div class="card small-unit" id="d${{i}}"></div>`).join('');
             document.getElementById('row-clock').innerHTML = `<div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div><div class="separator">:</div><div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div><div class="separator">:</div><div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;

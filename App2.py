@@ -10,7 +10,7 @@ def get_combined_news(selected_sources):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
     for name in selected_sources:
-        url = NEWS_SOURCES[name]
+        url = NEWS_SOURCES[https://news.pts.org.tw/rss/news.xml]
         # 只有非公視的來源才加時間戳記，避免公視伺服器報錯
         if "pts.org.tw" not in url:
             url += f"?t={int(time.time())}"

@@ -47,6 +47,11 @@ def render_flip_board(json_text_list, stay_sec=7.0):
     </style>
 
     <script>
+        // 確保變數完全獨立，不受 Streamlit 重新整理影響
+        if (typeof window.flipAppInitialized === 'undefined') {{
+            window.flipAppInitialized = false;
+        }}
+
         const newsArray = {json_text_list};
         const APP_NAME = "白六新聞/訊息告示牌";
         const NUM_POOL = "0123456789 ".split("");
@@ -65,20 +70,28 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             el.classList.remove('flipping');
             const n = nVal === " " ? "&nbsp;" : nVal;
             const p = pVal === " " ? "&nbsp;" : pVal;
-            el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div>
-                           <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
-                           <div class="leaf-node"><div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
-                           <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div></div>`;
-            void el.offsetWidth; el.classList.add('flipping');
+            
+            el.innerHTML = `
+                <div class="panel top-p"><div class="text-node">${{n}}</div></div>
+                <div class="panel bottom-p"><div class="text-node">${{p}}</div></div>
+                <div class="leaf-node">
+                    <div class="leaf-side top-p"><div class="text-node">${{p}}</div></div>
+                    <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div>
+                </div>`;
+            
+            void el.offsetWidth; 
+            el.classList.add('flipping');
         }}
 
         async function smartUpdate(id, target) {{
             const tStr = String(target).toUpperCase();
             if (memory[id] === tStr || isBusy[id]) return;
             isBusy[id] = true;
+
             let curVal = memory[id] || " ";
             let pool = (/[0-9]/.test(tStr)) ? NUM_POOL : (/[A-Z]/.test(tStr)) ? EN_POOL : (/[\\u4E00-\\u9FFF]/.test(tStr)) ? CN_POOL : [curVal, tStr];
 
+            // 尋字動畫邏輯
             while (curVal !== tStr) {{
                 let prev = curVal;
                 let curIdx = pool.indexOf(curVal);
@@ -86,18 +99,21 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 performFlip(id, curVal, prev);
                 await new Promise(r => setTimeout(r, 60)); 
             }}
-            memory[id] = tStr; isBusy[id] = false;
+
+            memory[id] = tStr;
+            isBusy[id] = false;
         }}
 
         function buildBoard(targetText, count) {{
-            const availableWidth = Math.min(window.innerWidth, 600) - 30;
+            const availableWidth = Math.min(window.innerWidth, 600) - 40;
             const cardWidth = Math.floor(availableWidth / count) - 4;
             document.documentElement.style.setProperty('--msg-w', cardWidth + 'px');
-            document.documentElement.style.setProperty('--font-sz', (cardWidth * 0.8) + 'px');
+            // 標題 11 個字時，字體縮小到 0.75 倍確保一行收納
+            document.documentElement.style.setProperty('--font-sz', (cardWidth * 0.75) + 'px');
 
             const rowMsg = document.getElementById("row-msg");
             rowMsg.innerHTML = "";
-            memory = {{}}; // 清空狀態，讓開機序從頭翻轉
+            memory = {{}}; // 強制清空記憶，讓翻牌動作重新觸發
             for(let i=0; i<count; i++) {{
                 rowMsg.innerHTML += `<div class="card" id="m${{i}}"></div>`;
             }}
@@ -106,22 +122,27 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             CN_POOL = shuffle([...new Set([" ", ...cnChars])]);
         }}
 
-        // --- 強化的啟動序 ---
-        async function bootSequence() {{
+        // --- 修復後的開機序 ---
+        async function runSequence() {{
+            // 1. 顯示標題 (11 板)
             buildBoard(APP_NAME, 11);
-            await new Promise(r => setTimeout(r, 100)); // 等待 DOM 渲染
+            await new Promise(r => setTimeout(r, 300)); // 給予瀏覽器足夠時間準備 DOM
             
-            const chars = APP_NAME.split("");
-            chars.forEach((c, i) => {{
-                setTimeout(() => smartUpdate("m" + i, c), i * 100);
+            const titleChars = APP_NAME.split("");
+            titleChars.forEach((c, i) => {{
+                setTimeout(() => smartUpdate("m" + i, c), i * 80);
             }});
 
-            // 標題停留 4 秒，再開始新聞循環
+            // 2. 停留 4 秒，再轉入新聞
             setTimeout(() => {{
-                preparePages();
-                showNextPage();
-                setInterval(showNextPage, {stay_sec} * 1000);
+                startNewsCycle();
             }}, 4000);
+        }}
+
+        function startNewsCycle() {{
+            preparePages();
+            showNextPage();
+            setInterval(showNextPage, {stay_sec} * 1000);
         }}
 
         function preparePages() {{
@@ -140,7 +161,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             buildBoard(rawText, fCount);
             pagesOfCurrentNews = pageData;
             curPageIdx = 0;
-        }
+        }}
 
         function showNextPage() {{
             if (curPageIdx >= pagesOfCurrentNews.length) {{
@@ -149,7 +170,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             }}
             const text = pagesOfCurrentNews[curPageIdx];
             text.split("").forEach((char, i) => {{
-                setTimeout(() => smartUpdate("m" + i, char), i * 120);
+                setTimeout(() => smartUpdate("m" + i, char), i * 100);
             }});
             curPageIdx++;
         }}
@@ -159,12 +180,12 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
             const dStr = months[now.getMonth()] + " " + String(now.getDate()).padStart(2,"0") + " " + ["SUN","MON","TUE","WED","THU","FRI","SAT"][now.getDay()];
             dStr.split("").forEach((c, i) => smartUpdate("d" + i, c));
-            
             const tStr = now.getHours().toString().padStart(2,'0') + now.getMinutes().toString().padStart(2,'0') + now.getSeconds().toString().padStart(2,'0');
             ["h0","h1","tm0","tm1","ts0","ts1"].forEach((id, i) => smartUpdate(id, tStr[i]));
         }}
 
-        window.onload = () => {{
+        // 啟動入口
+        window.addEventListener('load', () => {{
             const rowDate = document.getElementById("row-date");
             for(let i=0; i<11; i++) rowDate.innerHTML += `<div class="card small-unit" id="d${{i}}"></div>`;
             document.getElementById("row-clock").innerHTML = `
@@ -173,11 +194,10 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 <div class="card small-unit" id="tm0"></div><div class="card small-unit" id="tm1"></div>
                 <div class="separator">:</div>
                 <div class="card small-unit" id="ts0"></div><div class="card small-unit" id="ts1"></div>`;
-
-            // 先跑開機序
-            bootSequence();
+            
+            runSequence();
             setInterval(updateClock, 1000);
-        }};
+        }});
     </script>
     """
-    components.html(html_code, height=520)
+    components.html(html_code, height=550)

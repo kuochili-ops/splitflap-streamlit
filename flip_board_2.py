@@ -8,7 +8,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
     html_code = f"""
     <div class="main-container">
         <div id="row-msg" class="row-container"></div>
-        <div id="row-date" class="row-container" style="margin-top: 20px;"></div>
+        <div id="row-date" class="row-container" style="margin-top: 25px;"></div>
         <div id="row-clock" class="row-container"></div>
     </div>
 
@@ -19,7 +19,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             font-family: "Impact", "Microsoft JhengHei", sans-serif; overflow: hidden; 
         }}
         .main-container {{
-            width: 100%; max-width: 900px; display: flex; flex-direction: column; 
+            width: 100%; max-width: 950px; display: flex; flex-direction: column; 
             align-items: center; padding: 20px;
         }}
         .row-container {{ display: flex; gap: 8px; perspective: 1000px; justify-content: center; width: 100%; }}
@@ -27,20 +27,20 @@ def render_flip_board(json_text_list, stay_sec=7.0):
         .card {{ 
             background: #1a1a1a; border-radius: 6px; position: relative; 
             overflow: hidden; color: white; display: flex; align-items: center; justify-content: center; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.7);
         }}
-        .msg-unit {{ width: 60px; height: 90px; font-size: 55px; }}
-        .small-unit {{ width: 30px; height: 45px; font-size: 24px; }}
-        .separator {{ font-size: 30px; color: #666; line-height: 45px; padding: 0 4px; }}
+        .msg-unit {{ width: 65px; height: 95px; font-size: 55px; font-weight: bold; }}
+        .small-unit {{ width: 32px; height: 48px; font-size: 26px; }}
+        .separator {{ font-size: 30px; color: #555; line-height: 48px; padding: 0 4px; font-weight: bold; }}
 
-        /* 翻牌過場動畫核心 */
+        /* 擬真翻頁動畫 */
         .panel {{ position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; }}
         .top-p {{ top: 0; border-bottom: 1px solid rgba(0,0,0,0.6); align-items: flex-end; border-radius: 6px 6px 0 0; }}
         .bottom-p {{ bottom: 0; align-items: flex-start; border-radius: 0 0 6px 6px; }}
         .text-node {{ position: absolute; width: 100%; height: 200%; display: flex; align-items: center; justify-content: center; line-height: 0; }}
         .top-p .text-node {{ bottom: -100%; }} .bottom-p .text-node {{ top: -100%; }}
         
-        .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.15s ease-in; transform-style: preserve-3d; }}
+        .leaf-node {{ position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 10; transform-origin: bottom; transition: transform 0.12s linear; transform-style: preserve-3d; }}
         .leaf-side {{ position: absolute; inset: 0; backface-visibility: hidden; background: #1a1a1a; display: flex; justify-content: center; overflow: hidden; }}
         .side-back {{ transform: rotateX(-180deg); }}
         .flipping .leaf-node {{ transform: rotateX(-180deg); }}
@@ -48,10 +48,18 @@ def render_flip_board(json_text_list, stay_sec=7.0):
 
     <script>
         const newsArray = {json_text_list};
-        const AZ_POOL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("");
+        const NUM_POOL = "0123456789 ".split("");
+        const EN_POOL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        let CN_POOL = []; // 動態中文字池
+        
         let curNewsIdx = 0;
         let memory = {{}};
         let isBusy = {{}};
+
+        // 洗牌函式：讓中文過場看起來是隨機跳動
+        function shuffle(array) {{
+            return array.sort(() => Math.random() - 0.5);
+        }}
 
         function performFlip(id, nVal, pVal) {{
             const el = document.getElementById(id);
@@ -68,10 +76,8 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                     <div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div>
                 </div>`;
             
-            requestAnimationFrame(() => {{
-                void el.offsetWidth;
-                requestAnimationFrame(() => el.classList.add('flipping'));
-            }});
+            void el.offsetWidth;
+            el.classList.add('flipping');
         }}
 
         async function smartUpdate(id, target) {{
@@ -80,24 +86,26 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             isBusy[id] = true;
 
             let curVal = memory[id] || " ";
-            
-            // 尋字動畫邏輯
-            if (AZ_POOL.includes(tStr) && AZ_POOL.includes(curVal)) {{
-                let curIdx = AZ_POOL.indexOf(curVal);
-                let tarIdx = AZ_POOL.indexOf(tStr);
-                
-                // 如果目標在後面，就一格格翻過去
+            let pool = [];
+
+            // 判斷該使用哪個字元池
+            if (/[0-9]/.test(tStr)) pool = NUM_POOL;
+            else if (/[A-Z]/.test(tStr)) pool = EN_POOL;
+            else if (/[\\u4E00-\\u9FFF]/.test(tStr)) pool = CN_POOL;
+            else pool = [curVal, tStr]; // 其他符號直接翻
+
+            if (pool.length > 0) {{
+                let curIdx = pool.indexOf(curVal);
+                if (curIdx === -1) curIdx = 0;
+
+                // 尋字翻動動畫
                 while (curVal !== tStr) {{
                     let prev = curVal;
-                    curIdx = (curIdx + 1) % AZ_POOL.length;
-                    curVal = AZ_POOL[curIdx];
+                    curIdx = (curIdx + 1) % pool.length;
+                    curVal = pool[curIdx];
                     performFlip(id, curVal, prev);
-                    // 翻轉速度，越小越快
-                    await new Promise(r => setTimeout(r, 100)); 
+                    await new Promise(r => setTimeout(r, 80)); 
                 }}
-            }} else {{
-                // 中文或其他字元直接翻轉
-                performFlip(id, tStr, curVal);
             }}
 
             memory[id] = tStr;
@@ -105,10 +113,17 @@ def render_flip_board(json_text_list, stay_sec=7.0):
         }}
 
         function updateNews() {{
-            const text = newsArray[curNewsIdx].padEnd(12, " ").substring(0, 12);
+            const rawText = newsArray[curNewsIdx];
+            
+            // 挑出目前訊息中的所有中文字，建立隨機候選池
+            const chars = rawText.split("");
+            const chineseChars = chars.filter(c => /[\\u4E00-\\u9FFF]/.test(c));
+            CN_POOL = shuffle([...new Set([" ", ...chineseChars])]);
+
+            const text = rawText.padEnd(12, " ").substring(0, 12);
             text.split("").forEach((char, i) => {{
-                // 稍微錯開每格開始翻轉的時間，更有機械感
-                setTimeout(() => smartUpdate("m" + i, char), i * 100);
+                // 階梯式啟動，增加機械層次感
+                setTimeout(() => smartUpdate("m" + i, char), i * 150);
             }});
             curNewsIdx = (curNewsIdx + 1) % newsArray.length;
         }}
@@ -126,10 +141,8 @@ def render_flip_board(json_text_list, stay_sec=7.0):
         window.onload = () => {{
             const rowMsg = document.getElementById("row-msg");
             for(let i=0; i<12; i++) rowMsg.innerHTML += `<div class="card msg-unit" id="m${{i}}"></div>`;
-            
             const rowDate = document.getElementById("row-date");
             for(let i=0; i<11; i++) rowDate.innerHTML += `<div class="card small-unit" id="d${{i}}"></div>`;
-            
             document.getElementById("row-clock").innerHTML = `
                 <div class="card small-unit" id="h0"></div><div class="card small-unit" id="h1"></div>
                 <div class="separator">:</div>
@@ -143,4 +156,4 @@ def render_flip_board(json_text_list, stay_sec=7.0):
         }};
     </script>
     """
-    components.html(html_code, height=600)
+    components.html(html_code, height=650)

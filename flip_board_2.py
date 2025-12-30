@@ -73,8 +73,6 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 document.documentElement.style.setProperty('--font-sz', (cardWidth * 0.75) + 'px');
                 const rowMsg = document.getElementById("row-msg-{uid}");
                 rowMsg.innerHTML = ""; 
-                // 只清除訊息欄位的記憶
-                for(let key in memory) {{ if(key.startsWith('m-{uid}-')) delete memory[key]; }}
                 for(let i=0; i<count; i++) {{
                     const id = `m-{uid}-${{i}}`;
                     rowMsg.innerHTML += `<div class="card" id="${{id}}"></div>`;
@@ -102,12 +100,8 @@ def render_flip_board(json_text_list, stay_sec=7.0):
 
             async function showNextPage() {{
                 if (curPageIdx >= pagesOfCurrentNews.length) {{
-                    if (curNewsIdx === 0) {{
-                        curNewsIdx = 1;
-                    }} else {{
-                        curNewsIdx = (curNewsIdx + 1);
-                        if (curNewsIdx >= newsArray.length) curNewsIdx = 1;
-                    }}
+                    if (curNewsIdx === 0) {{ curNewsIdx = 1; }} 
+                    else {{ curNewsIdx = (curNewsIdx + 1); if (curNewsIdx >= newsArray.length) curNewsIdx = 1; }}
                     preparePages();
                 }}
                 const text = pagesOfCurrentNews[curPageIdx];
@@ -118,13 +112,12 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             window.addEventListener('load', () => {{
                 const rowDate = document.getElementById("row-date-{uid}");
                 for(let i=0; i<11; i++) rowDate.innerHTML += `<div class="card small-unit" id="d-{uid}-${{i}}"></div>`;
-                // 修正關鍵：將分鐘的 ID 改為 clock-m 防止衝突
+                // 這裡改用 clock-m 以區分 Message 欄位
                 document.getElementById("row-clock-{uid}").innerHTML = `<div class="card small-unit" id="h-{uid}-0"></div><div class="card small-unit" id="h-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="clock-m-{uid}-0"></div><div class="card small-unit" id="clock-m-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="s-{uid}-0"></div><div class="card small-unit" id="s-{uid}-1"></div>`;
                 
                 curNewsIdx = 0;
                 preparePages();
                 showNextPage();
-                
                 setInterval(showNextPage, {stay_sec} * 1000);
                 
                 setInterval(() => {{
@@ -134,7 +127,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                     dStr.split("").forEach((c, i) => smartUpdate(`d-{uid}-${{i}}`, c));
                     const h = now.getHours().toString().padStart(2,'0'), m = now.getMinutes().toString().padStart(2,'0'), s = now.getSeconds().toString().padStart(2,'0');
                     smartUpdate(`h-{uid}-0`, h[0]); smartUpdate(`h-{uid}-1`, h[1]);
-                    smartUpdate(`clock-m-{uid}-0`, m[0]); smartUpdate(`clock-m-{uid}-1`, m[1]); // 指向修正後的 ID
+                    smartUpdate(`clock-m-{uid}-0`, m[0]); smartUpdate(`clock-m-{uid}-1`, m[1]);
                     smartUpdate(`s-{uid}-0`, s[0]); smartUpdate(`s-{uid}-1`, s[1]);
                 }}, 1000);
             }});

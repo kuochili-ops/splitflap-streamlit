@@ -4,7 +4,7 @@ import time
 def render_flip_board(json_text_list, stay_sec=7.0):
     uid = int(time.time())
     html_code = f"""
-    <div class="viewport-wrapper" id="wrapper-{uid}">
+    <div class="viewport-wrapper">
         <div class="main-container">
             <div id="row-msg-{uid}" class="row-container"></div>
             <div id="row-date-{uid}" class="row-container" style="margin-top: 20px;"></div>
@@ -40,14 +40,14 @@ def render_flip_board(json_text_list, stay_sec=7.0):
         (function() {{
             const newsArray = {json_text_list};
             let memory = {{}}, curNewsIdx = 0, curPageIdx = 0, pagesOfCurrentNews = [];
-            const NUM_POOL = "0123456789 ".split(""), EN_POOL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+            const NUM_POOL = " 0123456789".split(""), EN_POOL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
             let CN_POOL = [];
 
             function performFlip(id, nVal, pVal) {{
                 const el = document.getElementById(id); if(!el) return;
                 el.classList.remove('flipping');
-                const n = (nVal === " ") ? "&nbsp;" : nVal;
-                const p = (pVal === " ") ? "&nbsp;" : pVal;
+                const n = (nVal === " " || nVal === "") ? "&nbsp;" : nVal;
+                const p = (pVal === " " || pVal === "") ? "&nbsp;" : pVal;
                 el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div><div class="panel bottom-p"><div class="text-node">${{p}}</div></div><div class="leaf-node"><div class="leaf-side top-p"><div class="text-node">${{p}}</div></div><div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div></div>`;
                 void el.offsetWidth; el.classList.add('flipping');
             }}
@@ -86,10 +86,12 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             function preparePages() {{
                 const rawText = newsArray[curNewsIdx];
                 const len = rawText.length;
+                // 分段顯示原則
                 let fCount = (curNewsIdx === 0) ? 11 : (len <= 16 ? Math.max(Math.ceil(len / 2), 4) : 8);
                 let pageData = [];
-                if (len <= fCount) {{ pageData.push(rawText); }} 
-                else if (len <= 16) {{
+                if (len <= fCount) {{
+                    pageData.push(rawText);
+                }} else if (len <= 16) {{
                     pageData.push(rawText.substring(0, fCount));
                     pageData.push(rawText.substring(fCount));
                 }} else {{
@@ -101,8 +103,7 @@ def render_flip_board(json_text_list, stay_sec=7.0):
 
             async function showNextPage() {{
                 if (curPageIdx >= pagesOfCurrentNews.length) {{
-                    if (curNewsIdx === 0) {{ curNewsIdx = 1; }} 
-                    else {{ curNewsIdx = (curNewsIdx + 1); if (curNewsIdx >= newsArray.length) curNewsIdx = 1; }}
+                    curNewsIdx = (curNewsIdx + 1) % newsArray.length;
                     preparePages();
                 }}
                 const text = pagesOfCurrentNews[curPageIdx];
@@ -113,23 +114,24 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             window.addEventListener('load', () => {{
                 const rowDate = document.getElementById("row-date-{uid}");
                 for(let i=0; i<11; i++) rowDate.innerHTML += `<div class="card small-unit" id="d-{uid}-${{i}}"></div>`;
-                document.getElementById("row-clock-{uid}").innerHTML = `<div class="card small-unit" id="h-{uid}-0"></div><div class="card small-unit" id="h-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="clock-m-{uid}-0"></div><div class="card small-unit" id="clock-m-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="s-{uid}-0"></div><div class="card small-unit" id="s-{uid}-1"></div>`;
-                curNewsIdx = 0;
+                // 修正時鐘 ID 防止跑位
+                document.getElementById("row-clock-{uid}").innerHTML = `<div class="card small-unit" id="h-{uid}-0"></div><div class="card small-unit" id="h-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="clk-m-{uid}-0"></div><div class="card small-unit" id="clk-m-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="s-{uid}-0"></div><div class="card small-unit" id="s-{uid}-1"></div>`;
+                
                 preparePages();
                 showNextPage();
                 setInterval(showNextPage, {stay_sec} * 1000);
                 setInterval(() => {{
                     const now = new Date();
                     const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-                    const dStr = months[now.getMonth()] + " " + String(now.getDate()).padStart(2,"0") + " " + ["SUN","MON","TUE","WED","THU","FRI","SAT"][now.getDay()];
+                    const dStr = (months[now.getMonth()] + " " + String(now.getDate()).padStart(2,"0") + " " + ["SUN","MON","TUE","WED","THU","FRI","SAT"][now.getDay()]).toUpperCase();
                     dStr.split("").forEach((c, i) => smartUpdate(`d-{uid}-${{i}}`, c));
                     const h = now.getHours().toString().padStart(2,'0'), m = now.getMinutes().toString().padStart(2,'0'), s = now.getSeconds().toString().padStart(2,'0');
                     smartUpdate(`h-{uid}-0`, h[0]); smartUpdate(`h-{uid}-1`, h[1]);
-                    smartUpdate(`clock-m-{uid}-0`, m[0]); smartUpdate(`clock-m-{uid}-1`, m[1]);
+                    smartUpdate(`clk-m-{uid}-0`, m[0]); smartUpdate(`clk-m-{uid}-1`, m[1]);
                     smartUpdate(`s-{uid}-0`, s[0]); smartUpdate(`s-{uid}-1`, s[1]);
                 }}, 1000);
             }});
         })();
     </script>
     """
-    components.html(html_code, height=550)
+    components.html(html_code, height=520)

@@ -46,7 +46,8 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             function performFlip(id, nVal, pVal) {{
                 const el = document.getElementById(id); if(!el) return;
                 el.classList.remove('flipping');
-                const n = nVal === " " ? "&nbsp;" : nVal, p = pVal === " " ? "&nbsp;" : pVal;
+                const n = (nVal === " ") ? "&nbsp;" : nVal;
+                const p = (pVal === " ") ? "&nbsp;" : pVal;
                 el.innerHTML = `<div class="panel top-p"><div class="text-node">${{n}}</div></div><div class="panel bottom-p"><div class="text-node">${{p}}</div></div><div class="leaf-node"><div class="leaf-side top-p"><div class="text-node">${{p}}</div></div><div class="leaf-side side-back bottom-p"><div class="text-node">${{n}}</div></div></div>`;
                 void el.offsetWidth; el.classList.add('flipping');
             }}
@@ -73,7 +74,6 @@ def render_flip_board(json_text_list, stay_sec=7.0):
                 document.documentElement.style.setProperty('--font-sz', (cardWidth * 0.75) + 'px');
                 const rowMsg = document.getElementById("row-msg-{uid}");
                 rowMsg.innerHTML = ""; 
-                // 只清除訊息欄位的記憶
                 for(let key in memory) {{ if(key.startsWith('m-{uid}-')) delete memory[key]; }}
                 for(let i=0; i<count; i++) {{
                     const id = `m-{uid}-${{i}}`;
@@ -86,13 +86,10 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             function preparePages() {{
                 const rawText = newsArray[curNewsIdx];
                 const len = rawText.length;
-                // 找回分段原則：標題 11 板，其餘動態 4-8 板
                 let fCount = (curNewsIdx === 0) ? 11 : (len <= 16 ? Math.max(Math.ceil(len / 2), 4) : 8);
-                
                 let pageData = [];
-                if (len <= fCount) {{
-                    pageData.push(rawText);
-                }} else if (len <= 16) {{
+                if (len <= fCount) {{ pageData.push(rawText); }} 
+                else if (len <= 16) {{
                     pageData.push(rawText.substring(0, fCount));
                     pageData.push(rawText.substring(fCount));
                 }} else {{
@@ -116,14 +113,11 @@ def render_flip_board(json_text_list, stay_sec=7.0):
             window.addEventListener('load', () => {{
                 const rowDate = document.getElementById("row-date-{uid}");
                 for(let i=0; i<11; i++) rowDate.innerHTML += `<div class="card small-unit" id="d-{uid}-${{i}}"></div>`;
-                // 修正：時間 ID 改為 clock-m 防止與訊息欄 m- 衝突
                 document.getElementById("row-clock-{uid}").innerHTML = `<div class="card small-unit" id="h-{uid}-0"></div><div class="card small-unit" id="h-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="clock-m-{uid}-0"></div><div class="card small-unit" id="clock-m-{uid}-1"></div><div class="separator">:</div><div class="card small-unit" id="s-{uid}-0"></div><div class="card small-unit" id="s-{uid}-1"></div>`;
-                
                 curNewsIdx = 0;
                 preparePages();
                 showNextPage();
                 setInterval(showNextPage, {stay_sec} * 1000);
-                
                 setInterval(() => {{
                     const now = new Date();
                     const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
